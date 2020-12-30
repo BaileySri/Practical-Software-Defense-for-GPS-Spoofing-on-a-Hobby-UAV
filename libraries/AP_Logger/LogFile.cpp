@@ -647,6 +647,8 @@ void AP_Logger::Write_AttitudeView(AP_AHRS_View &ahrs, const Vector3f &targets)
         time_us         : AP_HAL::micros64(),
         control_roll    : (int16_t)targets.x,
         roll            : (int16_t)ahrs.roll_sensor,
+        invariant       : (int16_t)ahrs.get_invariant(),     //@@INVARIANT added for invariants
+        invariant_error : ahrs.get_ierror(),        //@@INVARIANT
         control_pitch   : (int16_t)targets.y,
         pitch           : (int16_t)ahrs.pitch_sensor,
         control_yaw     : (uint16_t)wrap_360_cd(targets.z),

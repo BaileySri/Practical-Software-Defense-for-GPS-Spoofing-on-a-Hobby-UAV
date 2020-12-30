@@ -977,6 +977,9 @@ private:
 
 public:
     void failsafe_check();      // failsafe.cpp
+    //@@INVARIANTS
+    int invariant_enabled = true;
+    void copter_invariants_check(float, int);
 };
 
 extern Copter copter;

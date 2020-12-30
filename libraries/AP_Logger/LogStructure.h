@@ -758,6 +758,8 @@ struct PACKED log_Attitude {
     uint64_t time_us;
     int16_t  control_roll;
     int16_t  roll;
+    int16_t  invariant;    //@@INVARIANT
+    float    invariant_error;  //@@INVARIANT
     int16_t  control_pitch;
     int16_t  pitch;
     uint16_t control_yaw;
@@ -2541,7 +2543,7 @@ struct PACKED log_PSC {
     { LOG_CURRENT_CELLS_MSG, sizeof(log_Current_Cells), \
       "BCL", "QBfHHHHHHHHHHHH", "TimeUS,Instance,Volt,V1,V2,V3,V4,V5,V6,V7,V8,V9,V10,V11,V12", "s#vvvvvvvvvvvvv", "F-0CCCCCCCCCCCC" }, \
 	{ LOG_ATTITUDE_MSG, sizeof(log_Attitude),\
-      "ATT", "QccccCCCC", "TimeUS,DesRoll,Roll,DesPitch,Pitch,DesYaw,Yaw,ErrRP,ErrYaw", "sddddhhdh", "FBBBBBBBB" }, \
+      "ATT", "QcccfccCCCC", "TimeUS,DesRoll,Roll,I,Ie,DesPitch,Pitch,DesYaw,Yaw,ErrRP,ErrYaw", "sddddddhhdh", "FBB00BBBBBB" }, \
     { LOG_COMPASS_MSG, sizeof(log_Compass), \
       "MAG", MAG_FMT,    MAG_LABELS, MAG_UNITS, MAG_MULTS }, \
     { LOG_MODE_MSG, sizeof(log_Mode), \
@@ -2704,6 +2706,7 @@ struct PACKED log_PSC {
       "WINC", "QBBBBBfffHfb", "TimeUS,Heal,ThEnd,Mov,Clut,Mode,DLen,Len,DRate,Tens,Vcc,Temp", "s-----mmn?vO", "F-----000000" }, \
     { LOG_PSC_MSG, sizeof(log_PSC), \
       "PSC", "Qffffffffffff", "TimeUS,TPX,TPY,PX,PY,TVX,TVY,VX,VY,TAX,TAY,AX,AY", "smmmmnnnnoooo", "F000000000000" }
+//@@Invariant Modified LOG_ATTITUDE_MSG
 
 // @LoggerMessage: SBPH
 // @Description: Swift Health Data

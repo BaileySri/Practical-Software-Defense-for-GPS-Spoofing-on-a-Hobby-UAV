@@ -69,6 +69,8 @@ void Copter::Log_Write_Attitude()
 {
     Vector3f targets = attitude_control->get_att_target_euler_cd();
     targets.z = wrap_360_cd(targets.z);
+    //@@INVARIANT
+    //printf("----- ahrs.roll, ahrs.invariant: %d, %d\n", ahrs.roll_sensor, ahrs.invariant); 
     logger.Write_Attitude(targets);
     logger.Write_Rate(ahrs_view, *motors, *attitude_control, *pos_control);
     if (should_log(MASK_LOG_PID)) {

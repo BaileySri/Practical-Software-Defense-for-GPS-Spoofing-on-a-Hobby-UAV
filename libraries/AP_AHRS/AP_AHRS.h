@@ -54,6 +54,11 @@ public:
 
     // Constructor
     AP_AHRS() :
+        //@@INVARIANT
+        invariant(0),
+        ierror(0.0f),
+        sensor_attack(0),
+        rover_sensor_attack(0),
         _vehicle_class(AHRS_VEHICLE_UNKNOWN),
         _cos_roll(1.0f),
         _cos_pitch(1.0f),
@@ -206,6 +211,12 @@ public:
     int32_t roll_sensor;
     int32_t pitch_sensor;
     int32_t yaw_sensor;
+
+    //@@INVARIANT   (centi-degree)
+    int32_t invariant;
+    float   ierror;
+    int sensor_attack;
+    int rover_sensor_attack;
 
     // return a smoothed and corrected gyro vector in radians/second
     virtual const Vector3f &get_gyro(void) const = 0;

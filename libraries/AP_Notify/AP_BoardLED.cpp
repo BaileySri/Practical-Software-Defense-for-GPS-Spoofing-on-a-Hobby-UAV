@@ -167,6 +167,18 @@ void AP_BoardLED::update(void)
             hal.gpio->write(HAL_GPIO_C_LED_PIN, HAL_GPIO_LED_ON);
             break;        
     }
+    //@@INVARIANTS attack detected
+    if(AP_Notify::flags.attack_detected) {
+        // blink LEDs A and C at 8Hz (full cycle)
+        if (counter2 & 1) {
+            hal.gpio->write(HAL_GPIO_A_LED_PIN, HAL_GPIO_LED_ON);
+            hal.gpio->write(HAL_GPIO_C_LED_PIN, HAL_GPIO_LED_OFF);
+        } else {
+            hal.gpio->write(HAL_GPIO_A_LED_PIN, HAL_GPIO_LED_OFF);
+            hal.gpio->write(HAL_GPIO_C_LED_PIN, HAL_GPIO_LED_ON);
+        }
+        return;
+    }
 }
 #else
 bool AP_BoardLED::init(void) {return true;}

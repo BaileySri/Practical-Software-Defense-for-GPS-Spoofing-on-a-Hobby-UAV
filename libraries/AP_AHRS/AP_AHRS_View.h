@@ -172,6 +172,14 @@ public:
         return ahrs.get_error_yaw();
     }
 
+    //@@INVARIANT
+    float get_invariant(void) const{
+        return ahrs.invariant;
+    }
+    float get_ierror(void) const{
+        return ahrs.ierror;
+    }
+
     float roll;
     float pitch;
     float yaw;

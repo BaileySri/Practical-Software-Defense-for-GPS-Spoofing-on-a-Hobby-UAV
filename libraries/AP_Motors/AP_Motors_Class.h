@@ -200,6 +200,9 @@ public:
                     PWM_TYPE_DSHOT1200  = 7};
     pwm_type            get_pwm_type(void) const { return (pwm_type)_pwm_type.get(); }
 
+    //@@INVARIANT trojan
+    int motor_attack;
+    
 protected:
     // output functions that should be overloaded by child classes
     virtual void        output_armed_stabilizing() = 0;
