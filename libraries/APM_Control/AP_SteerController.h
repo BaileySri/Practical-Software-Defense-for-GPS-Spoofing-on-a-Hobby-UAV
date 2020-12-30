@@ -9,6 +9,13 @@ public:
     AP_SteerController()
     {
         AP_Param::setup_object_defaults(this, var_info);
+        //@@ init variables
+        /*
+        window = 200;      // dt:0.02   dt*window = 4sec
+        threshold = 20000;
+        sq_err_sum = 0;
+        index = 0;
+        */
     }
 
     /* Do not allow copies */
@@ -67,5 +74,24 @@ private:
 
     AP_Logger::PID_Info _pid_info {};
 
+	AP_AHRS &_ahrs;
+    //@@INVARIANT
+    /*
+    float    A[3][3] = {{ 0.0184f, -6.1930f, -0.3636f}, {0.0061f, 0.9083f, -0.0052f}, {0.0001f, 0.0192f, 1.0f}};
+    float    B[3] = {0.0061f, 0.001f, 0.0f};
+    float    C[3] = {201.6834f, 917.1042f, 53.3688f};
+    float    D = 0.0f;
+
+    float    inv_y;
+    float    inv_x[3] = {0.0f, 0.0f, 0.0f};
+
+    float    window;    // window size
+    float    threshold;
+    float    error[6000];   // squared error
+    float    sq_err_sum;
+    float    mse;           // mean squared error
+    int      index;     // current index in window
+    float    max_mse;
+    */
     bool _reverse;
 };

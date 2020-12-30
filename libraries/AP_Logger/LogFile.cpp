@@ -338,7 +338,157 @@ void AP_Logger::Write_Radio(const mavlink_radio_t &packet)
     WriteBlock(&pkt, sizeof(pkt));
 }
 
-void AP_Logger::Write_Compass_instance(const uint64_t time_us, const uint8_t mag_instance)
+// Write a Camera packet
+void AP_Logger::Write_CameraInfo(enum LogMessages msg, const Location &current_loc, uint64_t timestamp_us)
+{
+    const AP_AHRS &ahrs = AP::ahrs();
+
+    int32_t altitude, altitude_rel, altitude_gps;
+    if (current_loc.relative_alt) {
+        altitude = current_loc.alt+ahrs.get_home().alt;
+        altitude_rel = current_loc.alt;
+    } else {
+        altitude = current_loc.alt;
+        altitude_rel = current_loc.alt - ahrs.get_home().alt;
+    }
+    const AP_GPS &gps = AP::gps();
+    if (gps.status() >= AP_GPS::GPS_OK_FIX_3D) {
+        altitude_gps = gps.location().alt;
+    } else {
+        altitude_gps = 0;
+    }
+
+    const struct log_Camera pkt{
+        LOG_PACKET_HEADER_INIT(static_cast<uint8_t>(msg)),
+        time_us     : timestamp_us?timestamp_us:AP_HAL::micros64(),
+        gps_time    : gps.time_week_ms(),
+        gps_week    : gps.time_week(),
+        latitude    : current_loc.lat,
+        longitude   : current_loc.lng,
+        altitude    : altitude,
+        altitude_rel: altitude_rel,
+        altitude_gps: altitude_gps,
+        roll        : (int16_t)ahrs.roll_sensor,
+        pitch       : (int16_t)ahrs.pitch_sensor,
+        yaw         : (uint16_t)ahrs.yaw_sensor
+    };
+    WriteCriticalBlock(&pkt, sizeof(pkt));
+}
+
+// Write a Camera packet
+void AP_Logger::Write_Camera(const Location &current_loc, uint64_t timestamp_us)
+{
+    Write_CameraInfo(LOG_CAMERA_MSG, current_loc, timestamp_us);
+}
+
+// Write a Trigger packet
+void AP_Logger::Write_Trigger(const Location &current_loc)
+{
+    Write_CameraInfo(LOG_TRIGGER_MSG, current_loc, 0);
+}
+
+// Write an attitude packet
+void AP_Logger::Write_Attitude(const Vector3f &targets)
+{
+    const AP_AHRS &ahrs = AP::ahrs();
+
+    const struct log_Attitude pkt{
+        LOG_PACKET_HEADER_INIT(LOG_ATTITUDE_MSG),
+        time_us         : AP_HAL::micros64(),
+        control_roll    : (int16_t)targets.x,
+        roll            : (int16_t)ahrs.roll_sensor,
+        control_pitch   : (int16_t)targets.y,
+        pitch           : (int16_t)ahrs.pitch_sensor,
+        control_yaw     : (uint16_t)wrap_360_cd(targets.z),
+        yaw             : (uint16_t)wrap_360_cd(ahrs.yaw_sensor),
+        error_rp        : (uint16_t)(ahrs.get_error_rp() * 100),
+        error_yaw       : (uint16_t)(ahrs.get_error_yaw() * 100)
+    };
+    WriteBlock(&pkt, sizeof(pkt));
+}
+
+// Write an attitude packet
+void AP_Logger::Write_AttitudeView(AP_AHRS_View &ahrs, const Vector3f &targets)
+{
+    const struct log_Attitude pkt{
+        LOG_PACKET_HEADER_INIT(LOG_ATTITUDE_MSG),
+        time_us         : AP_HAL::micros64(),
+        control_roll    : (int16_t)targets.x,
+        roll            : (int16_t)ahrs.roll_sensor,
+        invariant       : (int16_t)ahrs.get_invariant(),     //@@INVARIANT added for invariants
+        invariant_error : ahrs.get_ierror(),        //@@INVARIANT
+        control_pitch   : (int16_t)targets.y,
+        pitch           : (int16_t)ahrs.pitch_sensor,
+        control_yaw     : (uint16_t)wrap_360_cd(targets.z),
+        yaw             : (uint16_t)wrap_360_cd(ahrs.yaw_sensor),
+        error_rp        : (uint16_t)(ahrs.get_error_rp() * 100),
+        error_yaw       : (uint16_t)(ahrs.get_error_yaw() * 100)
+    };
+    WriteBlock(&pkt, sizeof(pkt));
+}
+
+void AP_Logger::Write_Current_instance(const uint64_t time_us,
+                                       const uint8_t battery_instance)
+{
+    AP_BattMonitor &battery = AP::battery();
+    float temp;
+    bool has_temp = battery.get_temperature(temp, battery_instance);
+    float current, consumed_mah, consumed_wh;
+    if (!battery.current_amps(current, battery_instance)) {
+        current = quiet_nanf();
+    }
+    if (!battery.consumed_mah(consumed_mah, battery_instance)) {
+        consumed_mah = quiet_nanf();
+    }
+    if (!battery.consumed_wh(consumed_wh, battery_instance)) {
+        consumed_wh = quiet_nanf();
+    }
+
+    const struct log_Current pkt = {
+        LOG_PACKET_HEADER_INIT(LOG_CURRENT_MSG),
+        time_us             : time_us,
+        instance            : battery_instance,
+        voltage             : battery.voltage(battery_instance),
+        voltage_resting     : battery.voltage_resting_estimate(battery_instance),
+        current_amps        : current,
+        current_total       : consumed_mah,
+        consumed_wh         : consumed_wh,
+        temperature         : (int16_t)(has_temp ? (temp * 100) : 0),
+        resistance          : battery.get_resistance(battery_instance)
+    };
+    WriteBlock(&pkt, sizeof(pkt));
+
+    // individual cell voltages
+    if (battery.has_cell_voltages(battery_instance)) {
+        const AP_BattMonitor::cells &cells = battery.get_cell_voltages(battery_instance);
+        struct log_Current_Cells cell_pkt{
+            LOG_PACKET_HEADER_INIT(LOG_CURRENT_CELLS_MSG),
+            time_us             : time_us,
+            instance            : battery_instance,
+            voltage             : battery.voltage(battery_instance)
+        };
+        for (uint8_t i = 0; i < ARRAY_SIZE(cells.cells); i++) {
+            cell_pkt.cell_voltages[i] = cells.cells[i] + 1;
+        }
+        WriteBlock(&cell_pkt, sizeof(cell_pkt));
+
+        // check battery structure can hold all cells
+        static_assert(ARRAY_SIZE(cells.cells) == (sizeof(cell_pkt.cell_voltages) / sizeof(cell_pkt.cell_voltages[0])),
+                      "Battery cell number doesn't match in library and log structure");
+    }
+}
+
+// Write an Current data packet
+void AP_Logger::Write_Current()
+{
+    const uint64_t time_us = AP_HAL::micros64();
+    const uint8_t num_instances = AP::battery().num_instances();
+    for (uint8_t i = 0; i < num_instances; i++) {
+        Write_Current_instance(time_us, i);
+    }
+}
+
+void AP_Logger::Write_Compass_instance(const uint64_t time_us, const uint8_t mag_instance, const enum LogMessages type)
 {
     const Compass &compass = AP::compass();
 

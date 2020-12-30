@@ -51,7 +51,19 @@ class AP_AHRS_View;
 
 #define AP_AHRS_NAVEKF_SETTLE_TIME_MS 20000     // time in milliseconds the ekf needs to settle after being started
 
-#include <AP_NMEA_Output/AP_NMEA_Output.h>
+    // Constructor
+    AP_AHRS() :
+        //@@INVARIANT
+        invariant(0),
+        ierror(0.0f),
+        sensor_attack(0),
+        rover_sensor_attack(0),
+        _vehicle_class(AHRS_VEHICLE_UNKNOWN),
+        _cos_roll(1.0f),
+        _cos_pitch(1.0f),
+        _cos_yaw(1.0f)
+    {
+        _singleton = this;
 
 class AP_AHRS {
     friend class AP_AHRS_View;
@@ -193,8 +205,14 @@ public:
     const Vector3f &get_accel_ef(uint8_t i) const;
     const Vector3f &get_accel_ef() const;
 
-    // Retrieves the corrected NED delta velocity in use by the inertial navigation
-    void getCorrectedDeltaVelocityNED(Vector3f& ret, float& dt) const;
+    //@@INVARIANT   (centi-degree)
+    int32_t invariant;
+    float   ierror;
+    int sensor_attack;
+    int rover_sensor_attack;
+
+    // return a smoothed and corrected gyro vector in radians/second
+    virtual const Vector3f &get_gyro(void) const = 0;
 
     // blended accelerometer values in the earth frame in m/s/s
     const Vector3f &get_accel_ef_blended() const;

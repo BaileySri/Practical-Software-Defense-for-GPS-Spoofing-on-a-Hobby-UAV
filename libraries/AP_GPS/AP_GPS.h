@@ -217,6 +217,9 @@ public:
         uint32_t relposheading_ts;        ///< True if new data has been received since last time it was false
     };
 
+    //@@INVARIANT
+    int gps_attack;
+
     /// Startup initialisation.
     void init(const AP_SerialManager& serial_manager);
 
@@ -318,6 +321,12 @@ public:
 
     // ground speed in m/s
     float ground_speed(uint8_t instance) const {
+        //@@INVARIANT
+        if(gps_attack == 1) {
+            float result = (float)(rand()%1000);
+            //GCS_SEND_TEXT(MAV_SEVERITY_WARNING, "!!gps_attack:spoofed_speed %f\n", result);
+            return result;  
+        }
         return state[instance].ground_speed;
     }
     float ground_speed() const {
@@ -338,6 +347,12 @@ public:
     }
     // ground course in centi-degrees
     int32_t ground_course_cd(uint8_t instance) const {
+        //@@INVARIANT
+        if(gps_attack ==1) {
+            int result = rand()%36000;
+            //GCS_SEND_TEXT(MAV_SEVERITY_WARNING, "!!gps_attack:spoofed_course %d\n", result);
+            return result;
+        }
         return ground_course(instance) * 100;
     }
     int32_t ground_course_cd() const {

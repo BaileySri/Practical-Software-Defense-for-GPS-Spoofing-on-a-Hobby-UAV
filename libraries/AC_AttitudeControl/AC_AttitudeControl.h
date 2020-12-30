@@ -491,6 +491,37 @@ protected:
 
     // true in inverted flight mode
     bool _inverted_flight;
+    
+    //@@INVARIANT
+    /*
+    float    A[3][3] = {{ 0.5136, -3.7478f, -11.4624f}, {0.0018f, 0.09948f, -0.0159f}, {0.0f, 0.0025f, 1.0f}};
+    float    B[3] = {0.0018f, 0.0f, 0.0f};
+    float    C[3] = {-210.4339f, 523.8361f, 5938.8f};
+    float    D = 0.0f;
+    */
+    /*
+    float    A[3][3] = {{ 0.9884, -0.0493f, -0.0242f}, {0.0025f, 0.9999f, -0.0000f}, {0.0f, 0.0025f, 1.0f}};
+    float    B[3] = {0.0025f, 0.0f, 0.0f};
+    float    C[3] = {1.8651f, 16.8655f, 10.0631f};
+    float    D = 0.0f;
+
+
+    float    inv_y;
+    float    inv_x[3] = {0.0f, 0.0f, 0.0f};
+
+    // monitoring parameters
+    float    window;    // window size 
+    float    threshold;
+
+    // errors
+    float    error[1000];   // squared error    [larger than window size]
+    float    err_sum;
+    float    mse;           // mean squared error
+
+    // local variable
+    int      index;     // current index in window
+    float    max_mse;   // just for analysis
+    */
 
 public:
     // log a CTRL message

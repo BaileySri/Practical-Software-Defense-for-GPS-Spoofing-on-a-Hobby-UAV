@@ -363,6 +363,36 @@ struct PACKED log_Radio {
     uint16_t fixed;
 };
 
+struct PACKED log_Camera {
+    LOG_PACKET_HEADER;
+    uint64_t time_us;
+    uint32_t gps_time;
+    uint16_t gps_week;
+    int32_t  latitude;
+    int32_t  longitude;
+    int32_t  altitude;
+    int32_t  altitude_rel;
+    int32_t  altitude_gps;
+    int16_t  roll;
+    int16_t  pitch;
+    uint16_t yaw;
+};
+
+struct PACKED log_Attitude {
+    LOG_PACKET_HEADER;
+    uint64_t time_us;
+    int16_t  control_roll;
+    int16_t  roll;
+    int16_t  invariant;    //@@INVARIANT
+    float    invariant_error;  //@@INVARIANT
+    int16_t  control_pitch;
+    int16_t  pitch;
+    uint16_t control_yaw;
+    uint16_t yaw;
+    uint16_t error_rp;
+    uint16_t error_yaw;
+};
+
 struct PACKED log_PID {
     LOG_PACKET_HEADER;
     uint64_t time_us;
@@ -1235,12 +1265,21 @@ LOG_STRUCTURE_FROM_PRECLAND \
     { LOG_MAVLINK_COMMAND_MSG, sizeof(log_MAVLink_Command), \
       "MAVC", "QBBBBBHffffiifBB","TimeUS,TS,TC,SS,SC,Fr,Cmd,P1,P2,P3,P4,X,Y,Z,Res,WL", "s---------------", "F---------------" }, \
     { LOG_RADIO_MSG, sizeof(log_Radio), \
-      "RAD", "QBBBBBHH", "TimeUS,RSSI,RemRSSI,TxBuf,Noise,RemNoise,RxErrors,Fixed", "s-------", "F-------", true }, \
-LOG_STRUCTURE_FROM_CAMERA \
-    { LOG_ARSP_MSG, sizeof(log_ARSP), "ARSP",  "QBffcffBBfB", "TimeUS,I,Airspeed,DiffPress,Temp,RawPress,Offset,U,H,Hfp,Pri", "s#nPOPP----", "F-00B00----", true }, \
-    LOG_STRUCTURE_FROM_BATTMONITOR \
-    { LOG_MAG_MSG, sizeof(log_MAG), \
-      "MAG", "QBhhhhhhhhhBI",    "TimeUS,I,MagX,MagY,MagZ,OfsX,OfsY,OfsZ,MOX,MOY,MOZ,Health,S", "s#GGGGGGGGG-s", "F-CCCCCCCCC-F", true }, \
+      "RAD", "QBBBBBHH", "TimeUS,RSSI,RemRSSI,TxBuf,Noise,RemNoise,RxErrors,Fixed", "s-------", "F-------" }, \
+    { LOG_CAMERA_MSG, sizeof(log_Camera), \
+      "CAM", "QIHLLeeeccC","TimeUS,GPSTime,GPSWeek,Lat,Lng,Alt,RelAlt,GPSAlt,Roll,Pitch,Yaw", "s--DUmmmddd", "F--GGBBBBBB" }, \
+    { LOG_TRIGGER_MSG, sizeof(log_Camera), \
+      "TRIG", "QIHLLeeeccC","TimeUS,GPSTime,GPSWeek,Lat,Lng,Alt,RelAlt,GPSAlt,Roll,Pitch,Yaw", "s--DUmmmddd", "F--GGBBBBBB" }, \
+    { LOG_ARSP_MSG, sizeof(log_AIRSPEED), "ARSP",  ARSP_FMT, ARSP_LABELS, ARSP_UNITS, ARSP_MULTS }, \
+    { LOG_ASP2_MSG, sizeof(log_AIRSPEED), "ASP2",  ARSP_FMT, ARSP_LABELS, ARSP_UNITS, ARSP_MULTS }, \
+    { LOG_CURRENT_MSG, sizeof(log_Current),                     \
+      "BAT", "QBfffffcf", "TimeUS,Instance,Volt,VoltR,Curr,CurrTot,EnrgTot,Temp,Res", "s#vvAiJOw", "F-000!/?0" },  \
+    { LOG_CURRENT_CELLS_MSG, sizeof(log_Current_Cells), \
+      "BCL", "QBfHHHHHHHHHHHH", "TimeUS,Instance,Volt,V1,V2,V3,V4,V5,V6,V7,V8,V9,V10,V11,V12", "s#vvvvvvvvvvvvv", "F-0CCCCCCCCCCCC" }, \
+	{ LOG_ATTITUDE_MSG, sizeof(log_Attitude),\
+      "ATT", "QcccfccCCCC", "TimeUS,DesRoll,Roll,I,Ie,DesPitch,Pitch,DesYaw,Yaw,ErrRP,ErrYaw", "sddddddhhdh", "FBB00BBBBBB" }, \
+    { LOG_COMPASS_MSG, sizeof(log_Compass), \
+      "MAG", MAG_FMT,    MAG_LABELS, MAG_UNITS, MAG_MULTS }, \
     { LOG_MODE_MSG, sizeof(log_Mode), \
       "MODE", "QMBB",         "TimeUS,Mode,ModeNum,Rsn", "s---", "F---" }, \
     { LOG_RFND_MSG, sizeof(log_RFND), \
@@ -1310,15 +1349,39 @@ LOG_STRUCTURE_FROM_VISUALODOM \
       "ERR",   "QBB",         "TimeUS,Subsys,ECode", "s--", "F--" }, \
     { LOG_WINCH_MSG, sizeof(log_Winch), \
       "WINC", "QBBBBBfffHfb", "TimeUS,Heal,ThEnd,Mov,Clut,Mode,DLen,Len,DRate,Tens,Vcc,Temp", "s-----mmn?vO", "F-----000000" }, \
-    { LOG_PSCN_MSG, sizeof(log_PSCN), \
-      "PSCN", "Qffffffff", "TimeUS,TPN,PN,DVN,TVN,VN,DAN,TAN,AN", "smmnnnooo", "F00000000" }, \
-    { LOG_PSCE_MSG, sizeof(log_PSCE), \
-      "PSCE", "Qffffffff", "TimeUS,TPE,PE,DVE,TVE,VE,DAE,TAE,AE", "smmnnnooo", "F00000000" }, \
-    { LOG_PSCD_MSG, sizeof(log_PSCD), \
-      "PSCD", "Qffffffff", "TimeUS,TPD,PD,DVD,TVD,VD,DAD,TAD,AD", "smmnnnooo", "F00000000" }, \
-    { LOG_STAK_MSG, sizeof(log_STAK), \
-      "STAK", "QBBHHN", "TimeUS,Id,Pri,Total,Free,Name", "s#----", "F-----", true }, \
-LOG_STRUCTURE_FROM_AIS \
+    { LOG_PSC_MSG, sizeof(log_PSC), \
+      "PSC", "Qffffffffffff", "TimeUS,TPX,TPY,PX,PY,TVX,TVY,VX,VY,TAX,TAY,AX,AY", "smmmmnnnnoooo", "F000000000000" }
+//@@Invariant Modified LOG_ATTITUDE_MSG
+
+// @LoggerMessage: SBPH
+// @Description: Swift Health Data
+// @Field: TimeUS: Time since system startup
+// @Field: CrcError: Number of packet CRC errors on serial connection
+// @Field: LastInject: Timestamp of last raw data injection to GPS
+// @Field: IARhyp: Current number of integer ambiguity hypotheses
+
+// @LoggerMessage: SBRH
+// @Description: Swift Raw Message Data
+// @Field: TimeUS: Time since system startup
+// @Field: msg_flag: Swift message type
+// @Field: 1: Sender ID
+// @Field: 2: index; always 1
+// @Field: 3: pages; number of pages received
+// @Field: 4: msg length; number of bytes received
+// @Field: 5: unused; always zero
+// @Field: 6: data received from device
+
+#define LOG_SBP_STRUCTURES \
+    { LOG_MSG_SBPHEALTH, sizeof(log_SbpHealth), \
+      "SBPH", "QIII", "TimeUS,CrcError,LastInject,IARhyp", "s---", "F---" }, \
+    { LOG_MSG_SBPRAWH, sizeof(log_SbpRAWH), \
+      "SBRH", "QQQQQQQQ", "TimeUS,msg_flag,1,2,3,4,5,6", "s--b----", "F--0----" }, \
+    { LOG_MSG_SBPRAWM, sizeof(log_SbpRAWM), \
+      "SBRM", "QQQQQQQQQQQQQQQ", "TimeUS,msg_flag,1,2,3,4,5,6,7,8,9,10,11,12,13", "s??????????????", "F??????????????" }, \
+    { LOG_MSG_SBPEVENT, sizeof(log_SbpEvent), \
+      "SBRE", "QHIiBB", "TimeUS,GWk,GMS,ns_residual,level,quality", "s?????", "F?????" }
+
+#define LOG_COMMON_STRUCTURES LOG_BASE_STRUCTURES, LOG_SBP_STRUCTURES
 
 // message types 0 to 63 reserved for vehicle specific use
 

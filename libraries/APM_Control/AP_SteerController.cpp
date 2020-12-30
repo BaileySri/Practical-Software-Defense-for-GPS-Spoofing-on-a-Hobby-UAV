@@ -153,6 +153,42 @@ int32_t AP_SteerController::get_steering_out_rate(float desired_rate)
     _pid_info.actual = yaw_rate_earth;
 
     float rate_error = (desired_rate - yaw_rate_earth) * scaler;
+
+    //@@INVARIANT --------------- invariant start
+    //@@MY_LOG
+    /*
+    FILE *out_file = fopen("Rover_AP_SteerController.csv", "a");
+    inv_y = (C[0]*inv_x[0] + C[1]*inv_x[1] + C[2]*inv_x[2]) + D* desired_rate;
+
+    float x0 = (A[0][0]*inv_x[0] + A[0][1]*inv_x[1] + A[0][2]*inv_x[2]) + B[0]*desired_rate;
+    float x1 = (A[1][0]*inv_x[0] + A[1][1]*inv_x[1] + A[1][2]*inv_x[2]) + B[1]*0;
+    float x2 = (A[2][0]*inv_x[0] + A[2][1]*inv_x[1] + A[2][2]*inv_x[2]) + B[2]*0;
+    inv_x[0] = x0;
+    inv_x[1] = x1;
+    inv_x[2] = x2;
+    fprintf(out_file, "%f, %f, %f, %f, %d\n",
+            speed, desired_rate, current_rate, rate_error,
+            tnow);
+    fclose(out_file);
+
+    //@@ detection
+    FILE *err_file = fopen("Rover_AP_SteerController_error.csv", "a");
+    error[index] = (inv_y - current_rate) * (inv_y - current_rate);
+    sq_err_sum += error[index];
+    mse = sq_err_sum / (index + 1);
+    if(mse > max_mse) {
+        max_mse = mse;
+    }
+    //printf("@@@@ [index %d] error %f, sum %f, mse %f, max %f\n", index, error[index], sq_err_sum, mse, max_mse);
+    fprintf(err_file, "%d, %f, %f, %f, %f\n", index, error[index], sq_err_sum, mse, max_mse);
+    fclose(err_file);
+    index++;
+    if(index >= window) {
+        index = 0;
+        sq_err_sum = 0;
+    }
+    //@@ -------------- invariant end
+    */
 	
 	// Calculate equivalent gains so that values for K_P and K_I can be taken across from the old PID law
     // No conversion is required for K_D
