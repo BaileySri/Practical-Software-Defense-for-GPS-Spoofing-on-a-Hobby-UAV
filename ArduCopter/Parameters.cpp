@@ -709,6 +709,22 @@ const AP_Param::Info Copter::var_info[] = {
     // @User: Standard
     GSCALAR(rtl_alt_type, "RTL_ALT_TYPE", 0),
 
+//PADLOCK
+//var_info declarations
+    // @Param: PDLK_CHOI_CI
+    // @DisplayName: Control Invariant monitor by Choi et al
+    // @Description: Enables or Disables the Control Invariant monitor as defined by Choi et al
+    // @Values: 0: Disabled, 1:Enabled
+    // @User: Advanced
+    GSCALAR(choi_ci, "PDLK_CHOI_CI", CTRL_INV_DEFAULT),
+
+    // @Param: PDLK_CHOI_ATK
+    // @DisplayName: Sensor Attacks by Choi et al
+    // @Description: Enables or Disables an attack defined by Choi et al
+    // @Values: 0: Disabled, 1:Roll Sensor Attack, 2:Actuator Attack (Roll)
+    // @User: Advanced
+    GSCALAR(choi_attack, "PDLK_CHOI_ATK", CHOI_ATK_DEFAULT),
+
 #if OSD_ENABLED == ENABLED
     // @Group: OSD
     // @Path: ../libraries/AP_OSD/AP_OSD.cpp

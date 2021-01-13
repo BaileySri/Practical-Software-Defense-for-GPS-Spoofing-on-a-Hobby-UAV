@@ -322,6 +322,33 @@ const AP_Param::GroupInfo AP_GPS::var_info[] = {
     AP_GROUPINFO("COM_PORT2", 24, AP_GPS, _com_port[1], 1),
 #endif
 
+//PADLOCK
+//var_info declarations for GPS
+    // @Param: PDLK_ATK
+    // @DisplayName: GPS Sensor Attack
+    // @Description: Enable/Disable the GPS Sensor Attack
+    // @Values: 0:Disable, 1:Enable
+    // @User: Advanced
+    AP_GROUPINFO("PDLK_ATK", 25, AP_GPS, GPS_ATK, 0),
+
+    // @Param: PDLK_N
+    // @DisplayName: North/South spoofed value
+    // @Description: Set the spoofed North/South position of the drone relative to the drone
+    // @Units: Centimeters
+    // @Range: ITN32_MIN INT32_MAX
+    // @Increment: 1
+    // @User: Advanced
+    AP_GROUPINFO("PDLK_N", 26, AP_GPS, ATK_OFS_NORTH, 0),
+
+    // @Param: PDLK_E
+    // @DisplayName: East/West spoofed value
+    // @Description: Set the spoofed East/West position of the drone relative to the drone
+    // @Units: Centimeter
+    // @Range: INT32_MIN INT32_MAX
+    // @Increment: 1
+    // @User: Advanced
+    AP_GROUPINFO("PDLK_E", 27, AP_GPS, ATK_OFS_EAST, 0),
+    
     AP_GROUPEND
 };
 
