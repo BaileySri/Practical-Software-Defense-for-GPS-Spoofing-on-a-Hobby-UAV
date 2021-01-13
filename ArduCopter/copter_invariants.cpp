@@ -64,7 +64,7 @@ void Copter::copter_invariants_check(float target, int measured)
         err_sum = 0;
     }
 
-#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL && 0
     // for logging
     uint64_t timestamp = AP_HAL::micros64();
     FILE *out_file = fopen("sim_log.csv", "a");
@@ -74,7 +74,7 @@ void Copter::copter_invariants_check(float target, int measured)
 #endif
 
     // check error
-    if(mse > threshold && invariant_enabled) {
+    if(mse > threshold && g.choi_ci == 1) {
         // raise an alram
         attack_detected = true;
         GCS_SEND_TEXT(MAV_SEVERITY_CRITICAL, "!!!ATTACK DETECTED!!!");

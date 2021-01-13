@@ -1236,7 +1236,7 @@ AP_GPS_UBLOX::_parse_gps(void)
     }
 
     switch (_msg_id) {
-    case MSG_POSLLH:
+    case MSG_POSLLH: {
         Debug("MSG_POSLLH next_fix=%u", next_fix);
         if (havePvtMsg) {
             _unconfigured_messages |= CONFIG_RATE_POSLLH;
@@ -1253,6 +1253,25 @@ AP_GPS_UBLOX::_parse_gps(void)
         state.vertical_accuracy = _buffer.posllh.vertical_accuracy*1.0e-3f;
         state.have_horizontal_accuracy = true;
         state.have_vertical_accuracy = true;
+
+        //PADLOCK
+        //Inject GPS Spoofing Values
+        if(gps.GPS_ATK == 1){
+            //Lat and Long are in E-7 format, cm accuracy
+            state.location.lat += static_cast<int32_t>(gps.ATK_OFS_NORTH * 8.98311175f);
+            float scale;
+            //Scaling Long as the earth is an oblate spheroid
+            if(state.location.lat >= 67e7){
+                scale = 22.99061983f;
+            } else if(state.location.lat >= 45e7){
+                scale = 12.70486596f;
+            } else if(state.location.lat >= 23e7){
+                scale = 9.75895384f;
+            } else{
+                scale = 8.98311175f;
+            }
+            state.location.lng += static_cast<int32_t>(gps.ATK_OFS_EAST * scale);
+        }
 #if UBLOX_FAKE_3DLOCK
         state.location.lng = 1491652300L;
         state.location.lat = -353632610L;
@@ -1260,6 +1279,7 @@ AP_GPS_UBLOX::_parse_gps(void)
         state.vertical_accuracy = 0;
         state.horizontal_accuracy = 0;
 #endif
+    }
         break;
     case MSG_STATUS:
         Debug("MSG_STATUS fix_status=%u fix_type=%u",
@@ -1387,9 +1407,7 @@ AP_GPS_UBLOX::_parse_gps(void)
             }
         }
         break;
-#endif // GPS_MOVING_BASELINE
-
-    case MSG_PVT:
+    case MSG_PVT: {
         Debug("MSG_PVT");
 
         havePvtMsg = true;
@@ -1440,7 +1458,12 @@ AP_GPS_UBLOX::_parse_gps(void)
         state.have_vertical_accuracy = true;
         // SVs
         state.num_sats    = _buffer.pvt.num_sv;
-        // velocity     
+        // velocity
+
+        //PADLOCK
+        //Need to record time for injecting speed adjustments
+        uint32_t dt            = _buffer.pvt.itow - _last_vel_time; //ms
+
         _last_vel_time         = _buffer.pvt.itow;
         state.ground_speed     = _buffer.pvt.gspeed*0.001f;          // m/s
         state.ground_course    = wrap_360(_buffer.pvt.head_mot * 1.0e-5f);       // Heading 2D deg * 100000
@@ -1451,6 +1474,37 @@ AP_GPS_UBLOX::_parse_gps(void)
         state.have_speed_accuracy = true;
         state.speed_accuracy = _buffer.pvt.s_acc*0.001f;
         _new_speed = true;
+
+        //PADLOCK
+        //Inject GPS Spoofing Values
+        if(gps.GPS_ATK == 1){
+            //Lat and Long are in E-7 format, cm accuracy
+            state.location.lat += static_cast<int32_t>(gps.ATK_OFS_NORTH * 8.98311175f);
+            float scale;
+            //Scaling Long as the earth is an oblate spheroid
+            if(state.location.lat >= 67e7){
+                scale = 22.99061983f;
+            } else if(state.location.lat >= 45e7){
+                scale = 12.70486596f;
+            } else if(state.location.lat >= 23e7){
+                scale = 9.75895384f;
+            } else{
+                scale = 8.98311175f;
+            }
+            state.location.lng += static_cast<int32_t>(gps.ATK_OFS_EAST * scale);
+
+            //Ground Speed and Velocities
+            if(dt == 0){
+                dt = 1;
+            }
+                //North Velocity
+            state.velocity.x += (gps.ATK_OFS_NORTH * 1e2) / dt; 
+                //East Velocity
+            state.velocity.y += (gps.ATK_OFS_EAST * 1e2) / dt;
+                //Ground Speed
+            state.ground_speed += norm(gps.ATK_OFS_NORTH * 1e2, gps.ATK_OFS_EAST * 1e2) / dt;
+        }
+
         // dop
         if(noReceivedHdop) {
             state.hdop        = _buffer.pvt.p_dop;
@@ -1476,6 +1530,7 @@ AP_GPS_UBLOX::_parse_gps(void)
         state.speed_accuracy = 0;
         next_fix = state.status;
 #endif
+    }
         break;
     case MSG_TIMEGPS:
         Debug("MSG_TIMEGPS");
@@ -1484,7 +1539,7 @@ AP_GPS_UBLOX::_parse_gps(void)
             state.time_week = _buffer.timegps.week;
         }
         break;
-    case MSG_VELNED:
+    case MSG_VELNED: {
         Debug("MSG_VELNED");
         if (havePvtMsg) {
             _unconfigured_messages |= CONFIG_RATE_VELNED;
@@ -1492,20 +1547,31 @@ AP_GPS_UBLOX::_parse_gps(void)
         }
         _check_new_itow(_buffer.velned.itow);
         _last_vel_time         = _buffer.velned.itow;
-        state.ground_speed     = _buffer.velned.speed_2d*0.01f;          // m/s
+
+        //PADLOCK
+        //VELNED is same calculations as PVT, skip update during attack
+        if(gps.GPS_ATK == 1){
+            //Skip Update
+        } else{
+            state.ground_speed     = _buffer.velned.speed_2d*0.01f;          // m/s
+            state.velocity.x = _buffer.velned.ned_north * 0.01f;
+            state.velocity.y = _buffer.velned.ned_east * 0.01f;
+            state.ground_speed = norm(state.velocity.y, state.velocity.x);
+        }
+
         state.ground_course    = wrap_360(_buffer.velned.heading_2d * 1.0e-5f);       // Heading 2D deg * 100000
         state.have_vertical_velocity = true;
-        state.velocity.x = _buffer.velned.ned_north * 0.01f;
-        state.velocity.y = _buffer.velned.ned_east * 0.01f;
         state.velocity.z = _buffer.velned.ned_down * 0.01f;
         state.ground_course = wrap_360(degrees(atan2f(state.velocity.y, state.velocity.x)));
-        state.ground_speed = state.velocity.xy().length();
         state.have_speed_accuracy = true;
         state.speed_accuracy = _buffer.velned.speed_accuracy*0.01f;
+
+
 #if UBLOX_FAKE_3DLOCK
         state.speed_accuracy = 0;
 #endif
         _new_speed = true;
+    }
         break;
     case MSG_NAV_SVINFO:
         {

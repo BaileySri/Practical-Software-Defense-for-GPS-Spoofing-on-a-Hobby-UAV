@@ -377,9 +377,19 @@ public:
 
         k_param_vehicle = 257, // vehicle common block of parameters
 
+        //PADLOCK
+        //Parameter Identities
+        k_param_choi_ci = 258,
+        k_param_choi_attack,
+
         // the k_param_* space is 9-bits in size
         // 511: reserved
     };
+
+    //PADLOCK 
+    //Defined parameters
+    AP_Int8         choi_ci;
+    AP_Int8         choi_attack;
 
     AP_Int16        format_version;
 

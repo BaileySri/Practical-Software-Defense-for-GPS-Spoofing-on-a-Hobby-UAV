@@ -735,7 +735,30 @@ const AP_Param::Info Copter::var_info[] = {
     GSCALAR(throw_motor_start, "THROW_MOT_START", (float)ModeThrow::PreThrowMotorState::STOPPED),
 #endif
 
-#if OSD_ENABLED || OSD_PARAM_ENABLED
+    // @Param: RTL_ALT_TYPE
+    // @DisplayName: RTL mode altitude type
+    // @Description: RTL altitude type.  Set to 1 for Terrain following during RTL and then set WPNAV_RFND_USE=1 to use rangefinder or WPNAV_RFND_USE=0 to use Terrain database
+    // @Values: 0:Relative to Home, 1:Terrain
+    // @User: Standard
+    GSCALAR(rtl_alt_type, "RTL_ALT_TYPE", 0),
+
+//PADLOCK
+//var_info declarations
+    // @Param: PDLK_CHOI_CI
+    // @DisplayName: Control Invariant monitor by Choi et al
+    // @Description: Enables or Disables the Control Invariant monitor as defined by Choi et al
+    // @Values: 0: Disabled, 1:Enabled
+    // @User: Advanced
+    GSCALAR(choi_ci, "PDLK_CHOI_CI", CTRL_INV_DEFAULT),
+
+    // @Param: PDLK_CHOI_ATK
+    // @DisplayName: Sensor Attacks by Choi et al
+    // @Description: Enables or Disables an attack defined by Choi et al
+    // @Values: 0: Disabled, 1:Roll Sensor Attack, 2:Actuator Attack (Roll)
+    // @User: Advanced
+    GSCALAR(choi_attack, "PDLK_CHOI_ATK", CHOI_ATK_DEFAULT),
+
+#if OSD_ENABLED == ENABLED
     // @Group: OSD
     // @Path: ../libraries/AP_OSD/AP_OSD.cpp
     GOBJECT(osd, "OSD", AP_OSD),

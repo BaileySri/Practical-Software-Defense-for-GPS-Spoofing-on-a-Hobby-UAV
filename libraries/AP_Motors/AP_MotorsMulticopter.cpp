@@ -235,10 +235,8 @@ void AP_MotorsMulticopter::output()
     //@@INVARINT trojan code for the actuator attack
     if(motor_attack == 1) {
        // change: _roll_in, _pitch_in, _throttle_in, _yaw_in 
-        //_roll_in = 4000;
-        int val = rand() % 9000 - 4500;  // -4500 ~ +4500
-        float factor = 1.0;
-        _roll_in = val * factor;
+        //input values range from -1 ~ +1
+        _roll_in = (static_cast <float> (rand() / (static_cast <float> (RAND_MAX/2)))) - 1.0;
     }
 
     // run spool logic

@@ -731,3 +731,13 @@
 #ifndef HAL_FRAME_TYPE_DEFAULT
 #define HAL_FRAME_TYPE_DEFAULT AP_Motors::MOTOR_FRAME_TYPE_X
 #endif
+
+//PADLOCK
+//Default parameter values
+#ifndef CTRL_INV_DEFAULT
+ #define CTRL_INV_DEFAULT     0
+#endif
+
+#ifndef CHOI_ATK_DEFAULT
+  #define CHOI_ATK_DEFAULT    0
+#endif

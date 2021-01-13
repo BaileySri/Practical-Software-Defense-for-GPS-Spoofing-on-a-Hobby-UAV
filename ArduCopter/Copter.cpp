@@ -663,12 +663,15 @@ void Copter::read_AHRS(void)
     // update hil before ahrs update
     gcs().update();
 #endif
-    RC_Channel* channel = RC_Channels::rc_channel(CH_8);
-    uint16_t max = channel->get_radio_max();
-    // for test
-    if(max >= 1900) {
+    if(g.choi_ci == 1) {
+        if(!invariant_enabled){
+            gcs().send_text(MAV_SEVERITY_INFO, "Choi CI Enabled");
+        }
         invariant_enabled = true;
     } else {
+        if(invariant_enabled){
+            gcs().send_text(MAV_SEVERITY_INFO, "Choi CI Disabled");
+        }
         invariant_enabled = false;
     }
 
@@ -677,12 +680,10 @@ void Copter::read_AHRS(void)
     //sensor attack : 1
     //actuator attack : 2
     //param attack : 3
-    if(max == 1901) {
+    if(g.choi_attack == 1) {
         ahrs.sensor_attack = 1;
-    } else if(max == 1902) {
+    } else if(g.choi_attack == 2) {
         motors->motor_attack = 1;
-    } else if(max == 1903) {
-        //paramter attack
     } else {
         //no attack
         ahrs.sensor_attack = 0;
