@@ -916,6 +916,34 @@ void AP_Logger::Write_Rally()
 }
 #endif
 
+void AP_Logger::Write_SNSR(float BAlt)
+{
+    const AP_InertialSensor &ins = AP::ins();
+    const Vector3f &gyro = ins.get_gyro();
+    const Vector3f &accel = ins.get_accel();
+    Location gps = AP::gps().location();
+    Vector3f mag = AP::compass().get_field();
+    struct log_sensors pkt = {
+        LOG_PACKET_HEADER_INIT(LOG_SNSR_MSG),
+        time_us         :   AP_HAL::micros64(),
+        gyro_roll       :   gyro.x,
+        gyro_pitch      :   gyro.y,
+        gyro_yaw        :   gyro.z,
+        accel_forward   :   accel.x,
+        accel_right     :   accel.y,
+        accel_down      :   accel.z,
+        baro_alt        :   BAlt,
+        gps_lat         :   gps.lat,
+        gps_lon         :   gps.lng,
+        gps_alt         :   gps.alt,
+        mag_x           :   mag.x,
+        mag_y           :   mag.y,
+        mag_z           :   mag.z
+    };
+
+    FOR_EACH_BACKEND(WriteBlock(&pkt, sizeof(pkt)));
+}
+
 // output a FMT message for each backend if not already done so
 void AP_Logger::Safe_Write_Emit_FMT(log_write_fmt *f)
 {

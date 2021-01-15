@@ -265,6 +265,8 @@ void Copter::fast_loop()
     if (should_log(MASK_LOG_ANY)) {
         Log_Sensor_Health();
     }
+    
+    logger.Write_SNSR(AP_Baro::get_singleton()->get_altitude());
 
     //@@INVARIANT check
     copter_invariants_check(attitude_control->get_att_target_euler_cd().x, ahrs.roll_sensor);   // in centi-degree
