@@ -886,6 +886,13 @@ int8_t AP_GPS_UBLOX::find_active_config_index(ConfigKey key) const
 bool
 AP_GPS_UBLOX::_parse_gps(void)
 {
+    //PADLOCK
+    //Fencing value
+    static bool fence_triggered = false;
+    static bool atk_started = false;
+    static int32_t fence_lat = 0;
+    static int32_t fence_lng = 0;
+
     if (_class == CLASS_ACK) {
         Debug("ACK %u", (unsigned)_msg_id);
 
@@ -1256,21 +1263,34 @@ AP_GPS_UBLOX::_parse_gps(void)
 
         //PADLOCK
         //Inject GPS Spoofing Values
-        if(gps.GPS_ATK == 1){
-            //Lat and Long are in E-7 format, cm accuracy
-            state.location.lat += static_cast<int32_t>(gps.ATK_OFS_NORTH * 8.98311175f);
-            float scale;
-            //Scaling Long as the earth is an oblate spheroid
-            if(state.location.lat >= 67e7){
-                scale = 22.99061983f;
-            } else if(state.location.lat >= 45e7){
-                scale = 12.70486596f;
-            } else if(state.location.lat >= 23e7){
-                scale = 9.75895384f;
+        //Fencing value
+        if(!atk_started && gps.GPS_ATK == 1){
+            //As the attack is enabled
+            fence_lat = state.location.lat;
+            fence_lng = state.location.lng;
+            atk_started = true;
+            gcs().send_text(MAV_SEVERITY_INFO,"FENCE INIT(lat,lng): %i, %i", fence_lat, fence_lng);
+        }
+        if(!fence_triggered && gps.GPS_ATK == 1){
+            if(gps.GPS_FENCE == 0 || !(((state.location.lat - fence_lat) >= gps.GPS_FENCE_RADIUS) || ((state.location.lng - fence_lng) >= gps.GPS_FENCE_RADIUS))){
+                //Lat and Long are in E-7 format, cm accuracy
+                state.location.lat = fence_lat + static_cast<int32_t>(gps.ATK_OFS_NORTH * .898311175f);
+                float scale;
+                //Scaling Long as the earth is an oblate spheroid
+                if(state.location.lat >= 67e7){
+                    scale = 2.299061983f;
+                } else if(state.location.lat >= 45e7){
+                    scale = 1.270486596f;
+                } else if(state.location.lat >= 23e7){
+                    scale = .975895384f;
+                } else{
+                    scale = .898311175f;
+                }
+                state.location.lng = fence_lng + static_cast<int32_t>(gps.ATK_OFS_EAST * scale);
             } else{
-                scale = 8.98311175f;
+                fence_triggered = true;
+                gcs().send_text(MAV_SEVERITY_WARNING,"FENCE TRIGGERED");
             }
-            state.location.lng += static_cast<int32_t>(gps.ATK_OFS_EAST * scale);
         }
 #if UBLOX_FAKE_3DLOCK
         state.location.lng = 1491652300L;
@@ -1477,32 +1497,45 @@ AP_GPS_UBLOX::_parse_gps(void)
 
         //PADLOCK
         //Inject GPS Spoofing Values
-        if(gps.GPS_ATK == 1){
-            //Lat and Long are in E-7 format, cm accuracy
-            state.location.lat += static_cast<int32_t>(gps.ATK_OFS_NORTH * 8.98311175f);
-            float scale;
-            //Scaling Long as the earth is an oblate spheroid
-            if(state.location.lat >= 67e7){
-                scale = 22.99061983f;
-            } else if(state.location.lat >= 45e7){
-                scale = 12.70486596f;
-            } else if(state.location.lat >= 23e7){
-                scale = 9.75895384f;
+        if(!atk_started && gps.GPS_ATK == 1){
+            //As the attack is enabled
+            fence_lat = state.location.lat;
+            fence_lng = state.location.lng;
+            atk_started = true;
+            gcs().send_text(MAV_SEVERITY_INFO,"FENCE INIT(lat,lng): %i, %i", fence_lat, fence_lng);
+        }
+        if(!fence_triggered && gps.GPS_ATK == 1){
+            if(gps.GPS_FENCE == 0 || !(((state.location.lat - fence_lat) >= gps.GPS_FENCE_RADIUS) || ((state.location.lng - fence_lng) >= gps.GPS_FENCE_RADIUS))){
+                //Lat and Long are in E-7 format, cm accuracy
+                state.location.lat = fence_lat + static_cast<int32_t>(gps.ATK_OFS_NORTH * .898311175f);
+                float scale;
+                //Scaling Long as the earth is an oblate spheroid
+                if(state.location.lat >= 67e7){
+                    scale = 2.299061983f;
+                } else if(state.location.lat >= 45e7){
+                    scale = 1.270486596f;
+                } else if(state.location.lat >= 23e7){
+                    scale = .975895384f;
+                } else{
+                    scale = .898311175f;
+                }
+                state.location.lng = fence_lng + static_cast<int32_t>(gps.ATK_OFS_EAST * scale);
+            
+                //GPS Velocity Values
+                //Ground Speed and Velocities
+                if(dt == 0){
+                    dt = 1;
+                }
+                    //North Velocity
+                state.velocity.x = (gps.ATK_OFS_NORTH / 1e2) / dt; 
+                    //East Velocity
+                state.velocity.y = (gps.ATK_OFS_EAST / 1e2) / dt;
+                    //Ground Speed
+                state.ground_speed = norm(gps.ATK_OFS_NORTH / 1e2, gps.ATK_OFS_EAST / 1e2) / dt;
             } else{
-                scale = 8.98311175f;
+                fence_triggered = true;
+                gcs().send_text(MAV_SEVERITY_WARNING,"FENCE TRIGGERED");
             }
-            state.location.lng += static_cast<int32_t>(gps.ATK_OFS_EAST * scale);
-
-            //Ground Speed and Velocities
-            if(dt == 0){
-                dt = 1;
-            }
-                //North Velocity
-            state.velocity.x += (gps.ATK_OFS_NORTH * 1e2) / dt; 
-                //East Velocity
-            state.velocity.y += (gps.ATK_OFS_EAST * 1e2) / dt;
-                //Ground Speed
-            state.ground_speed += norm(gps.ATK_OFS_NORTH * 1e2, gps.ATK_OFS_EAST * 1e2) / dt;
         }
 
         // dop
@@ -1550,7 +1583,7 @@ AP_GPS_UBLOX::_parse_gps(void)
 
         //PADLOCK
         //VELNED is same calculations as PVT, skip update during attack
-        if(gps.GPS_ATK == 1){
+        if(!fence_triggered && gps.GPS_ATK == 1){
             //Skip Update
         } else{
             state.ground_speed     = _buffer.velned.speed_2d*0.01f;          // m/s
