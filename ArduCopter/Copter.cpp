@@ -269,6 +269,9 @@ void Copter::fast_loop()
     //@@INVARIANT check
     copter_invariants_check(attitude_control->get_att_target_euler_cd().x, ahrs.roll_sensor);   // in centi-degree
 
+    //PADLOCK
+    sensor_confirmation();
+    
     AP_Vehicle::fast_loop();
 }
 
