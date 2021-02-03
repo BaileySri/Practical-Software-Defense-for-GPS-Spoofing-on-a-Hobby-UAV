@@ -1265,6 +1265,7 @@ AP_GPS_UBLOX::_parse_gps(void)
         //Inject GPS Spoofing Values
         //Fencing value
         if(!atk_started && gps.GPS_ATK == 1){
+            gcs().send_text(MAV_SEVERITY_INFO,"Timestamp of attack: %lu", AP_HAL::micros64());
             //As the attack is enabled
             fence_lat = state.location.lat;
             fence_lng = state.location.lng;
