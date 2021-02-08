@@ -269,8 +269,15 @@ void Copter::fast_loop()
     if (should_log(MASK_LOG_ANY)) {
         Log_Sensor_Health();
     }
-    
-    logger.Write_SNSR(AP_Baro::get_singleton()->get_altitude());
+    //PADLOCK
+    //Logging sensors, two calls for OPTFLOW enabled or Disabled
+    #if OPTFLOW == ENABLED
+    if(copter.motors->armed())
+        logger.Write_SNSR(AP_Baro::get_singleton()->get_altitude(), rangefinder_state.alt_cm_filt.get(), optflow.bodyRate(), optflow.flowRate());
+    #else
+    if(copter.motors->armed())
+        logger.Write_SNSR(AP_Baro::get_singleton()->get_altitude());
+    #endif
 
     AP_Vehicle::fast_loop();
 }
