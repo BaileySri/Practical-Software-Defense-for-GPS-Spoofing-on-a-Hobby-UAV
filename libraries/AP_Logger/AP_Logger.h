@@ -337,8 +337,9 @@ public:
     void Write_PSC(const Vector3f &pos_target, const Vector3f &position, const Vector3f &vel_target, const Vector3f &velocity, const Vector3f &accel_target, const float &accel_x, const float &accel_y);
     //PADLOCK
     //Log write function
-    void Write_SNSR(float BAlt);
-
+    void Write_SNSR(const float &BAlt, const float &rf_dist, const Vector2f &br, const Vector2f &fr);
+    void Write_SNSR(const float &BAlt);
+    
     void Write(const char *name, const char *labels, const char *fmt, ...);
     void Write(const char *name, const char *labels, const char *units, const char *mults, const char *fmt, ...);
     void WriteStreaming(const char *name, const char *labels, const char *fmt, ...);

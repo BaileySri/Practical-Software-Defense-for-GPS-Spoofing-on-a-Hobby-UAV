@@ -914,34 +914,81 @@ void AP_Logger::Write_Rally()
 {
     FOR_EACH_BACKEND(Write_Rally());
 }
-#endif
+//PADLOCK
+//Logging function
+void AP_Logger::Write_SNSR(const float &BAlt, const float &rf_dist, const Vector2f &bodyrate, const Vector2f &flowrate)
+{
+    const AP_InertialSensor &ins = AP::ins();
+    const Vector3f &gyro = ins.get_gyro();
+    const Vector3f &accel = ins.get_accel();
+    Location gps = AP::gps().location();
+    int32_t gps_alt;
+    if(gps.get_alt_cm(Location::AltFrame::ABOVE_ORIGIN, gps_alt))
+    {} else{
+        gps_alt = -1;
+    }
+    Vector3f mag = AP::compass().get_field();
 
-void AP_Logger::Write_SNSR(float BAlt)
+    struct log_sensors_filt pkt1 = {
+        LOG_PACKET_HEADER_INIT(LOG_SNSR_FILT_MSG),
+        time_us         :   AP_HAL::micros64(),
+        accel_front     :   accel.x,        //LPF, Scaled, and Offset
+        accel_right     :   accel.y,        //LPF, Scaled, and Offset
+        accel_down      :   accel.z,        //LPF, Scaled, and Offset
+        gyro_droll      :   gyro.x,         //LPF, Rotated, and Offset
+        gyro_dpitch     :   gyro.y,         //LPF, Rotated, and Offset
+        gyro_dyaw       :   gyro.z,         //LPF, Rotated, and Offset
+        baro_alt        :   BAlt,           //Filtered, depends on sensor
+        gps_lat         :   gps.lat,        //If multiple present, should be blended
+        gps_lon         :   gps.lng,        //If multiple present, should be blended
+        gps_alt         :   gps_alt/100,    //If multiple present, should be blended
+        rf_dist         :   rf_dist/100,    //LPF and Tilt Compensated
+        mX              :   mag.x,          //Averaged Sum
+        mY              :   mag.y,          //Averaged Sum
+        mZ              :   mag.z,          //Averaged Sum
+    };
+
+    struct log_sensors_raw pkt2 = {
+        LOG_PACKET_HEADER_INIT(LOG_SNSR_RAW_MSG),
+        time_us         :   AP_HAL::micros64(),
+        of_bodyX        :   bodyrate.x, //Scaled
+        of_bodyY        :   bodyrate.y, //Scaled
+        of_flowX        :   flowrate.x, //Scaled
+        of_flowY        :   flowrate.y, //Scaled
+    };
+
+    FOR_EACH_BACKEND(WriteBlock(&pkt1, sizeof(pkt1)));
+    FOR_EACH_BACKEND(WriteBlock(&pkt2, sizeof(pkt2)));
+}
+
+void AP_Logger::Write_SNSR(const float &BAlt)
 {
     const AP_InertialSensor &ins = AP::ins();
     const Vector3f &gyro = ins.get_gyro();
     const Vector3f &accel = ins.get_accel();
     Location gps = AP::gps().location();
     Vector3f mag = AP::compass().get_field();
-    struct log_sensors pkt = {
-        LOG_PACKET_HEADER_INIT(LOG_SNSR_MSG),
+
+    struct log_sensors_filt pkt1 = {
+        LOG_PACKET_HEADER_INIT(LOG_SNSR_FILT_MSG),
         time_us         :   AP_HAL::micros64(),
-        gyro_roll       :   gyro.x,
-        gyro_pitch      :   gyro.y,
-        gyro_yaw        :   gyro.z,
-        accel_forward   :   accel.x,
-        accel_right     :   accel.y,
-        accel_down      :   accel.z,
-        baro_alt        :   BAlt,
-        gps_lat         :   gps.lat,
-        gps_lon         :   gps.lng,
-        gps_alt         :   gps.alt,
-        mag_x           :   mag.x,
-        mag_y           :   mag.y,
-        mag_z           :   mag.z
+        accel_front     :   accel.x,        //LPF, Scaled, and Offset
+        accel_right     :   accel.y,        //LPF, Scaled, and Offset
+        accel_down      :   accel.z,        //LPF, Scaled, and Offset
+        gyro_droll      :   gyro.x,         //LPF, Rotated, and Offset
+        gyro_dpitch     :   gyro.y,         //LPF, Rotated, and Offset
+        gyro_dyaw       :   gyro.z,         //LPF, Rotated, and Offset
+        baro_alt        :   BAlt,           //Filtered, depends on sensor
+        gps_lat         :   gps.lat,        //If multiple present, should be blended
+        gps_lon         :   gps.lng,        //If multiple present, should be blended
+        gps_alt         :   gps.alt,        //If multiple present, should be blended
+        rf_dist         :   (float)-1,      //Disabled
+        mX              :   mag.x,
+        mY              :   mag.y,
+        mZ              :   mag.z,
     };
 
-    FOR_EACH_BACKEND(WriteBlock(&pkt, sizeof(pkt)));
+    FOR_EACH_BACKEND(WriteBlock(&pkt1, sizeof(pkt1)));
 }
 
 // output a FMT message for each backend if not already done so
