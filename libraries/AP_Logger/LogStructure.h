@@ -1290,6 +1290,35 @@ struct PACKED log_PSC {
     float accel_y;
 };
 
+//PADLOCK
+//Log packet definitions
+struct PACKED log_sensors_filt {
+    LOG_PACKET_HEADER;
+    uint64_t time_us;
+    float accel_front;
+    float accel_right;
+    float accel_down;
+    float gyro_droll;
+    float gyro_dpitch;
+    float gyro_dyaw;
+    float baro_alt;
+    int32_t gps_lat;
+    int32_t gps_lon;
+    int32_t gps_alt;
+    float rf_dist;
+    float mX;
+    float mY;
+    float mZ;
+};
+
+struct PACKED log_sensors_raw {
+    LOG_PACKET_HEADER;
+    uint64_t time_us;
+    float of_bodyX;
+    float of_bodyY;
+    float of_flowX;
+    float of_flowY;
+};
 // FMT messages define all message formats other than FMT
 // UNIT messages define units which can be referenced by FMTU messages
 // FMTU messages associate types (e.g. centimeters/second/second) to FMT message fields
@@ -2705,8 +2734,13 @@ struct PACKED log_PSC {
     { LOG_WINCH_MSG, sizeof(log_Winch), \
       "WINC", "QBBBBBfffHfb", "TimeUS,Heal,ThEnd,Mov,Clut,Mode,DLen,Len,DRate,Tens,Vcc,Temp", "s-----mmn?vO", "F-----000000" }, \
     { LOG_PSC_MSG, sizeof(log_PSC), \
-      "PSC", "Qffffffffffff", "TimeUS,TPX,TPY,PX,PY,TVX,TVY,VX,VY,TAX,TAY,AX,AY", "smmmmnnnnoooo", "F000000000000" }
-//@@Invariant Modified LOG_ATTITUDE_MSG
+      "PSC", "Qffffffffffff", "TimeUS,TPX,TPY,PX,PY,TVX,TVY,VX,VY,TAX,TAY,AX,AY", "smmmmnnnnoooo", "F000000000000" }, \
+    { LOG_SNSR_FILT_MSG, sizeof(log_sensors_filt), \
+      "SNSF", "Qfffffffiiiffff", "TimeUS,aF,aR,aD,gyR,gyP,gyY,bAlt,gpLat,gpLng,gpAlt,rfD,mX,mY,mZ", "soooEEEmDUmmGGG", "F0000000GG00CCC"}, \
+    { LOG_SNSR_RAW_MSG, sizeof(log_sensors_raw), \
+      "SNSR", "Qffff", "TimeUS,ofbX,ofbY,offX,offY", "sEEEE", "F0000"}
+    //PADLOCK
+    //Array declaration of sensor logger
 
 // @LoggerMessage: SBPH
 // @Description: Swift Health Data
@@ -2869,6 +2903,8 @@ enum LogMessages : uint8_t {
     LOG_SIMPLE_AVOID_MSG,
     LOG_WINCH_MSG,
     LOG_PSC_MSG,
+    LOG_SNSR_FILT_MSG,
+    LOG_SNSR_RAW_MSG,
 
     _LOG_LAST_MSG_
 };
