@@ -1265,12 +1265,12 @@ AP_GPS_UBLOX::_parse_gps(void)
         //Inject GPS Spoofing Values
         //Fencing value
         if(!atk_started && gps.GPS_ATK == 1){
-            gcs().send_text(MAV_SEVERITY_INFO,"Timestamp of attack: %lu", AP_HAL::micros64());
+            gcs().send_text(MAV_SEVERITY_INFO,"Timestamp of attack: %llu", AP_HAL::micros64());
             //As the attack is enabled
             fence_lat = state.location.lat;
             fence_lng = state.location.lng;
             atk_started = true;
-            gcs().send_text(MAV_SEVERITY_INFO,"FENCE INIT(lat,lng): %i, %i", fence_lat, fence_lng);
+            gcs().send_text(MAV_SEVERITY_INFO,"FENCE INIT(lat,lng): %li, %li", fence_lat, fence_lng);
         }
         if(!fence_triggered && gps.GPS_ATK == 1){
             if(gps.GPS_FENCE == 0 || !(((state.location.lat - fence_lat) >= gps.GPS_FENCE_RADIUS) || ((state.location.lng - fence_lng) >= gps.GPS_FENCE_RADIUS))){
@@ -1503,7 +1503,7 @@ AP_GPS_UBLOX::_parse_gps(void)
             fence_lat = state.location.lat;
             fence_lng = state.location.lng;
             atk_started = true;
-            gcs().send_text(MAV_SEVERITY_INFO,"FENCE INIT(lat,lng): %i, %i", fence_lat, fence_lng);
+            gcs().send_text(MAV_SEVERITY_INFO,"FENCE INIT(lat,lng): %li, %li", fence_lat, fence_lng);
         }
         if(!fence_triggered && gps.GPS_ATK == 1){
             if(gps.GPS_FENCE == 0 || !(((state.location.lat - fence_lat) >= gps.GPS_FENCE_RADIUS) || ((state.location.lng - fence_lng) >= gps.GPS_FENCE_RADIUS))){

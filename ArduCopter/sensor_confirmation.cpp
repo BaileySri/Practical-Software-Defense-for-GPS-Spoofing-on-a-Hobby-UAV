@@ -42,7 +42,7 @@ struct NED{
     }
 
     float magnitude() const {
-        return(sqrt(North*North + East*East + Down*Down));
+        return(sqrtf(North*North + East*East + Down*Down));
     }
 
     NED operator-(const NED &rhs) const {
@@ -121,7 +121,7 @@ struct Accel{
             //Trapezoidal Integration
             Velocity += ((newReading + Reading) / 2.0F) * frontend->get_delta_time();
             Reading = newReading;
-            Noise += ACC_NOISE * sqrt( 1E-3/( ( frontend->get_last_update_usec()/1000 ) - ( Timestamp ) ) );
+            Noise += ACC_NOISE * sqrtf( 1E-3/( ( frontend->get_last_update_usec()/1000 ) - ( Timestamp ) ) );
             Timestamp = frontend->get_last_update_usec() / 1000;
             return true;
         }
