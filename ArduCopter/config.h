@@ -783,3 +783,7 @@
 #ifndef CHOI_ATK_DEFAULT
   #define CHOI_ATK_DEFAULT    0
 #endif
+
+#ifndef SNSR_CONF_DEFAULT
+  #define SNSR_CONF_DEFAULT   0
+#endif
