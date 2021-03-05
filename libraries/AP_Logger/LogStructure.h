@@ -719,7 +719,7 @@ struct PACKED log_STAK {
 
 //PADLOCK
 //Log packet definitions
-struct PACKED log_sensors_filt {
+struct PACKED log_sensors_1 {
     LOG_PACKET_HEADER;
     uint64_t time_us;
     float accel_front;
@@ -732,19 +732,25 @@ struct PACKED log_sensors_filt {
     int32_t gps_lat;
     int32_t gps_lon;
     int32_t gps_alt;
-    float rf_dist;
+    float gps_vel_N;
+    float gps_vel_E;
+    float gps_vel_D;
+};
+
+struct PACKED log_sensors_2 {
+    LOG_PACKET_HEADER;
+    uint64_t time_us;
     float mX;
     float mY;
     float mZ;
-};
-
-struct PACKED log_sensors_raw {
-    LOG_PACKET_HEADER;
-    uint64_t time_us;
     float of_bodyX;
     float of_bodyY;
     float of_flowX;
     float of_flowY;
+    float rf_dist;
+    float gps_SAcc;
+    float gps_HAcc;
+    float gps_VAcc;
 };
 // FMT messages define all message formats other than FMT
 // UNIT messages define units which can be referenced by FMTU messages
@@ -1380,10 +1386,10 @@ LOG_STRUCTURE_FROM_VISUALODOM \
       "WINC", "QBBBBBfffHfb", "TimeUS,Heal,ThEnd,Mov,Clut,Mode,DLen,Len,DRate,Tens,Vcc,Temp", "s-----mmn?vO", "F-----000000" }, \
     { LOG_PSC_MSG, sizeof(log_PSC), \
       "PSC", "Qffffffffffff", "TimeUS,TPX,TPY,PX,PY,TVX,TVY,VX,VY,TAX,TAY,AX,AY", "smmmmnnnnoooo", "F000000000000" }, \
-    { LOG_SNSR_FILT_MSG, sizeof(log_sensors_filt), \
-      "SNSF", "Qfffffffiiiffff", "TimeUS,aF,aR,aD,gyR,gyP,gyY,bAlt,gpLat,gpLng,gpAlt,rfD,mX,mY,mZ", "soooEEEmDUmmGGG", "F0000000GG00CCC"}, \
-    { LOG_SNSR_RAW_MSG, sizeof(log_sensors_raw), \
-      "SNSR", "Qffff", "TimeUS,ofbX,ofbY,offX,offY", "sEEEE", "F0000"}
+    { LOG_SNSR_1_MSG, sizeof(log_sensors_1), \
+      "SNS1", "Qfffffffiiifff", "TimeUS,aF,aR,aD,gyR,gyP,gyY,bAlt,gpLat,gpLng,gpAlt,gpN,gpE,gpD", "soooEEEmDUmnnn", "F0000000GG0000"}, \
+    { LOG_SNSR_2_MSG, sizeof(log_sensors_2), \
+      "SNS2", "Qfffffffffff", "TimeUS,mX,mY,mZ,ofbX,ofbY,offX,offY,rfD,gpSA,gpHA,gpVA", "sGGGEEEEmnmm", "FCCC00000000"}
     //PADLOCK
     //Array declaration of sensor logger
 
@@ -1487,8 +1493,8 @@ enum LogMessages : uint8_t {
     LOG_IDS_FROM_AVOIDANCE,
     LOG_WINCH_MSG,
     LOG_PSC_MSG,
-    LOG_SNSR_FILT_MSG,
-    LOG_SNSR_RAW_MSG,
+    LOG_SNSR_1_MSG,
+    LOG_SNSR_2_MSG,
 
     _LOG_LAST_MSG_
 };

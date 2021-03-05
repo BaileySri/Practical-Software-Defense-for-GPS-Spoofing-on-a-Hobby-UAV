@@ -921,40 +921,61 @@ void AP_Logger::Write_SNSR(const float &BAlt, const float &rf_dist, const Vector
     const AP_InertialSensor &ins = AP::ins();
     const Vector3f &gyro = ins.get_gyro();
     const Vector3f &accel = ins.get_accel();
-    Location gps = AP::gps().location();
+    const AP_GPS* gps = AP::gps().get_singleton();
     int32_t gps_alt;
-    if(gps.get_alt_cm(Location::AltFrame::ABOVE_ORIGIN, gps_alt))
+    if(gps->location().get_alt_cm(Location::AltFrame::ABOVE_ORIGIN, gps_alt))
     {} else{
         gps_alt = -1;
     }
     Vector3f mag = AP::compass().get_field();
 
-    struct log_sensors_filt pkt1 = {
-        LOG_PACKET_HEADER_INIT(LOG_SNSR_FILT_MSG),
+    struct log_sensors_1 pkt1 = {
+        LOG_PACKET_HEADER_INIT(LOG_SNSR_1_MSG),
         time_us         :   AP_HAL::micros64(),
-        accel_front     :   accel.x,        //LPF, Scaled, and Offset
-        accel_right     :   accel.y,        //LPF, Scaled, and Offset
-        accel_down      :   accel.z,        //LPF, Scaled, and Offset
-        gyro_droll      :   gyro.x,         //LPF, Rotated, and Offset
-        gyro_dpitch     :   gyro.y,         //LPF, Rotated, and Offset
-        gyro_dyaw       :   gyro.z,         //LPF, Rotated, and Offset
-        baro_alt        :   BAlt,           //Filtered, depends on sensor
-        gps_lat         :   gps.lat,        //If multiple present, should be blended
-        gps_lon         :   gps.lng,        //If multiple present, should be blended
-        gps_alt         :   gps_alt/100,    //If multiple present, should be blended
-        rf_dist         :   rf_dist/100,    //LPF and Tilt Compensated
-        mX              :   mag.x,          //Averaged Sum
-        mY              :   mag.y,          //Averaged Sum
-        mZ              :   mag.z,          //Averaged Sum
+        accel_front     :   accel.x,                //LPF, Scaled, and Offset
+        accel_right     :   accel.y,                //LPF, Scaled, and Offset
+        accel_down      :   accel.z,                //LPF, Scaled, and Offset
+        gyro_droll      :   gyro.x,                 //LPF, Rotated, and Offset
+        gyro_dpitch     :   gyro.y,                 //LPF, Rotated, and Offset
+        gyro_dyaw       :   gyro.z,                 //LPF, Rotated, and Offset
+        baro_alt        :   BAlt,                   //Filtered, depends on sensor
+        gps_lat         :   gps->location().lat,    //If multiple present, should be blended
+        gps_lon         :   gps->location().lng,    //If multiple present, should be blended
+        gps_alt         :   gps_alt/100,            //If multiple present, should be blended
+        gps_vel_N       :   gps->velocity().x,      //LPF and Tilt Compensated
+        gps_vel_E       :   gps->velocity().y,      //LPF and Tilt Compensated
+        gps_vel_D       :   gps->velocity().z,      //LPF and Tilt Compensated
+
     };
 
-    struct log_sensors_raw pkt2 = {
-        LOG_PACKET_HEADER_INIT(LOG_SNSR_RAW_MSG),
+    float Sacc; //m/s GPS 3D RMS Speed Accuracy
+    float Hacc; //m GPS 3D RMS Horizontal Position Accuracy
+    float Vacc; //m GPS 3D RMS Vertical Position Accuracy 
+
+    if(!gps->speed_accuracy(Sacc)){
+        Sacc = -1;
+    }
+    if(!gps->vertical_accuracy(Vacc)){
+        Vacc = -1;
+    }
+    if(!gps->horizontal_accuracy(Hacc)){
+        Hacc = -1;
+    }
+
+    struct log_sensors_2 pkt2 = {
+        LOG_PACKET_HEADER_INIT(LOG_SNSR_2_MSG),
         time_us         :   AP_HAL::micros64(),
-        of_bodyX        :   bodyrate.x, //Scaled
-        of_bodyY        :   bodyrate.y, //Scaled
-        of_flowX        :   flowrate.x, //Scaled
-        of_flowY        :   flowrate.y, //Scaled
+        mX              :   mag.x,                  //Averaged Sum
+        mY              :   mag.y,                  //Averaged Sum
+        mZ              :   mag.z,                  //Averaged Sum
+        of_bodyX        :   bodyrate.x, 
+        of_bodyY        :   bodyrate.y, 
+        of_flowX        :   flowrate.x, 
+        of_flowY        :   flowrate.y, 
+        rf_dist         :   rf_dist/100,
+        gps_SAcc        :   Sacc,                   //From GPS
+        gps_HAcc        :   Hacc,                   //From GPS
+        gps_VAcc        :   Vacc,                   //From GPS
     };
 
     FOR_EACH_BACKEND(WriteBlock(&pkt1, sizeof(pkt1)));
@@ -966,29 +987,65 @@ void AP_Logger::Write_SNSR(const float &BAlt)
     const AP_InertialSensor &ins = AP::ins();
     const Vector3f &gyro = ins.get_gyro();
     const Vector3f &accel = ins.get_accel();
-    Location gps = AP::gps().location();
+    const AP_GPS* gps = AP::gps().get_singleton();
     Vector3f mag = AP::compass().get_field();
+    int32_t gps_alt;
+    if(gps->location().get_alt_cm(Location::AltFrame::ABOVE_ORIGIN, gps_alt))
+    {} else{
+        gps_alt = -1;
+    }
 
-    struct log_sensors_filt pkt1 = {
-        LOG_PACKET_HEADER_INIT(LOG_SNSR_FILT_MSG),
+    struct log_sensors_1 pkt1 = {
+        LOG_PACKET_HEADER_INIT(LOG_SNSR_1_MSG),
         time_us         :   AP_HAL::micros64(),
-        accel_front     :   accel.x,        //LPF, Scaled, and Offset
-        accel_right     :   accel.y,        //LPF, Scaled, and Offset
-        accel_down      :   accel.z,        //LPF, Scaled, and Offset
-        gyro_droll      :   gyro.x,         //LPF, Rotated, and Offset
-        gyro_dpitch     :   gyro.y,         //LPF, Rotated, and Offset
-        gyro_dyaw       :   gyro.z,         //LPF, Rotated, and Offset
-        baro_alt        :   BAlt,           //Filtered, depends on sensor
-        gps_lat         :   gps.lat,        //If multiple present, should be blended
-        gps_lon         :   gps.lng,        //If multiple present, should be blended
-        gps_alt         :   gps.alt,        //If multiple present, should be blended
-        rf_dist         :   (float)-1,      //Disabled
-        mX              :   mag.x,
-        mY              :   mag.y,
-        mZ              :   mag.z,
+        accel_front     :   accel.x,                //LPF, Scaled, and Offset
+        accel_right     :   accel.y,                //LPF, Scaled, and Offset
+        accel_down      :   accel.z,                //LPF, Scaled, and Offset
+        gyro_droll      :   gyro.x,                 //LPF, Rotated, and Offset
+        gyro_dpitch     :   gyro.y,                 //LPF, Rotated, and Offset
+        gyro_dyaw       :   gyro.z,                 //LPF, Rotated, and Offset
+        baro_alt        :   BAlt,                   //Filtered, depends on sensor
+        gps_lat         :   gps->location().lat,    //If multiple present, should be blended
+        gps_lon         :   gps->location().lng,    //If multiple present, should be blended
+        gps_alt         :   gps_alt/100,            //If multiple present, should be blended
+        gps_vel_N       :   gps->velocity().x,      //LPF and Tilt Compensated
+        gps_vel_E       :   gps->velocity().y,      //LPF and Tilt Compensated
+        gps_vel_D       :   gps->velocity().z,      //LPF and Tilt Compensated
+
+    };
+
+    float Sacc; //m/s GPS 3D RMS Speed Accuracy
+    float Hacc; //m GPS 3D RMS Horizontal Position Accuracy
+    float Vacc; //m GPS 3D RMS Vertical Position Accuracy 
+
+    if(!gps->speed_accuracy(Sacc)){
+        Sacc = -1;
+    }
+    if(!gps->vertical_accuracy(Vacc)){
+        Vacc = -1;
+    }
+    if(!gps->horizontal_accuracy(Hacc)){
+        Hacc = -1;
+    }
+
+    struct log_sensors_2 pkt2 = {
+        LOG_PACKET_HEADER_INIT(LOG_SNSR_2_MSG),
+        time_us         :   AP_HAL::micros64(),
+        mX              :   mag.x,                  //Averaged Sum
+        mY              :   mag.y,                  //Averaged Sum
+        mZ              :   mag.z,                  //Averaged Sum
+        of_bodyX        :   -1.0f,                  //Disabled
+        of_bodyY        :   -1.0f,                  //Disabled 
+        of_flowX        :   -1.0f,                  //Disabled 
+        of_flowY        :   -1.0f,                  //Disabled 
+        rf_dist         :   -1.0f,                  //Disabled
+        gps_SAcc        :   Sacc,                   //From GPS
+        gps_HAcc        :   Hacc,                   //From GPS
+        gps_VAcc        :   Vacc,                   //From GPS
     };
 
     FOR_EACH_BACKEND(WriteBlock(&pkt1, sizeof(pkt1)));
+    FOR_EACH_BACKEND(WriteBlock(&pkt2, sizeof(pkt2)));
 }
 
 // output a FMT message for each backend if not already done so

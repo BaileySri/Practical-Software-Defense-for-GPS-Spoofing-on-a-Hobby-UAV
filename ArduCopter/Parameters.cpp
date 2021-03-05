@@ -758,6 +758,13 @@ const AP_Param::Info Copter::var_info[] = {
     // @User: Advanced
     GSCALAR(choi_attack, "PDLK_CHOI_ATK", CHOI_ATK_DEFAULT),
 
+    // @Param: PDLK_SNSR_CONF
+    // @DisplayName: Sensor Confirmation 
+    // @Description: Enables or Disables the Sensor Confirmation
+    // @Values: 0: Disabled, 1:Enabled
+    // @User: Advanced
+    GSCALAR(confirmation, "PDLK_SNSR_CONF", SNSR_CONF_DEFAULT),
+
 #if OSD_ENABLED == ENABLED
     // @Group: OSD
     // @Path: ../libraries/AP_OSD/AP_OSD.cpp

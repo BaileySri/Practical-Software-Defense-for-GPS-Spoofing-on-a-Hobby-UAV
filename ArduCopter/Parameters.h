@@ -381,6 +381,7 @@ public:
         //Parameter Identities
         k_param_choi_ci = 258,
         k_param_choi_attack,
+        k_param_confirmation,
 
         // the k_param_* space is 9-bits in size
         // 511: reserved
@@ -390,6 +391,7 @@ public:
     //Defined parameters
     AP_Int8         choi_ci;
     AP_Int8         choi_attack;
+    AP_Int8         confirmation;
 
     AP_Int16        format_version;
 
