@@ -269,7 +269,7 @@ void Copter::fast_loop()
     //Logging sensors, two calls for OPTFLOW enabled or Disabled
     #if OPTFLOW == ENABLED
     if(copter.motors->armed())
-        logger.Write_SNSR(AP_Baro::get_singleton()->get_altitude(), rangefinder_state.alt_cm_filt.get(), optflow.bodyRate(), optflow.flowRate());
+        logger.Write_SNSR(AP_Baro::get_singleton()->get_altitude(), rangefinder_state.alt_cm_filt.get(), optflow.bodyRate(), optflow.flowRate(), optflow.last_update());
     #else
     if(copter.motors->armed())
         logger.Write_SNSR(AP_Baro::get_singleton()->get_altitude());

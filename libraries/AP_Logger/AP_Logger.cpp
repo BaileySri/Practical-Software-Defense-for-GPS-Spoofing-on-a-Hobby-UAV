@@ -916,7 +916,9 @@ void AP_Logger::Write_Rally()
 }
 //PADLOCK
 //Logging function
-void AP_Logger::Write_SNSR(const float &BAlt, const float &rf_dist, const Vector2f &bodyrate, const Vector2f &flowrate)
+void AP_Logger::Write_SNSR( const float &BAlt, const float &rf_dist,\
+                            const Vector2f &body_rate, const Vector2f &flow_rate,\
+                            const uint32_t &OF_Time)
 {
     const AP_InertialSensor &ins = AP::ins();
     const Vector3f &gyro = ins.get_gyro();
@@ -968,14 +970,17 @@ void AP_Logger::Write_SNSR(const float &BAlt, const float &rf_dist, const Vector
         mX              :   mag.x,                  //Averaged Sum
         mY              :   mag.y,                  //Averaged Sum
         mZ              :   mag.z,                  //Averaged Sum
-        of_bodyX        :   bodyrate.x, 
-        of_bodyY        :   bodyrate.y, 
-        of_flowX        :   flowrate.x, 
-        of_flowY        :   flowrate.y, 
+        of_bodyX        :   body_rate.x, 
+        of_bodyY        :   body_rate.y, 
+        of_flowX        :   flow_rate.x, 
+        of_flowY        :   flow_rate.y, 
         rf_dist         :   rf_dist/100,
         gps_SAcc        :   Sacc,                   //From GPS
         gps_HAcc        :   Hacc,                   //From GPS
         gps_VAcc        :   Vacc,                   //From GPS
+        gps_Time        :   gps->last_fix_time_ms(),
+        acc_Time        :   ins.get_last_update_usec(),
+        of_Time         :   OF_Time
     };
 
     FOR_EACH_BACKEND(WriteBlock(&pkt1, sizeof(pkt1)));

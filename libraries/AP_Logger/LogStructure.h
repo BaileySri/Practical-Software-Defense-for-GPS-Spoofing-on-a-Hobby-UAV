@@ -751,6 +751,9 @@ struct PACKED log_sensors_2 {
     float gps_SAcc;
     float gps_HAcc;
     float gps_VAcc;
+    uint32_t gps_Time;
+    uint32_t acc_Time;
+    uint32_t of_Time;
 };
 // FMT messages define all message formats other than FMT
 // UNIT messages define units which can be referenced by FMTU messages
@@ -1389,7 +1392,7 @@ LOG_STRUCTURE_FROM_VISUALODOM \
     { LOG_SNSR_1_MSG, sizeof(log_sensors_1), \
       "SNS1", "Qfffffffiiifff", "TimeUS,aF,aR,aD,gyR,gyP,gyY,bAlt,gpLat,gpLng,gpAlt,gpN,gpE,gpD", "soooEEEmDUmnnn", "F0000000GG0000"}, \
     { LOG_SNSR_2_MSG, sizeof(log_sensors_2), \
-      "SNS2", "Qfffffffffff", "TimeUS,mX,mY,mZ,ofbX,ofbY,offX,offY,rfD,gpSA,gpHA,gpVA", "sGGGEEEEmnmm", "FCCC00000000"}
+      "SNS2", "QfffffffffffIII", "TimeUS,mX,mY,mZ,obX,obY,ofX,ofY,rfD,gpSA,gpHA,gpVA,gpT,aT,ofT", "sGGGEEEEmnmmsss", "FCCC00000000CFC"}
     //PADLOCK
     //Array declaration of sensor logger
 
