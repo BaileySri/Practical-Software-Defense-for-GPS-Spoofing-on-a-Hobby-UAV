@@ -925,7 +925,7 @@ void AP_Logger::Write_SNSR( const float &BAlt, const float &rf_dist,\
     const Vector3f &accel = ins.get_accel();
     const AP_GPS* gps = AP::gps().get_singleton();
     int32_t gps_alt;
-    if(gps->location().get_alt_cm(Location::AltFrame::ABOVE_ORIGIN, gps_alt))
+    if(gps->location().get_alt_cm(Location::AltFrame::ABOVE_HOME, gps_alt))
     {} else{
         gps_alt = -1;
     }
@@ -995,7 +995,7 @@ void AP_Logger::Write_SNSR(const float &BAlt)
     const AP_GPS* gps = AP::gps().get_singleton();
     Vector3f mag = AP::compass().get_field();
     int32_t gps_alt;
-    if(gps->location().get_alt_cm(Location::AltFrame::ABOVE_ORIGIN, gps_alt))
+    if(gps->location().get_alt_cm(Location::AltFrame::ABOVE_HOME, gps_alt))
     {} else{
         gps_alt = -1;
     }

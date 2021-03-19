@@ -585,7 +585,8 @@ protected:
     AP_Int32 ATK_OFS_NORTH;
     AP_Int32 ATK_OFS_EAST;
     AP_Int8 GPS_FENCE;
-    AP_Int8 GPS_FENCE_RADIUS;
+    AP_Int32 GPS_FENCE_SIZE;
+    AP_Int8 GPS_FENCE_ALT;
 
 private:
     static AP_GPS *_singleton;

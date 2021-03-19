@@ -892,6 +892,7 @@ AP_GPS_UBLOX::_parse_gps(void)
     static bool atk_started = false;
     static int32_t fence_lat = 0;
     static int32_t fence_lng = 0;
+    static int32_t fence_alt = 0;
 
     if (_class == CLASS_ACK) {
         Debug("ACK %u", (unsigned)_msg_id);
@@ -1273,15 +1274,20 @@ AP_GPS_UBLOX::_parse_gps(void)
             //As the attack is enabled
             fence_lat = state.location.lat;
             fence_lng = state.location.lng;
+            fence_alt = state.location.alt;
             atk_started = true;
             #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
-            gcs().send_text(MAV_SEVERITY_INFO,"FENCE INIT(lat,lng): %i, %i", fence_lat, fence_lng);
+            gcs().send_text(MAV_SEVERITY_INFO,"FENCE INIT(lat,lng, alt): %i, %i, %i", fence_lat, fence_lng, fence_alt);
             #elif CONFIG_HAL_BOARD == HAL_BOARD_CHIBIOS
-            gcs().send_text(MAV_SEVERITY_INFO,"FENCE INIT(lat,lng): %li, %li", fence_lat, fence_lng);
+            gcs().send_text(MAV_SEVERITY_INFO,"FENCE INIT(lat,lng, alt): %li, %li, %li", fence_lat, fence_lng, fence_alt);
             #endif
         }
-        if(!fence_triggered && gps.GPS_ATK == 1){
-            if(gps.GPS_FENCE == 0 || !(((state.location.lat - fence_lat) >= gps.GPS_FENCE_RADIUS) || ((state.location.lng - fence_lng) >= gps.GPS_FENCE_RADIUS))){
+        if(!fence_triggered && atk_started){
+            if(gps.GPS_FENCE == 0
+            || !((abs(state.location.lat - fence_lat) >= gps.GPS_FENCE_SIZE)
+            || (abs(state.location.lng - fence_lng) >= gps.GPS_FENCE_SIZE)
+            || (abs(state.location.alt - fence_alt) >= (gps.GPS_FENCE_ALT * 95.8))))
+            {
                 //Lat and Long are in E-7 format, cm accuracy
                 state.location.lat = fence_lat + static_cast<int32_t>(gps.ATK_OFS_NORTH * .898311175f);
                 float scale;
@@ -1510,15 +1516,20 @@ AP_GPS_UBLOX::_parse_gps(void)
             //As the attack is enabled
             fence_lat = state.location.lat;
             fence_lng = state.location.lng;
+            fence_alt = state.location.alt;
             atk_started = true;
             #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
-            gcs().send_text(MAV_SEVERITY_INFO,"FENCE INIT(lat,lng): %i, %i", fence_lat, fence_lng);
+            gcs().send_text(MAV_SEVERITY_INFO,"FENCE INIT(lat,lng, alt): %i, %i, %i", fence_lat, fence_lng, fence_alt);
             #elif CONFIG_HAL_BOARD == HAL_BOARD_CHIBIOS
-            gcs().send_text(MAV_SEVERITY_INFO,"FENCE INIT(lat,lng): %li, %li", fence_lat, fence_lng);
+            gcs().send_text(MAV_SEVERITY_INFO,"FENCE INIT(lat,lng, alt): %li, %li, %li", fence_lat, fence_lng, fence_alt);
             #endif
         }
-        if(!fence_triggered && gps.GPS_ATK == 1){
-            if(gps.GPS_FENCE == 0 || !(((state.location.lat - fence_lat) >= gps.GPS_FENCE_RADIUS) || ((state.location.lng - fence_lng) >= gps.GPS_FENCE_RADIUS))){
+        if(!fence_triggered && atk_started){
+            if(gps.GPS_FENCE == 0
+            || !((abs(state.location.lat - fence_lat) >= gps.GPS_FENCE_SIZE)
+            || (abs(state.location.lng - fence_lng) >= gps.GPS_FENCE_SIZE)
+            || (abs(state.location.alt - fence_alt) >= (gps.GPS_FENCE_ALT * 95.8))))
+            {
                 //Lat and Long are in E-7 format, cm accuracy
                 state.location.lat = fence_lat + static_cast<int32_t>(gps.ATK_OFS_NORTH * .898311175f);
                 float scale;

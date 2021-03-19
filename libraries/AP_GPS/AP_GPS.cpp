@@ -374,21 +374,30 @@ const AP_Param::GroupInfo AP_GPS::var_info[] = {
     // @User: Advanced
     AP_GROUPINFO("PDLK_E", 27, AP_GPS, ATK_OFS_EAST, 0),
     
-    // @Param: GPS_FENCE
+    // @Param: GPS_FEN
     // @DisplayName: Disable/Enable the fence around GPS Spoofing
     // @Description: Turns on or off the fencing around gps spoofing for safety.
     // @Values: 0:Disabled, 1:Enabled
     // @User: Advanced
-    AP_GROUPINFO("PDLK_FENCE", 28, AP_GPS, GPS_FENCE, 0),
+    AP_GROUPINFO("PDLK_FEN", 28, AP_GPS, GPS_FENCE, 0),
 
-    // @Param: PDLK_FENCE_R
+    // @Param: PDLK_FEN_SIZ
     // @DisplayName: Box size of GPS Fence
     // @Description: Defines a box around the starting GPS Value that the attack disables at
     // @Units: Centimeter
     // @Range: INT8_MIN INT8_MAX
     // @Increment: 1
     // @User: Advanced
-    AP_GROUPINFO("PDLK_FENCE_R", 29, AP_GPS, GPS_FENCE_RADIUS, 0),
+    AP_GROUPINFO("PDLK_FEN_SIZ", 29, AP_GPS, GPS_FENCE_SIZE, 5),
+
+    // @Param: PDLK_FEN_ALT
+    // @DisplayName: Fence height above and below
+    // @Description: Defines height based on starting GPS Value that the attack disables at
+    // @Units: Meters
+    // @Range: INT8_MIN INT8_MAX
+    // @Increment: 1
+    // @User: Advanced
+    AP_GROUPINFO("PDLK_FEN_ALT", 30, AP_GPS, GPS_FENCE_ALT, 5),
 
     AP_GROUPEND
 };
