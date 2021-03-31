@@ -4,7 +4,6 @@
 
 //Constant declarations
 const unsigned int DELAY = 45000000U; //Start-Up delay to allow sensors to settle
-const unsigned int BIAS_DELAY = DELAY + 30000000U; //Delay for biasing
 const float ACC_NOISE = 0.3;//1.471E-3; // (m/s/s)/(sqrt(Hz)) Accelerometer noise (As defined in LSM303D Datasheet)
 
 #include "Copter.h"
@@ -20,107 +19,21 @@ void debug();
 bool confirmVel();
 bool confirmAlt();
 
-//Structs for easier naming
-struct NED{
-    float North;
-    float East;
-    float Down;
-
-    constexpr NED( const NED& rhs ) = default;
-
-    NED(){
-        North = 0;
-        East = 0;
-        Down = 0;
-    }
-
-    NED& zero(){
-        North = 0.0;
-        East = 0.0;
-        Down = 0.0;
-        return *this;
-    }
-
-    float magnitude() const {
-        return(sqrtf(North*North + East*East + Down*Down));
-    }
-
-    NED operator-(const NED &rhs) const {
-        NED ned;
-        ned.North = this->North - rhs.North;
-        ned.East = this->East - rhs.East;
-        ned.Down = this->Down - rhs.Down;
-        return ned;
-    }
-
-    NED operator+(const Vector3f &rhs) const {
-        NED ned;
-        ned.North = this->North + rhs.x;
-        ned.East = this->East + rhs.y;
-        ned.Down = this->Down + rhs.z;
-        return ned;
-    }
-
-    NED operator+(const NED &rhs) const {
-        NED ned;
-        ned.North = this->North + rhs.North;
-        ned.East = this->East + rhs.East;
-        ned.Down = this->Down + rhs.Down;
-        return ned;
-    }
-
-    NED operator*(const float &A) const {
-        NED ned;
-        ned.North = this->North * A;
-        ned.East = this->East * A;
-        ned.Down = this->Down * A;
-        return ned;
-    }
-
-    NED operator/(const float &A) const {
-        NED ned;
-        ned.North = this->North / A;
-        ned.East = this->East / A;
-        ned.Down = this->Down / A;
-        return ned;
-    }
-
-    NED& operator=(const Vector3f &rhs) {
-        North = rhs.x;
-        East = rhs.y;
-        Down = rhs.z;
-        return *this;
-    }
-
-    NED& operator=(const NED &rhs) {
-        North = rhs.North;
-        East = rhs.East;
-        Down = rhs.Down;
-        return *this;
-    }
-
-    NED& operator+=(const NED &rhs) {
-        this->North += rhs.North;
-        this->East += rhs.East;
-        this->Down += rhs.Down;
-        return *this;
-    }
-
-};
+typedef Vector3f NED;
+typedef Vector3f BF;
 
 struct Accel{
-    NED Reading; //m/s/s
+    NED Readings; //m/s/s
     NED Velocity; //m/s
     float Noise; //m/s/s
     uint32_t Timestamp; //ms
 
-    bool update(const AP_InertialSensor *frontend, const NED& bias){
+    bool update(const AP_InertialSensor *frontend){
         if(Timestamp != frontend->get_last_update_usec() / 1000){
-            NED newReading;
-            newReading = (bias*static_cast<float>(-1)) + frontend->get_accel();
+            NED newReading = AP_AHRS_DCM::get_singleton()->body_to_earth(frontend->get_accel());
             //Trapezoidal Integration
-            Velocity += ((newReading + Reading) / 2.0F) * frontend->get_delta_time();
-            Reading = newReading;
+            Velocity += ((newReading + Readings) / 2.0F) * frontend->get_delta_time();
+            Readings = newReading;
             Noise += ACC_NOISE * sqrtf( 1E-3/( ( frontend->get_last_update_usec()/1000 ) - ( Timestamp ) ) );
             Timestamp = frontend->get_last_update_usec() / 1000;
             return true;
@@ -129,14 +42,14 @@ struct Accel{
     }
 
     void reset(){
-        Reading.zero();
+        Readings.zero();
         Velocity.zero();
         Noise = 0;
         Timestamp = 0;
     }
 
     Accel& operator=(const Accel &rhs){
-        Reading = rhs.Reading;
+        Readings = rhs.Readings;
         Velocity = rhs.Velocity;
         Timestamp = rhs.Timestamp;
         Noise = rhs.Noise;
@@ -145,40 +58,18 @@ struct Accel{
 };
 
 struct Gyro{
-    float Roll;
-    float Pitch;
-    float Yaw;
-
-    Gyro& operator=(const Vector3f &rhs){
-        Roll = rhs.x;
-        Pitch = rhs.y;
-        Yaw = rhs.z;
-        return *this;
-    }
+    BF Readings; //x = Roll, y = Pitch, z = Yaw
 
     void reset(){
-        Roll = 0;
-        Pitch = 0;
-        Yaw = 0;
+        Readings.zero();
     }
 };
 
 struct Mag{
-    float x; //Milligauss
-    float y; //Milligauss
-    float z; //Milligauss
-
-    Mag& operator=(const Vector3f &rhs){
-        x = rhs.x;
-        y = rhs.y;
-        z = rhs.z;
-        return *this;
-    }
+    Vector3f Readings; //milligauss
 
     void reset(){
-        x = 0;
-        y = 0;
-        z = 0;
+        Readings.zero();
     }
 };
 
@@ -259,47 +150,24 @@ static struct{
     uint32_t lastConfirm; //ms (Time that the last confirmation occurred)
     NED lastGPS; //m/s (Velocity provided by last GPS Sensor readings)
     NED lastAcc; //m/s (Velocity calculated from previous Acc Sensor data)
-    NED bias; //m/s/s (Bias of accelerometer, after DELAY but before BIAS)
-    uint32_t bias_count; //int (Number of measurements taken during bias)
-    uint8_t biased; //0,1,2 (0:No Biasing, 1:Currently Biasing, 2:Done Biasing)
 } framework;
 
 void Copter::sensor_confirmation()
 {
-        //Initialize struct data
-        if(!framework.init){
-            initialize();
-        }
-
-        //Bias the accelerometer readings and reset used structs
-        if(framework.biased == 1 && AP_HAL::micros64() >= BIAS_DELAY){
-            framework.bias = framework.bias / static_cast<float>(framework.bias_count);
-            sensors.currAccel.reset();
-            if(framework.biased == 1){
-                gcs().send_text(MAV_SEVERITY_INFO,"Sensors Biased");
-                framework.biased = 2;
-            }
-        }
-        
-        if(AP_HAL::micros64() >= BIAS_DELAY){
-            //Update sensor values 
-            update();
+    //Initialize struct data
+    if(!framework.init){
+        initialize();
+    }
+    if(AP_HAL::micros64() >= DELAY){
+        //Update sensor values 
+        update();
             
-            //If confirmation returns False, Recover
-            //If confirmation returns True, Nothing
-            if(!confirm()){
-                recover();
-            }
-        } else if(AP_HAL::micros64() >= DELAY){
-            if(framework.biased == 0){
-                gcs().send_text(MAV_SEVERITY_INFO,"Start Biasing");
-                framework.biased = 1;
-            }
-            //After 45 seconds start collecting biasing data
-            bias();
-            framework.bias += sensors.currAccel.Reading;
-            framework.bias_count++;
+        //If confirmation returns False, Recover
+        //If confirmation returns True, Nothing
+        if(!confirm()){
+            recover();
         }
+    }
 }
 
 void initialize(){
@@ -312,22 +180,18 @@ void initialize(){
     framework.lastAcc.zero();
     framework.gpsAvail = false;
     framework.init = true;
-    framework.biased = 0;
-    framework.bias.zero();
-    framework.bias_count = 0;
     framework.lastConfirm = 0;
-}
-
-void bias(){
-    //During this time I only want raw measurements
-    sensors.currAccel.Reading = AP_InertialSensor::get_singleton()->get_accel();
 }
 
 void update(){
     //IMU Sensors
-    sensors.currAccel.update(AP_InertialSensor::get_singleton(), framework.bias);
-    sensors.gyro = AP_InertialSensor::get_singleton()->get_gyro();
-    sensors.mag = AP::compass().get_field();
+    if((sensors.currAccel.Timestamp - sensors.gps.Timestamp) >= 200){
+        sensors.nextAccel.update(AP_InertialSensor::get_singleton());
+    } else{
+        sensors.currAccel.update(AP_InertialSensor::get_singleton());
+    }
+    sensors.gyro.Readings = AP_InertialSensor::get_singleton()->get_gyro();
+    sensors.mag.Readings = AP::compass().get_field();
 
     //GPS
     framework.gpsAvail = sensors.gps.update(AP::gps().get_singleton());
@@ -335,7 +199,9 @@ void update(){
 
 bool confirm(){
     if(framework.gpsAvail){
-        debug();
+        #if CONFIG_HAL_BOARD == HAL_BOARD_SITL && 0
+            debug();
+        #endif
 
         if(!confirmVel()){
             gcs().send_text(MAV_SEVERITY_WARNING,"Velocity outside of error ranges.");
@@ -349,12 +215,11 @@ bool confirm(){
         framework.lastAcc = sensors.currAccel.Velocity;
         framework.lastConfirm = sensors.currAccel.Timestamp;
         //Accumulate velocity
-        sensors.nextAccel.Velocity = sensors.currAccel.Velocity + sensors.nextAccel.Velocity;
+        sensors.nextAccel.Velocity += sensors.currAccel.Velocity;
         //Switch to next Accel data
         sensors.currAccel = sensors.nextAccel;
         sensors.nextAccel.reset();
         //Retain timestamp for consistency
-        sensors.nextAccel.Timestamp = sensors.currAccel.Timestamp;
 
         framework.gpsAvail = false;
     }
@@ -366,14 +231,11 @@ void recover(){
 }
 
 void debug(){
-    // gcs().send_text(MAV_SEVERITY_INFO,"CURRENT [%lu] ACC: (%f, %f, %f) | GPS: (%f, %f, %f)",
-    //                 AP_HAL::micros64(),
-    //                 sensors.currAccel.Velocity.North,
-    //                 sensors.currAccel.Velocity.East,
-    //                 sensors.currAccel.Velocity.Down,
-    //                 sensors.gps.Airspeed.North,
-    //                 sensors.gps.Airspeed.East,
-    //                 sensors.gps.Airspeed.Down);
+    gcs().send_text(MAV_SEVERITY_INFO,"CURRENT [%lu] currAcc: %u | nextAcc: %u | GPS: %u",
+                    AP_HAL::micros64(),
+                    sensors.currAccel.Timestamp,
+                    sensors.nextAccel.Timestamp,
+                    sensors.gps.Timestamp);
     #if CONFIG_HAL_BOARD == HAL_BOARD_SITL && 0
         // for logging
         uint64_t timestamp = AP_HAL::micros64();
@@ -395,19 +257,13 @@ bool confirmVel(){
     float acc_velError = ((sensors.currAccel.Timestamp - framework.lastConfirm) * sensors.currAccel.Noise * 3) / 1000; //Multiplied by 3 to account for noise in 3-Axis
     //Compare the change in Airspeed from GPS to change in
     //Dead Reckoning velocity from Accelerometer
-    float gps_change = (sensors.gps.Airspeed - framework.lastGPS).magnitude();
-    float acc_change = (sensors.currAccel.Velocity - framework.lastAcc).magnitude(); 
+    float gps_change = (sensors.gps.Airspeed - framework.lastGPS).length();
+    float acc_change = (sensors.currAccel.Velocity - framework.lastAcc).length(); 
     if(gps_change >= acc_change){
         return((acc_change + acc_velError) - (gps_change - sensors.gps.Sacc) >= 0);
     } else{
         return((gps_change + sensors.gps.Sacc) - (acc_change - acc_velError) >= 0);
     }
-    // if((sensors.gps.Airspeed - framework.lastGPS).magnitude() - (sensors.currAccel.Velocity - framework.lastAcc).magnitude() >= 0){
-    //     gcs().send_text(MAV_SEVERITY_WARNING,"Confirmation Error");
-    //     gcs().send_text(MAV_SEVERITY_WARNING,"GPS: %f | Acc: %f",
-    //                     (sensors.gps.Airspeed - framework.lastGPS).magnitude(),
-    //                     (sensors.currAccel.Velocity - framework.lastAcc).magnitude());
-    // }
 }
 
 bool confirmAlt(){
