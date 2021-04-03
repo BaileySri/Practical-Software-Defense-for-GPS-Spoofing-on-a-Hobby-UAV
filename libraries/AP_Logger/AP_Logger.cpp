@@ -920,20 +920,21 @@ void AP_Logger::Write_SNSR( const float &BAlt, const float &rf_dist,\
                             const Vector2f &body_rate, const Vector2f &flow_rate,\
                             const uint32_t &OF_Time)
 {
+    uint64_t timestamp = AP_HAL::micros64();
     const AP_InertialSensor &ins = AP::ins();
     const Vector3f &gyro = ins.get_gyro();
     const Vector3f &accel = ins.get_accel();
     const AP_GPS* gps = AP::gps().get_singleton();
     int32_t gps_alt;
-    if(gps->location().get_alt_cm(Location::AltFrame::ABOVE_HOME, gps_alt))
-    {} else{
+    if(!gps->location().get_alt_cm(Location::AltFrame::ABOVE_HOME, gps_alt))
+    {
         gps_alt = -1;
     }
     Vector3f mag = AP::compass().get_field();
 
     struct log_sensors_1 pkt1 = {
         LOG_PACKET_HEADER_INIT(LOG_SNSR_1_MSG),
-        time_us         :   AP_HAL::micros64(),
+        time_us         :   timestamp,
         accel_front     :   accel.x,                //LPF, Scaled, and Offset
         accel_right     :   accel.y,                //LPF, Scaled, and Offset
         accel_down      :   accel.z,                //LPF, Scaled, and Offset
@@ -943,7 +944,7 @@ void AP_Logger::Write_SNSR( const float &BAlt, const float &rf_dist,\
         baro_alt        :   BAlt,                   //Filtered, depends on sensor
         gps_lat         :   gps->location().lat,    //If multiple present, should be blended
         gps_lon         :   gps->location().lng,    //If multiple present, should be blended
-        gps_alt         :   gps_alt/100,            //If multiple present, should be blended
+        gps_alt         :   gps_alt,            //If multiple present, should be blended
         gps_vel_N       :   gps->velocity().x,      //LPF and Tilt Compensated
         gps_vel_E       :   gps->velocity().y,      //LPF and Tilt Compensated
         gps_vel_D       :   gps->velocity().z,      //LPF and Tilt Compensated
@@ -966,7 +967,7 @@ void AP_Logger::Write_SNSR( const float &BAlt, const float &rf_dist,\
 
     struct log_sensors_2 pkt2 = {
         LOG_PACKET_HEADER_INIT(LOG_SNSR_2_MSG),
-        time_us         :   AP_HAL::micros64(),
+        time_us         :   timestamp,
         mX              :   mag.x,                  //Averaged Sum
         mY              :   mag.y,                  //Averaged Sum
         mZ              :   mag.z,                  //Averaged Sum
@@ -989,6 +990,7 @@ void AP_Logger::Write_SNSR( const float &BAlt, const float &rf_dist,\
 
 void AP_Logger::Write_SNSR(const float &BAlt)
 {
+    uint64_t timestamp = AP_HAL::micros64();
     const AP_InertialSensor &ins = AP::ins();
     const Vector3f &gyro = ins.get_gyro();
     const Vector3f &accel = ins.get_accel();
@@ -1002,7 +1004,7 @@ void AP_Logger::Write_SNSR(const float &BAlt)
 
     struct log_sensors_1 pkt1 = {
         LOG_PACKET_HEADER_INIT(LOG_SNSR_1_MSG),
-        time_us         :   AP_HAL::micros64(),
+        time_us         :   timestamp,
         accel_front     :   accel.x,                //LPF, Scaled, and Offset
         accel_right     :   accel.y,                //LPF, Scaled, and Offset
         accel_down      :   accel.z,                //LPF, Scaled, and Offset
@@ -1035,7 +1037,7 @@ void AP_Logger::Write_SNSR(const float &BAlt)
 
     struct log_sensors_2 pkt2 = {
         LOG_PACKET_HEADER_INIT(LOG_SNSR_2_MSG),
-        time_us         :   AP_HAL::micros64(),
+        time_us         :   timestamp,
         mX              :   mag.x,                  //Averaged Sum
         mY              :   mag.y,                  //Averaged Sum
         mZ              :   mag.z,                  //Averaged Sum
