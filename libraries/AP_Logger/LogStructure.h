@@ -755,6 +755,20 @@ struct PACKED log_sensors_2 {
     uint32_t acc_Time;
     uint32_t of_Time;
 };
+
+struct PACKED log_sensors_3 {
+    LOG_PACKET_HEADER;
+    uint64_t time_us;
+    float m_0_0; //Matrix i,j value for DCM
+    float m_0_1; //Matrix i,j value for DCM
+    float m_0_2; //Matrix i,j value for DCM
+    float m_1_0; //Matrix i,j value for DCM
+    float m_1_1; //Matrix i,j value for DCM
+    float m_1_2; //Matrix i,j value for DCM
+    float m_2_0; //Matrix i,j value for DCM
+    float m_2_1; //Matrix i,j value for DCM
+    float m_2_2; //Matrix i,j value for DCM
+};
 // FMT messages define all message formats other than FMT
 // UNIT messages define units which can be referenced by FMTU messages
 // FMTU messages associate types (e.g. centimeters/second/second) to FMT message fields
@@ -1392,7 +1406,10 @@ LOG_STRUCTURE_FROM_VISUALODOM \
     { LOG_SNSR_1_MSG, sizeof(log_sensors_1), \
       "SNS1", "Qfffffffiiifff", "TimeUS,aF,aR,aD,gyR,gyP,gyY,bAlt,gpLat,gpLng,gpAlt,gpN,gpE,gpD", "soooEEEmDUmnnn", "F0000000GGB000"}, \
     { LOG_SNSR_2_MSG, sizeof(log_sensors_2), \
-      "SNS2", "QfffffffffffIII", "TimeUS,mX,mY,mZ,obX,obY,ofX,ofY,rfD,gpSA,gpHA,gpVA,gpT,aT,ofT", "sGGGEEEEmnmmsss", "FCCC00000000CFC"}
+      "SNS2", "QfffffffffffIII", "TimeUS,mX,mY,mZ,obX,obY,ofX,ofY,rfD,gpSA,gpHA,gpVA,gpT,aT,ofT", "sGGGEEEEmnmmsss", "FCCC00000000CFC"}, \
+    { LOG_SNSR_3_MSG, sizeof(log_sensors_3), \
+      "SNS3", "Qfffffffff", "TimeUS,m00,m01,m02,m10,m11,m12,m20,m21,m22", "s---------", "F---------"}
+    
     //PADLOCK
     //Array declaration of sensor logger
 
@@ -1498,7 +1515,8 @@ enum LogMessages : uint8_t {
     LOG_PSC_MSG,
     LOG_SNSR_1_MSG,
     LOG_SNSR_2_MSG,
-
+    LOG_SNSR_3_MSG,
+    
     _LOG_LAST_MSG_
 };
 

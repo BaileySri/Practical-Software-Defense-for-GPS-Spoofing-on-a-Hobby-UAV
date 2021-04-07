@@ -445,6 +445,10 @@ bool AP_AHRS_DCM::use_compass(void)
     if (!compass.use_for_yaw()) {
         // no compass available
         return false;
+    } else{
+        //PADLOCK
+        //Added to force the DCM to only use compass for heading
+        return true;
     }
     if (!AP::ahrs().get_fly_forward() || !have_gps()) {
         // we don't have any alterative to the compass

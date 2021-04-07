@@ -922,6 +922,7 @@ void AP_Logger::Write_SNSR( const float &BAlt, const float &rf_dist,\
 {
     uint64_t timestamp = AP_HAL::micros64();
     const AP_InertialSensor &ins = AP::ins();
+    const Matrix3f &rot = AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned();
     const Vector3f &gyro = ins.get_gyro();
     const Vector3f &accel = ins.get_accel();
     const AP_GPS* gps = AP::gps().get_singleton();
@@ -984,8 +985,23 @@ void AP_Logger::Write_SNSR( const float &BAlt, const float &rf_dist,\
         of_Time         :   OF_Time
     };
 
+    struct log_sensors_3 pkt3 = {
+        LOG_PACKET_HEADER_INIT(LOG_SNSR_3_MSG),
+        time_us : timestamp,
+        m_0_0 : rot.a.x,
+        m_0_1 : rot.a.y,
+        m_0_2 : rot.a.z,
+        m_1_0 : rot.b.x,
+        m_1_1 : rot.b.y,
+        m_1_2 : rot.b.z,
+        m_2_0 : rot.c.x,
+        m_2_1 : rot.c.y,
+        m_2_2 : rot.c.z,
+    };
+
     FOR_EACH_BACKEND(WriteBlock(&pkt1, sizeof(pkt1)));
     FOR_EACH_BACKEND(WriteBlock(&pkt2, sizeof(pkt2)));
+    FOR_EACH_BACKEND(WriteBlock(&pkt3, sizeof(pkt3)));
 }
 
 void AP_Logger::Write_SNSR(const float &BAlt)
