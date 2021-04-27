@@ -174,6 +174,11 @@ public:
         uint32_t time_week_ms;              ///< GPS time (milliseconds from start of GPS week)
         uint16_t time_week;                 ///< GPS week number
         Location location;                  ///< last fix location
+        // PADLOCK
+        // Location unaltered by attack values
+        Location real_loc;
+        // Velocity unaltered by attack values
+        Vector3f real_vel;
         float ground_speed;                 ///< ground speed in m/sec
         float ground_course;                ///< ground course in degrees
         float gps_yaw;                      ///< GPS derived yaw information, if available (degrees)
@@ -292,6 +297,14 @@ public:
     const Location &location() const {
         return location(primary_instance);
     }
+    //PADLOCK
+    // location of last unaltered fix
+    const Location &real_loc(uint8_t instance) const {
+        return state[instance].real_loc;
+    }
+    const Location &real_loc() const {
+        return real_loc(primary_instance);
+    }
 
     // report speed accuracy
     bool speed_accuracy(uint8_t instance, float &sacc) const;
@@ -315,6 +328,14 @@ public:
     }
     const Vector3f &velocity() const {
         return velocity(primary_instance);
+    }
+    //Padlock
+    // Unaltered 3D Velocity in NED format
+    const Vector3f &real_vel(uint8_t instance) const {
+        return state[instance].real_vel;
+    }
+    const Vector3f &real_vel() const {
+        return real_vel(primary_instance);
     }
 
     // ground speed in m/s
@@ -581,13 +602,19 @@ protected:
 
     //PADLOCK
     //GPS Parameters
+    // Boolean to enable attack
     AP_Int8 GPS_ATK;
+    // cm resolution of offsets
     AP_Int32 ATK_OFS_NORTH;
+    // cm resolution of offsets
     AP_Int32 ATK_OFS_EAST;
+    // Boolean to enable fence
     AP_Int8 GPS_FENCE;
+    // cm resolution of fence size
     AP_Int32 GPS_FENCE_SIZE;
+    // meter resolution of fenced altitude
     AP_Int8 GPS_FENCE_ALT;
-
+    
 private:
     static AP_GPS *_singleton;
     HAL_Semaphore rsem;

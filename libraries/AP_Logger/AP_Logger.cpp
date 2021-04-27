@@ -927,9 +927,14 @@ void AP_Logger::Write_SNSR( const float &BAlt, const float &rf_dist,\
     const Vector3f &accel = ins.get_accel();
     const AP_GPS* gps = AP::gps().get_singleton();
     int32_t gps_alt;
+    int32_t gps_alt_real;
     if(!gps->location().get_alt_cm(Location::AltFrame::ABOVE_HOME, gps_alt))
     {
         gps_alt = -1;
+    }
+    if(!gps->real_loc().get_alt_cm(Location::AltFrame::ABOVE_HOME, gps_alt))
+    {
+        gps_alt_real = -1;
     }
     Vector3f mag = AP::compass().get_field();
 
@@ -999,9 +1004,22 @@ void AP_Logger::Write_SNSR( const float &BAlt, const float &rf_dist,\
         m_2_2 : rot.c.z,
     };
 
+    struct log_sensors_4 pkt4 = {
+        LOG_PACKET_HEADER_INIT(LOG_SNSR_4_MSG),
+        time_us : timestamp,
+        gps_lat         :   gps->real_loc().lat,    //If multiple present, should be blended
+        gps_lon         :   gps->real_loc().lng,    //If multiple present, should be blended
+        gps_alt         :   gps_alt_real,            //If multiple present, should be blended
+        gps_vel_N       :   gps->real_vel().x,      //LPF and Tilt Compensated
+        gps_vel_E       :   gps->real_vel().y,      //LPF and Tilt Compensated
+        gps_vel_D       :   gps->real_vel().z,      //LPF and Tilt Compensated
+
+    };
+
     FOR_EACH_BACKEND(WriteBlock(&pkt1, sizeof(pkt1)));
     FOR_EACH_BACKEND(WriteBlock(&pkt2, sizeof(pkt2)));
     FOR_EACH_BACKEND(WriteBlock(&pkt3, sizeof(pkt3)));
+    FOR_EACH_BACKEND(WriteBlock(&pkt4, sizeof(pkt4)));
 }
 
 void AP_Logger::Write_SNSR(const float &BAlt)

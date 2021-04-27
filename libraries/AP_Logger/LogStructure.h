@@ -769,6 +769,18 @@ struct PACKED log_sensors_3 {
     float m_2_1; //Matrix i,j value for DCM
     float m_2_2; //Matrix i,j value for DCM
 };
+
+struct PACKED log_sensors_4 {
+    LOG_PACKET_HEADER;
+    uint64_t time_us;
+    int32_t gps_lat;
+    int32_t gps_lon;
+    int32_t gps_alt;
+    float gps_vel_N;
+    float gps_vel_E;
+    float gps_vel_D;
+};
+
 // FMT messages define all message formats other than FMT
 // UNIT messages define units which can be referenced by FMTU messages
 // FMTU messages associate types (e.g. centimeters/second/second) to FMT message fields
@@ -1408,7 +1420,9 @@ LOG_STRUCTURE_FROM_VISUALODOM \
     { LOG_SNSR_2_MSG, sizeof(log_sensors_2), \
       "SNS2", "QfffffffffffIII", "TimeUS,mX,mY,mZ,obX,obY,ofX,ofY,rfD,gpSA,gpHA,gpVA,gpT,aT,ofT", "sGGGEEEEmnmmsss", "FCCC00000000CFC"}, \
     { LOG_SNSR_3_MSG, sizeof(log_sensors_3), \
-      "SNS3", "Qfffffffff", "TimeUS,m00,m01,m02,m10,m11,m12,m20,m21,m22", "s---------", "F---------"}
+      "SNS3", "Qfffffffff", "TimeUS,m00,m01,m02,m10,m11,m12,m20,m21,m22", "s---------", "F---------"}, \
+    { LOG_SNSR_4_MSG, sizeof(log_sensors_4), \
+      "SNS4", "Qiiifff", "TimeUS,gprLat,gprLng,gprAlt,gprN,gprE,gprD", "sDUmnnn", "FGGB000"}
     
     //PADLOCK
     //Array declaration of sensor logger
@@ -1516,6 +1530,7 @@ enum LogMessages : uint8_t {
     LOG_SNSR_1_MSG,
     LOG_SNSR_2_MSG,
     LOG_SNSR_3_MSG,
+    LOG_SNSR_4_MSG,
     
     _LOG_LAST_MSG_
 };
