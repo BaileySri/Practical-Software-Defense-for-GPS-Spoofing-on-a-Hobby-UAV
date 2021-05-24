@@ -349,8 +349,12 @@ void SITL_State::_update_gps_ubx(const struct gps_data *d, uint8_t instance)
     pos.latitude  = d->latitude * 1.0e7;
     pos.altitude_ellipsoid = d->altitude * 1000.0f;
     pos.altitude_msl = d->altitude * 1000.0f;
-    pos.horizontal_accuracy = _sitl->gps_accuracy[instance]*1000;
-    pos.vertical_accuracy = _sitl->gps_accuracy[instance]*1000;
+    //PADLOCK
+    // units appear to be in mm, using datasheet values to subsitute here
+    // _sitl->gps_accuracy[instance]*1000
+    // The above is connected to parameters and can be reused, for now static for testing
+    pos.horizontal_accuracy = 2.5F*1000;
+    pos.vertical_accuracy = 2.5F*1000;
 
     status.time = time_week_ms;
     status.fix_type = d->have_lock?3:0;
@@ -370,7 +374,9 @@ void SITL_State::_update_gps_ubx(const struct gps_data *d, uint8_t instance)
     if (velned.heading_2d < 0.0f) {
         velned.heading_2d += 360.0f * 100000.0f;
     }
-    velned.speed_accuracy = 40;
+    //PADLOCK
+    // units appear to be in mm, using datasheet values to subsitute here
+    velned.speed_accuracy = velned.speed_3d >= 3000 ? 25 : 50;
     velned.heading_accuracy = 4;
 
     memset(&sol, 0, sizeof(sol));
@@ -407,14 +413,22 @@ void SITL_State::_update_gps_ubx(const struct gps_data *d, uint8_t instance)
     pvt.lat  = d->latitude * 1.0e7;
     pvt.height = d->altitude * 1000.0f;
     pvt.h_msl = d->altitude * 1000.0f;
-    pvt.h_acc = _sitl->gps_accuracy[instance] * 1000;
-    pvt.v_acc = _sitl->gps_accuracy[instance] * 1000;
+
+    //PADLOCK
+    // units appear to be in mm, using datasheet values to subsitute here
+    // _sitl->gps_accuracy[instance]*1000
+    // The above is connected to parameters and can be reused, for now static for testing
+    pvt.h_acc = 2.5F * 1000;
+    pvt.v_acc = 2.5F * 1000;
     pvt.velN = 1000.0f * d->speedN;
     pvt.velE = 1000.0f * d->speedE;
     pvt.velD = 1000.0f * d->speedD;
     pvt.gspeed = norm(d->speedN, d->speedE) * 1000; 
     pvt.head_mot = ToDeg(atan2f(d->speedE, d->speedN)) * 1.0e5; 
-    pvt.s_acc = 40; 
+    
+    //PADLOCK
+    // units appear to be in mm, using datasheet values to subsitute here
+    pvt.s_acc = velned.speed_3d >= 3000 ? 25 : 50;
     pvt.head_acc = 38 * 1.0e5; 
     pvt.p_dop = 65535; 
     memset(pvt.reserved1, '\0', ARRAY_SIZE(pvt.reserved1));
@@ -1084,6 +1098,38 @@ void SITL_State::_update_gps(double latitude, double longitude, float altitude,
         // add an altitude error controlled by a slow sine wave
         d.altitude = altitude + _sitl->gps_noise[idx] * sinf(AP_HAL::millis() * 0.0005f) + _sitl->gps_alt_offset[idx];
 
+        //PADLOCK
+        // Adding simulated error to Lat/Long values
+        // Using the notion that CEP of n is 50%, n to 2n is 43.7%, and 2n to 3n is 6.1%
+        const float CEP = 2.5;
+        double const earth_rad_inv = 1.569612305760477e-7; // use Authalic/Volumetric radius
+        float noise_lat = 0;
+        float noise_lon = 0;
+        float bound_lat = rand_float();
+        float bound_lon = rand_float();
+        if(bound_lat > 0){
+            noise_lat = rand_float() * CEP;
+        } else if(bound_lat > -0.437F){
+            noise_lat = (rand_float() * CEP) + CEP;
+        }else if(bound_lat > -0.498F){
+            noise_lat = (rand_float() * CEP) + (2 * CEP);
+        }else{
+            noise_lat = (rand_float() * CEP) + (3 * CEP);
+        }
+        if(bound_lon > 0){
+            noise_lon = rand_float() * CEP;
+        } else if(bound_lon > -0.437F){
+            noise_lon = (rand_float() * CEP) + CEP;
+        }else if(bound_lon > -0.498F){
+            noise_lon = (rand_float() * CEP) + (2 * CEP);
+        }else{
+            noise_lon = (rand_float() * CEP) + (3 * CEP);
+        }
+        d.latitude += degrees(noise_lat * earth_rad_inv);
+        double lng_scale_factor = earth_rad_inv / cos(radians(d.latitude));
+        d.longitude += degrees(noise_lon * lng_scale_factor);
+
+
         // Add offet to c.g. velocity to get velocity at antenna and add simulated error
         Vector3f velErrorNED = _sitl->gps_vel_err[idx];
         d.speedN = speedN + (velErrorNED.x * rand_float());
@@ -1108,8 +1154,6 @@ void SITL_State::_update_gps(double latitude, double longitude, float altitude,
             Vector3f posRelOffsetEF = rotmat * posRelOffsetBF;
 
             // Add the offset to the latitude, longitude and height using a spherical earth approximation
-            double const earth_rad_inv = 1.569612305760477e-7; // use Authalic/Volumetric radius
-            double lng_scale_factor = earth_rad_inv / cos(radians(d.latitude));
             d.latitude += degrees(posRelOffsetEF.x * earth_rad_inv);
             d.longitude += degrees(posRelOffsetEF.y * lng_scale_factor);
             d.altitude -= posRelOffsetEF.z;
