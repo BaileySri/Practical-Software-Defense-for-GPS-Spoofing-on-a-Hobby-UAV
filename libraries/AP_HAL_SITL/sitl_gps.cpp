@@ -1101,6 +1101,8 @@ void SITL_State::_update_gps(double latitude, double longitude, float altitude,
         //PADLOCK
         // Adding simulated error to Lat/Long values
         // Using the notion that CEP of n is 50%, n to 2n is 43.7%, and 2n to 3n is 6.1%
+        static float prev_lat = d.latitude;
+        static float prev_lon = d.longitude;
         const float CEP = 2.5;
         double const earth_rad_inv = 1.569612305760477e-7; // use Authalic/Volumetric radius
         float noise_lat = 0;
@@ -1129,6 +1131,12 @@ void SITL_State::_update_gps(double latitude, double longitude, float altitude,
         double lng_scale_factor = earth_rad_inv / cos(radians(d.latitude));
         d.longitude += degrees(noise_lon * lng_scale_factor);
 
+        // I'm performing a simple filter to simulate filters on consumer GPS devices
+        const float ALPHA = 0.2;
+        d.latitude = d.latitude * ALPHA + prev_lat * (1.0f - ALPHA);
+        d.longitude = d.longitude * 0.2 + prev_lon * (1.0f - ALPHA);
+        prev_lat = d.latitude;
+        prev_lon = d.longitude;
 
         // Add offet to c.g. velocity to get velocity at antenna and add simulated error
         Vector3f velErrorNED = _sitl->gps_vel_err[idx];

@@ -364,12 +364,19 @@ void Aircraft::fill_fdm(struct sitl_fdm &fdm)
     fdm.speedN    = velocity_ef.x;
     fdm.speedE    = velocity_ef.y;
     fdm.speedD    = velocity_ef.z;
-    fdm.xAccel    = accel_body.x;
-    fdm.yAccel    = accel_body.y;
-    fdm.zAccel    = accel_body.z;
-    fdm.rollRate  = degrees(gyro.x);
-    fdm.pitchRate = degrees(gyro.y);
-    fdm.yawRate   = degrees(gyro.z);
+
+    //PADLOCK
+    // Adding noise to accelerometer and gyroscope
+    // L3GD20H Gyroscope in rad/s
+    const float gyroNoise = 0.00384 * rand_normal(0, 1);
+    // LSM303D Accelerometer in m/s/s
+    const float accNoise = 0.02943 * rand_normal(0, 1);
+    fdm.xAccel    = accel_body.x + accNoise;
+    fdm.yAccel    = accel_body.y + accNoise;
+    fdm.zAccel    = accel_body.z + accNoise;
+    fdm.rollRate  = degrees(gyro.x + gyroNoise);
+    fdm.pitchRate = degrees(gyro.y + gyroNoise);
+    fdm.yawRate   = degrees(gyro.z + gyroNoise);
     float r, p, y;
     dcm.to_euler(&r, &p, &y);
     fdm.rollDeg  = degrees(r);

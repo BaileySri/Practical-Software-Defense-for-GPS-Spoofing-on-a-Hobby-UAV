@@ -578,16 +578,23 @@ void Frame::calculate_forces(const Aircraft &aircraft,
         body_accel += drag_bf / mass;
     }
 
-    // add some noise
-    const float gyro_noise = radians(0.1);
-    const float accel_noise = 0.3;
-    const float noise_scale = thrust.length() / thrust_max;
-    rot_accel += Vector3f(aircraft.rand_normal(0, 1),
-                          aircraft.rand_normal(0, 1),
-                          aircraft.rand_normal(0, 1)) * gyro_noise * noise_scale;
-    body_accel += Vector3f(aircraft.rand_normal(0, 1),
-                           aircraft.rand_normal(0, 1),
-                           aircraft.rand_normal(0, 1)) * accel_noise * noise_scale;
+    //PADLOCK
+    // I'm removing the added noise here in an effort to reduce
+    // propagating noise from this point. The issue being that
+    // force is calculated first and then other details like
+    // position and heading which I would prefer not be impacted
+    // by accelerometer/gyro noise simulation
+
+    // // add some noise
+    // const float gyro_noise = radians(0.1);
+    // const float accel_noise = 0.3;
+    // const float noise_scale = thrust.length() / (thrust_scale * num_motors);
+    // rot_accel += Vector3f(aircraft.rand_normal(0, 1),
+    //                       aircraft.rand_normal(0, 1),
+    //                       aircraft.rand_normal(0, 1)) * gyro_noise * noise_scale;
+    // body_accel += Vector3f(aircraft.rand_normal(0, 1),
+    //                        aircraft.rand_normal(0, 1),
+    //                        aircraft.rand_normal(0, 1)) * accel_noise * noise_scale;
 }
 
 
