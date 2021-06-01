@@ -297,6 +297,9 @@ class AutoTestCopter(AutoTest):
     #   TESTS FLY
     #################################################
 
+    def gather_data(self, timeout=360):
+        return(0)
+
     # fly a square in alt_hold mode
     def fly_square(self, side=50, timeout=300):
 
