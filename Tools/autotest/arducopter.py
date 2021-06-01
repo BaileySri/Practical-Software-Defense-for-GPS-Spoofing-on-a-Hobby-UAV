@@ -325,6 +325,9 @@ class AutoTestCopter(AutoTest):
             self.set_parameter("SIM_SPEEDUP", 4)
             self.set_parameter("FS_GCS_ENABLE", paramValue)
 
+    def gather_data(self, timeout=360):
+        return(0)
+
     # fly a square in alt_hold mode
     def fly_square(self, side=50, timeout=300):
 

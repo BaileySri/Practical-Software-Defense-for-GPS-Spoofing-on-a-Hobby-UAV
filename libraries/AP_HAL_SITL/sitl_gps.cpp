@@ -350,11 +350,8 @@ void SITL_State::_update_gps_ubx(const struct gps_data *d, uint8_t instance)
     pos.altitude_ellipsoid = d->altitude * 1000.0f;
     pos.altitude_msl = d->altitude * 1000.0f;
     //PADLOCK
-    // units appear to be in mm, using datasheet values to subsitute here
-    // _sitl->gps_accuracy[instance]*1000
-    // The above is connected to parameters and can be reused, for now static for testing
-    pos.horizontal_accuracy = 2.5F*1000;
-    pos.vertical_accuracy = 2.5F*1000;
+    pos.horizontal_accuracy = _sitl->gps_accuracy[0]*1000;
+    pos.vertical_accuracy = _sitl->gps_accuracy[0]*1000;
 
     status.time = time_week_ms;
     status.fix_type = d->have_lock?3:0;
@@ -376,7 +373,7 @@ void SITL_State::_update_gps_ubx(const struct gps_data *d, uint8_t instance)
     }
     //PADLOCK
     // units appear to be in mm, using datasheet values to subsitute here
-    velned.speed_accuracy = velned.speed_3d >= 3000 ? 25 : 50;
+    velned.speed_accuracy = velned.speed_3d >= 3000 ? 25 : 50; //NEO-M8N
     velned.heading_accuracy = 4;
 
     memset(&sol, 0, sizeof(sol));
@@ -1103,7 +1100,7 @@ void SITL_State::_update_gps(double latitude, double longitude, float altitude,
         // Using the notion that CEP of n is 50%, n to 2n is 43.7%, and 2n to 3n is 6.1%
         static float prev_lat = d.latitude;
         static float prev_lon = d.longitude;
-        const float CEP = 2.5;
+        const float CEP = _sitl->pdlk_gps_noise;
         double const earth_rad_inv = 1.569612305760477e-7; // use Authalic/Volumetric radius
         float noise_lat = 0;
         float noise_lon = 0;
@@ -1127,14 +1124,22 @@ void SITL_State::_update_gps(double latitude, double longitude, float altitude,
         }else{
             noise_lon = (rand_float() * CEP) + (3 * CEP);
         }
+        //Previous errors only moved in first quadrant,
+        //below allows noise to push into a full circle
+        if(rand_float() < 0){
+            noise_lon *= -1;
+        }
+        if(rand_float() < 0){
+            noise_lat *= -1;
+        }
         d.latitude += degrees(noise_lat * earth_rad_inv);
         double lng_scale_factor = earth_rad_inv / cos(radians(d.latitude));
         d.longitude += degrees(noise_lon * lng_scale_factor);
 
-        // I'm performing a simple filter to simulate filters on consumer GPS devices
-        const float ALPHA = 0.2;
+        // I'm performing a simple filter to simulate some of the filtering on consumer GPS devices
+        const float ALPHA = 0.8;
         d.latitude = d.latitude * ALPHA + prev_lat * (1.0f - ALPHA);
-        d.longitude = d.longitude * 0.2 + prev_lon * (1.0f - ALPHA);
+        d.longitude = d.longitude * ALPHA + prev_lon * (1.0f - ALPHA);
         prev_lat = d.latitude;
         prev_lon = d.longitude;
 
