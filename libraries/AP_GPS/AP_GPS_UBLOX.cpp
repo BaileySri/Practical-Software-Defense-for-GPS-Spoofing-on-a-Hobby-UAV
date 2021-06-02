@@ -1227,7 +1227,7 @@ AP_GPS_UBLOX::_parse_gps(void)
         state.location.lng    = _buffer.posllh.longitude;
         state.location.lat    = _buffer.posllh.latitude;
         state.location.alt    = _buffer.posllh.altitude_msl / 10;
-        //Padlock
+        //PADLOCK
         //Save real location
         state.real_loc = state.location;
         state.status          = next_fix;
@@ -1454,7 +1454,7 @@ AP_GPS_UBLOX::_parse_gps(void)
         state.location.lng    = _buffer.pvt.lon;
         state.location.lat    = _buffer.pvt.lat;
         state.location.alt    = _buffer.pvt.h_msl / 10;
-        //Padlock
+        //PADLOCK
         //Save real location
         state.real_loc = state.location;
         switch (_buffer.pvt.fix_type) 
