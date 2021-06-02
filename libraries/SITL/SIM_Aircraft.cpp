@@ -344,7 +344,7 @@ double Aircraft::rand_normal(double mean, double stddev)
 /*
    fill a sitl_fdm structure from the simulator state
 */
-void Aircraft::fill_fdm(struct sitl_fdm &fdm, AP_Float pdlk_acc_noise, AP_Float pdlk_gyro_noise)
+void Aircraft::fill_fdm(struct sitl_fdm &fdm)
 {
     bool is_smoothed = false;
     if (use_smoothing) {
@@ -364,17 +364,12 @@ void Aircraft::fill_fdm(struct sitl_fdm &fdm, AP_Float pdlk_acc_noise, AP_Float 
     fdm.speedN    = velocity_ef.x;
     fdm.speedE    = velocity_ef.y;
     fdm.speedD    = velocity_ef.z;
-
-    //PADLOCK
-    // Adding noise to accelerometer and gyroscope
-    const float gyroNoise = pdlk_gyro_noise * rand_normal(0, 1);
-    const float accNoise = pdlk_acc_noise * rand_normal(0, 1);
-    fdm.xAccel    = accel_body.x + accNoise;
-    fdm.yAccel    = accel_body.y + accNoise;
-    fdm.zAccel    = accel_body.z + accNoise;
-    fdm.rollRate  = degrees(gyro.x + gyroNoise);
-    fdm.pitchRate = degrees(gyro.y + gyroNoise);
-    fdm.yawRate   = degrees(gyro.z + gyroNoise);
+    fdm.xAccel    = accel_body.x;
+    fdm.yAccel    = accel_body.y;
+    fdm.zAccel    = accel_body.z;
+    fdm.rollRate  = degrees(gyro.x);
+    fdm.pitchRate = degrees(gyro.y);
+    fdm.yawRate   = degrees(gyro.z);
     float r, p, y;
     dcm.to_euler(&r, &p, &y);
     fdm.rollDeg  = degrees(r);
@@ -407,12 +402,12 @@ void Aircraft::fill_fdm(struct sitl_fdm &fdm, AP_Float pdlk_acc_noise, AP_Float 
         //PADLCK
         //Added noise to smoothed values. Not sure if I should
         //be smoothing the noise but this will suffice for now
-        fdm.xAccel = smoothing.accel_body.x + accNoise;
-        fdm.yAccel = smoothing.accel_body.y + accNoise;
-        fdm.zAccel = smoothing.accel_body.z + accNoise;
-        fdm.rollRate  = degrees(smoothing.gyro.x + gyroNoise);
-        fdm.pitchRate = degrees(smoothing.gyro.y + gyroNoise);
-        fdm.yawRate   = degrees(smoothing.gyro.z + gyroNoise);
+        fdm.xAccel = smoothing.accel_body.x;
+        fdm.yAccel = smoothing.accel_body.y;
+        fdm.zAccel = smoothing.accel_body.z;
+        fdm.rollRate  = degrees(smoothing.gyro.x);
+        fdm.pitchRate = degrees(smoothing.gyro.y);
+        fdm.yawRate   = degrees(smoothing.gyro.z);
         fdm.speedN    = smoothing.velocity_ef.x;
         fdm.speedE    = smoothing.velocity_ef.y;
         fdm.speedD    = smoothing.velocity_ef.z;

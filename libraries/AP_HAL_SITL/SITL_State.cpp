@@ -652,7 +652,7 @@ void SITL_State::_fdm_input_local(void)
 
     // get FDM output from the model
     if (_sitl) {
-        sitl_model->fill_fdm(_sitl->state, _sitl->pdlk_acc_noise, _sitl->pdlk_gyro_noise);
+        sitl_model->fill_fdm(_sitl->state);
         _sitl->update_rate_hz = sitl_model->get_rate_hz();
 
         if (_sitl->rc_fail == SITL::SIM::SITL_RCFail_None) {

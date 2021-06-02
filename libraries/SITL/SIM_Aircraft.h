@@ -78,7 +78,7 @@ public:
     void update_model(const struct sitl_input &input);
 
     /* fill a sitl_fdm structure from the simulator state */
-    void fill_fdm(struct sitl_fdm &fdm, AP_Float pdlk_acc_noise, AP_Float pdlk_gyro_noise);
+    void fill_fdm(struct sitl_fdm &fdm);
 
     /* smooth sensors to provide kinematic consistancy */
     void smooth_sensors(void);

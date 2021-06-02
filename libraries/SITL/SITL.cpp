@@ -330,9 +330,7 @@ const AP_Param::GroupInfo SITL::var_gps[] = {
     AP_GROUPINFO("GPS_LOCKTIME",  11, SITL,  gps_lock_time[0], 0),
     AP_GROUPINFO("GPS_ALT_OFS",   12, SITL,  gps_alt_offset[0], 0),
     AP_GROUPINFO("GPS_HDG",       13, SITL,  gps_hdg_enabled[0], 0),
-    //PADLOCK
-    // Reusing the gps_accuracy parameter for modified simulation noise
-    AP_GROUPINFO("GPS_ACC",       14, SITL,  gps_accuracy[0], 2.5), //meters, NEO-M8N
+    AP_GROUPINFO("GPS_ACC",       14, SITL,  gps_accuracy[0], 0),
     AP_GROUPINFO("GPS_VERR",      15, SITL,  gps_vel_err[0], 0),
 
     AP_GROUPINFO("GPS2_DISABLE",  30, SITL,  gps_disable[1], 1),

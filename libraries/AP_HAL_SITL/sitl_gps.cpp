@@ -415,8 +415,8 @@ void SITL_State::_update_gps_ubx(const struct gps_data *d, uint8_t instance)
     // units appear to be in mm, using datasheet values to subsitute here
     // _sitl->gps_accuracy[instance]*1000
     // The above is connected to parameters and can be reused, for now static for testing
-    pvt.h_acc = 2.5F * 1000;
-    pvt.v_acc = 2.5F * 1000;
+    pvt.h_acc = _sitl->pdlk_gps_noise * 1000;
+    pvt.v_acc = _sitl->pdlk_gps_noise * 1000;
     pvt.velN = 1000.0f * d->speedN;
     pvt.velE = 1000.0f * d->speedE;
     pvt.velD = 1000.0f * d->speedD;

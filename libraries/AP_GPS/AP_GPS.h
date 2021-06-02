@@ -329,7 +329,7 @@ public:
     const Vector3f &velocity() const {
         return velocity(primary_instance);
     }
-    //Padlock
+    //PADLOCK
     // Unaltered 3D Velocity in NED format
     const Vector3f &real_vel(uint8_t instance) const {
         return state[instance].real_vel;
