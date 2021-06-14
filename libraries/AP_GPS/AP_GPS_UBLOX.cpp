@@ -1531,7 +1531,7 @@ AP_GPS_UBLOX::_parse_gps(void)
             gcs().send_text(MAV_SEVERITY_INFO,"FENCE INIT(lat,lng, alt): %li, %li, %li", fence_lat, fence_lng, fence_alt);
             #endif
         }
-        if(!fence_triggered && atk_started){
+        if(gps.GPS_ATK == 1 && !fence_triggered && atk_started){
             if(gps.GPS_FENCE == 0
             || !((abs(state.location.lat - fence_lat) >= gps.GPS_FENCE_SIZE)
             || (abs(state.location.lng - fence_lng) >= gps.GPS_FENCE_SIZE)
