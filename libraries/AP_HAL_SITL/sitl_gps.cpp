@@ -425,7 +425,7 @@ void SITL_State::_update_gps_ubx(const struct gps_data *d, uint8_t instance)
     
     //PADLOCK
     // units appear to be in mm, using datasheet values to subsitute here
-    pvt.s_acc = velned.speed_3d >= 3000 ? 25 : 50;
+    pvt.s_acc = velned.speed_3d >= 3000 ? _sitl->pdlk_gps_spd/2 : _sitl->pdlk_gps_spd;
     pvt.head_acc = 38 * 1.0e5; 
     pvt.p_dop = 65535; 
     memset(pvt.reserved1, '\0', ARRAY_SIZE(pvt.reserved1));

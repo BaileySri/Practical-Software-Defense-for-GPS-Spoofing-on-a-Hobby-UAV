@@ -212,6 +212,7 @@ public:
 
     //PADLOCK
     AP_Float pdlk_gps_noise; //meters, Noise in simulated Latitude/Longitude
+    AP_Float pdlk_gps_spd; //m/s, Speed Accuracy provided by datasheets
     AP_Float pdlk_acc_noise; //m/s/s, Noise in simulated accelerometer
     AP_Float pdlk_gyro_noise; //rad/s, Noise in simulated gyroscope
 

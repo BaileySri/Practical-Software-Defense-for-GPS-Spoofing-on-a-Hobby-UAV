@@ -353,8 +353,9 @@ const AP_Param::GroupInfo SITL::var_gps[] = {
     // This isn't where I'd put the acc/gyro params but
     // there isn't space in the user param tables 1 2 or 3
     AP_GROUPINFO("PDLK_GPS", 45, SITL, pdlk_gps_noise, 2.5), //meters, NEO-M8N
-    AP_GROUPINFO("PDLK_ACC", 46, SITL, pdlk_acc_noise, 0.02943), //m/s/s, LSM303D
-    AP_GROUPINFO("PDLK_GYRO", 47, SITL, pdlk_gyro_noise, 0.00384 ), //rad/s, L3GD20H
+    AP_GROUPINFO("PDLK_GPS_SPD", 46, SITL, pdlk_gps_spd, 50), //mm/s, NEO-M8N
+    AP_GROUPINFO("PDLK_ACC", 47, SITL, pdlk_acc_noise, 0.02943), //m/s/s, LSM303D
+    AP_GROUPINFO("PDLK_GYRO", 48, SITL, pdlk_gyro_noise, 0.00384 ), //rad/s, L3GD20H
     AP_GROUPEND
 };
 
