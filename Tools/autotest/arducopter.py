@@ -372,14 +372,7 @@ class AutoTestCopter(AutoTest):
         # load the waypoint count
         num_wp = self.load_mission("pdlk_auto_attack.txt")
         if not num_wp:
-            raise NotAchievedException("load pdlk_attack_wp.txt failed")
-
-        self.progress("Setting sensor parameters")        
-        # Set sensor parameters
-        self.set_parameter("SIM_PDLK_GPS", 0.05) #meters, Noise and Accuracy are same
-        self.set_parameter("SIM_PDLK_ACC", 0)
-        self.set_parameter("SIM_PDLK_GYRO", 0)
-        self.set_parameter("PDLK_CHOI_CI", 0)
+            raise NotAchievedException("load pdlk_auto_attack.txt failed")
 
         self.progress("test: Fly a mission from 1 to %u" % num_wp)
         self.mavproxy.send('wp set 1\n')
@@ -395,7 +388,7 @@ class AutoTestCopter(AutoTest):
         # fly the mission
         # wait until 100m from home
         try:
-            self.wait_distance(100, 5, 90)
+            self.wait_distance(distance=100, accuracy=5, timeout=120)
         except Exception as e:
             if self.use_map:
                 self.show_gps_and_sim_positions(False)
@@ -404,6 +397,51 @@ class AutoTestCopter(AutoTest):
         self.set_parameter("GPS_PDLK_E", 1000)
         self.set_parameter("GPS_PDLK_ATK", 1)
 
+        # Allow the attack time to deviate the QuadCopters path
+        self.delay_sim_time(20)
+        self.set_parameter("GPS_PDLK_ATK", 0)
+        self.change_mode("LAND")
+        # wait for disarm
+        self.wait_disarmed()
+        self.progress("Landed and Disarmed")
+
+        self.progress("Auto mission completed: passed!")
+
+    #PADLOCK
+    # The initial layout was provided from the fly_auto_test function down below
+    def fly_auto_turnback(self, timeout=360):
+        # Fly mission the data gathering mission
+        self.progress("# Load PDLK Turnback Waypoints")
+        # load the waypoint count
+        num_wp = self.load_mission("pdlk_auto_turnback.txt")
+        if not num_wp:
+            raise NotAchievedException("load pdlk_auto_turnback.txt failed")
+
+        self.progress("test: Fly a mission from 1 to %u" % num_wp)
+        self.mavproxy.send('wp set 1\n')
+
+        self.change_mode("GUIDED")
+        self.wait_ready_to_arm()
+        self.arm_vehicle()
+        self.takeoff(10)
+        
+        # switch into AUTO mode
+        self.change_mode("AUTO")
+
+        seq = 0
+        m = 100
+        target = 3
+        while seq != num_wp - 1:
+            seq = self.mav.waypoint_current()
+            self.progress("Waypoint is currently at %u, Waiting on %u" % (seq, num_wp-1))
+        while m >= target:
+            m = self.mav.recv_match(type='NAV_CONTROLLER_OUTPUT',
+                                    blocking=True).wp_dist
+            self.progress("Distance to waypoint is %u, Waiting on %u" % (m, target))
+        self.set_parameter("GPS_PDLK_N", 500)
+        self.set_parameter("GPS_PDLK_ATK", 1)
+
+        # Allow time for the attack to cause deviation before disabling
         self.delay_sim_time(20)
         self.set_parameter("GPS_PDLK_ATK", 0)
         self.change_mode("LAND")
@@ -7779,6 +7817,11 @@ class AutoTestCopter(AutoTest):
              ("AutoAttack",
              "Fly in auto then perform an attack",
              self.fly_auto_attack),
+             
+             #PADLOCK
+             ("AutoTurnback",
+             "Fly in auto and then overshoot, turning back drone",
+             self.fly_auto_turnback),
 
             ("SplineLastWaypoint",
              "Test Spline as last waypoint",
