@@ -941,19 +941,19 @@ void AP_Logger::Write_SNSR( const float &BAlt, const float &rf_dist,\
     struct log_sensors_1 pkt1 = {
         LOG_PACKET_HEADER_INIT(LOG_SNSR_1_MSG),
         time_us         :   timestamp,
-        accel_front     :   accel.x,                //LPF, Scaled, and Offset
-        accel_right     :   accel.y,                //LPF, Scaled, and Offset
-        accel_down      :   accel.z,                //LPF, Scaled, and Offset
-        gyro_droll      :   gyro.x,                 //LPF, Rotated, and Offset
-        gyro_dpitch     :   gyro.y,                 //LPF, Rotated, and Offset
-        gyro_dyaw       :   gyro.z,                 //LPF, Rotated, and Offset
-        baro_alt        :   BAlt,                   //Filtered, depends on sensor
-        gps_lat         :   gps->location().lat,    //If multiple present, should be blended
-        gps_lon         :   gps->location().lng,    //If multiple present, should be blended
-        gps_alt         :   gps_alt,            //If multiple present, should be blended
-        gps_vel_N       :   gps->velocity().x,      //LPF and Tilt Compensated
-        gps_vel_E       :   gps->velocity().y,      //LPF and Tilt Compensated
-        gps_vel_D       :   gps->velocity().z,      //LPF and Tilt Compensated
+        accel_front     :   accel.x,
+        accel_right     :   accel.y,
+        accel_down      :   accel.z,
+        gyro_droll      :   gyro.x, 
+        gyro_dpitch     :   gyro.y, 
+        gyro_dyaw       :   gyro.z, 
+        baro_alt        :   BAlt,                   
+        gps_lat         :   gps->location().lat,
+        gps_lon         :   gps->location().lng,
+        gps_alt         :   gps_alt,
+        gps_vel_N       :   gps->velocity().x,      
+        gps_vel_E       :   gps->velocity().y,      
+        gps_vel_D       :   gps->velocity().z,      
 
     };
 
@@ -1007,13 +1007,14 @@ void AP_Logger::Write_SNSR( const float &BAlt, const float &rf_dist,\
     struct log_sensors_4 pkt4 = {
         LOG_PACKET_HEADER_INIT(LOG_SNSR_4_MSG),
         time_us : timestamp,
-        gps_lat         :   gps->real_loc().lat,    //If multiple present, should be blended
-        gps_lon         :   gps->real_loc().lng,    //If multiple present, should be blended
-        gps_alt         :   gps_alt_real,            //If multiple present, should be blended
-        gps_vel_N       :   gps->real_vel().x,      //LPF and Tilt Compensated
-        gps_vel_E       :   gps->real_vel().y,      //LPF and Tilt Compensated
-        gps_vel_D       :   gps->real_vel().z,      //LPF and Tilt Compensated
-
+        gps_lat         :   gps->real_loc().lat,
+        gps_lon         :   gps->real_loc().lng,
+        gps_alt         :   gps_alt_real,       
+        real_gps_gc     :   gps->real_ground_course(),
+        spoof_gps_gc    :   gps->ground_course(),
+        gps_vel_N       :   gps->real_vel().x,
+        gps_vel_E       :   gps->real_vel().y,
+        gps_vel_D       :   gps->real_vel().z,
     };
 
     FOR_EACH_BACKEND(WriteBlock(&pkt1, sizeof(pkt1)));
@@ -1022,6 +1023,7 @@ void AP_Logger::Write_SNSR( const float &BAlt, const float &rf_dist,\
     FOR_EACH_BACKEND(WriteBlock(&pkt4, sizeof(pkt4)));
 }
 
+//The below Write_SNSR is for when OF/RF is unavailable
 void AP_Logger::Write_SNSR(const float &BAlt)
 {
     uint64_t timestamp = AP_HAL::micros64();
@@ -1084,9 +1086,43 @@ void AP_Logger::Write_SNSR(const float &BAlt)
         gps_HAcc        :   Hacc,                   //From GPS
         gps_VAcc        :   Vacc,                   //From GPS
     };
-
+    
+    const Matrix3f &rot = AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned();
+    
+    struct log_sensors_3 pkt3 = {
+        LOG_PACKET_HEADER_INIT(LOG_SNSR_3_MSG),
+        time_us : timestamp,
+        m_0_0 : rot.a.x,
+        m_0_1 : rot.a.y,
+        m_0_2 : rot.a.z,
+        m_1_0 : rot.b.x,
+        m_1_1 : rot.b.y,
+        m_1_2 : rot.b.z,
+        m_2_0 : rot.c.x,
+        m_2_1 : rot.c.y,
+        m_2_2 : rot.c.z,
+    };
+    int32_t gps_alt_real;
+    if(!gps->real_loc().get_alt_cm(Location::AltFrame::ABOVE_HOME, gps_alt))
+    {
+        gps_alt_real = -1;
+    }
+    struct log_sensors_4 pkt4 = {
+        LOG_PACKET_HEADER_INIT(LOG_SNSR_4_MSG),
+        time_us : timestamp,
+        gps_lat         :   gps->real_loc().lat,
+        gps_lon         :   gps->real_loc().lng,
+        gps_alt         :   gps_alt_real,       
+        real_gps_gc     :   gps->real_ground_course(),
+        spoof_gps_gc    :   gps->ground_course(),
+        gps_vel_N       :   gps->real_vel().x,
+        gps_vel_E       :   gps->real_vel().y,
+        gps_vel_D       :   gps->real_vel().z,
+    };
     FOR_EACH_BACKEND(WriteBlock(&pkt1, sizeof(pkt1)));
     FOR_EACH_BACKEND(WriteBlock(&pkt2, sizeof(pkt2)));
+    FOR_EACH_BACKEND(WriteBlock(&pkt3, sizeof(pkt3)));
+    FOR_EACH_BACKEND(WriteBlock(&pkt4, sizeof(pkt4)));
 }
 
 // output a FMT message for each backend if not already done so

@@ -1504,14 +1504,18 @@ AP_GPS_UBLOX::_parse_gps(void)
         //PADLOCK
         //Need to record time for injecting speed adjustments
         uint32_t dt            = _buffer.pvt.itow - _last_vel_time; //ms
-
         _last_vel_time         = _buffer.pvt.itow;
         state.ground_speed     = _buffer.pvt.gspeed*0.001f;          // m/s
         state.ground_course    = wrap_360(_buffer.pvt.head_mot * 1.0e-5f);       // Heading 2D deg * 100000
+        //PADLOCK
+        //Record real ground course
+        state.real_gc = state.ground_course;
         state.have_vertical_velocity = true;
         state.velocity.x = _buffer.pvt.velN * 0.001f;
         state.velocity.y = _buffer.pvt.velE * 0.001f;
         state.velocity.z = _buffer.pvt.velD * 0.001f;
+        //PADLOCK
+        //Record real velocity
         state.real_vel = state.velocity;
         state.have_speed_accuracy = true;
         state.speed_accuracy = _buffer.pvt.s_acc*0.001f;
@@ -1563,6 +1567,8 @@ AP_GPS_UBLOX::_parse_gps(void)
                 state.velocity.y = (gps.ATK_OFS_EAST / 1e2) / dt;
                     //Ground Speed
                 state.ground_speed = norm(gps.ATK_OFS_NORTH / 1e2, gps.ATK_OFS_EAST / 1e2) / dt;
+                    //Ground Course
+                state.ground_course = wrap_360(degrees(atan2f(state.velocity.y, state.velocity.x)));
             } else{
                 fence_triggered = true;
                 gcs().send_text(MAV_SEVERITY_WARNING,"FENCE TRIGGERED");
@@ -1621,12 +1627,14 @@ AP_GPS_UBLOX::_parse_gps(void)
             state.velocity.x = _buffer.velned.ned_north * 0.01f;
             state.velocity.y = _buffer.velned.ned_east * 0.01f;
             state.ground_speed = norm(state.velocity.y, state.velocity.x);
+            state.ground_course    = wrap_360(_buffer.velned.heading_2d * 1.0e-5f);       // Heading 2D deg * 100000
+            state.ground_course = wrap_360(degrees(atan2f(state.velocity.y, state.velocity.x)));
         }
 
-        state.ground_course    = wrap_360(_buffer.velned.heading_2d * 1.0e-5f);       // Heading 2D deg * 100000
+
         state.have_vertical_velocity = true;
         state.velocity.z = _buffer.velned.ned_down * 0.01f;
-        state.ground_course = wrap_360(degrees(atan2f(state.velocity.y, state.velocity.x)));
+        
         state.have_speed_accuracy = true;
         state.speed_accuracy = _buffer.velned.speed_accuracy*0.01f;
 

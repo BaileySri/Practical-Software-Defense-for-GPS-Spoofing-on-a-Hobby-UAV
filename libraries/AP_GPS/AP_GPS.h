@@ -179,6 +179,8 @@ public:
         Location real_loc;
         // Velocity unaltered by attack values
         Vector3f real_vel;
+        // ground_course unaltered by attack values
+        float real_gc;
         float ground_speed;                 ///< ground speed in m/sec
         float ground_course;                ///< ground course in degrees
         float gps_yaw;                      ///< GPS derived yaw information, if available (degrees)
@@ -357,6 +359,14 @@ public:
     }
     float ground_course() const {
         return ground_course(primary_instance);
+    }
+    //PADLOCK
+    // Unaltered ground course
+    float real_ground_course(uint8_t instance) const {
+        return state[instance].real_gc;
+    }
+    float real_ground_course() const {
+        return real_ground_course(primary_instance);
     }
     // ground course in centi-degrees
     int32_t ground_course_cd(uint8_t instance) const {

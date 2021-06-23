@@ -776,6 +776,8 @@ struct PACKED log_sensors_4 {
     int32_t gps_lat;
     int32_t gps_lon;
     int32_t gps_alt;
+    float real_gps_gc;
+    float spoof_gps_gc;
     float gps_vel_N;
     float gps_vel_E;
     float gps_vel_D;
@@ -1422,7 +1424,7 @@ LOG_STRUCTURE_FROM_VISUALODOM \
     { LOG_SNSR_3_MSG, sizeof(log_sensors_3), \
       "SNS3", "Qfffffffff", "TimeUS,m00,m01,m02,m10,m11,m12,m20,m21,m22", "s---------", "F---------"}, \
     { LOG_SNSR_4_MSG, sizeof(log_sensors_4), \
-      "SNS4", "Qiiifff", "TimeUS,gprLat,gprLng,gprAlt,gprN,gprE,gprD", "sDUmnnn", "FGGB000"}
+      "SNS4", "Qiiifffff", "TimeUS,gprLat,gprLng,gprAlt,gprGC,gpGC,gprN,gprE,gprD", "sDUmhhnnn", "FGGB00000"}
     
     //PADLOCK
     //Array declaration of sensor logger

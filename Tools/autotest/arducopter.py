@@ -388,17 +388,18 @@ class AutoTestCopter(AutoTest):
         # fly the mission
         # wait until 100m from home
         try:
-            self.wait_distance(distance=100, accuracy=5, timeout=120)
+            self.wait_distance(distance=150, accuracy=5, timeout=120)
         except Exception as e:
             if self.use_map:
                 self.show_gps_and_sim_positions(False)
             raise e
 
-        self.set_parameter("GPS_PDLK_E", 1000)
+	# Adjust the below parameter to change attack strength in autotest
+        self.set_parameter("GPS_PDLK_E", 1)
         self.set_parameter("GPS_PDLK_ATK", 1)
 
         # Allow the attack time to deviate the QuadCopters path
-        self.delay_sim_time(20)
+        self.delay_sim_time(60)
         self.set_parameter("GPS_PDLK_ATK", 0)
         self.change_mode("LAND")
         # wait for disarm
