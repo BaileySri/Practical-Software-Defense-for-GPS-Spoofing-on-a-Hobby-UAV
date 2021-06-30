@@ -149,6 +149,8 @@ class AutoTestPlane(AutoTest):
         self.progress("test: Fly a mission from 1 to %u" % num_wp)
         self.mavproxy.send('wp set 1\n')
 
+	# Setting Location
+        loc = self.mav.location()
         self.change_mode("AUTO")
         self.wait_ready_to_arm()
         self.arm_vehicle()
@@ -171,7 +173,8 @@ class AutoTestPlane(AutoTest):
         self.set_parameter("GPS_PDLK_ATK", 0)
         # wait for RTL
         self.wait_mode("RTL")
-        self.wait_distance(20)
+        self.disarm_vehicle()
+        self.wait_altitude(loc.alt, loc.alt+5, timeout=120)
         self.progress("Returned to Takeoff point, Mission Complete.")
 
         self.progress("Auto mission completed: passed!")
