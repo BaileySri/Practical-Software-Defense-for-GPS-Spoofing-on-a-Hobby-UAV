@@ -129,6 +129,52 @@ class AutoTestPlane(AutoTest):
         self.set_rc(2, 1500)
 
         self.progress("TAKEOFF COMPLETE")
+    
+    #PADLOCK
+    # The test fails but the data is still gathered in the logs
+    def fly_auto_attack(self, timeout=360):
+        self.progress("# Load PDLK Attack Waypoints")
+        # load the waypoint count
+        num_wp = self.load_mission("pdlk_auto_attack.txt")
+        if not num_wp:
+            raise NotAchievedException("load pdlk_auto_attack.txt failed")
+
+        self.progress("Setting sensor parameters")        
+        # Set sensor parameters
+        #self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
+        self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
+        self.set_parameter("SIM_PDLK_GPS_SPD", 50) #mm/s
+        self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
+        self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
+        self.progress("test: Fly a mission from 1 to %u" % num_wp)
+        self.mavproxy.send('wp set 1\n')
+
+        self.change_mode("AUTO")
+        self.wait_ready_to_arm()
+        self.arm_vehicle()
+
+        # fly the mission
+        # wait until 600m from home
+        try:
+            self.wait_distance(distance=650, accuracy=5, timeout=120)
+        except Exception as e:
+            if self.use_map:
+                self.show_gps_and_sim_positions(False)
+            raise e
+
+	# Adjust the below parameter to change attack strength in autotest
+        self.set_parameter("GPS_PDLK_E", 1000)
+        self.set_parameter("GPS_PDLK_ATK", 1)
+
+        # Allow the attack time to deviate the planes path
+        self.delay_sim_time(60)
+        self.set_parameter("GPS_PDLK_ATK", 0)
+        # wait for RTL
+        self.wait_mode("RTL")
+        self.wait_distance(20)
+        self.progress("Returned to Takeoff point, Mission Complete.")
+
+        self.progress("Auto mission completed: passed!")
 
     def fly_left_circuit(self):
         """Fly a left circuit, 200m on a side."""
@@ -3195,6 +3241,10 @@ class AutoTestPlane(AutoTest):
         '''return list of all tests'''
         ret = super(AutoTestPlane, self).tests()
         ret.extend([
+            #PADLOCK
+            ("AutoAttack",
+             "Run the auto mission with a heavy offset attack",
+              self.fly_auto_attack),
 
             ("AuxModeSwitch",
              "Set modes via auxswitches",

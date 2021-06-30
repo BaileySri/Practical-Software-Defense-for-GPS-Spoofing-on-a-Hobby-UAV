@@ -174,7 +174,7 @@ public:
         uint32_t time_week_ms;              ///< GPS time (milliseconds from start of GPS week)
         uint16_t time_week;                 ///< GPS week number
         Location location;                  ///< last fix location
-        // PADLOCK
+        //PADLOCK
         // Location unaltered by attack values
         Location real_loc;
         // Velocity unaltered by attack values

@@ -374,6 +374,14 @@ class AutoTestCopter(AutoTest):
         if not num_wp:
             raise NotAchievedException("load pdlk_auto_attack.txt failed")
 
+        self.progress("Setting sensor parameters")        
+        # Set sensor parameters
+        #self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
+        self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
+        self.set_parameter("SIM_PDLK_GPS_SPD", 50) #mm/s
+        self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
+        self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
+        self.set_parameter("PDLK_CHOI_CI", 0)
         self.progress("test: Fly a mission from 1 to %u" % num_wp)
         self.mavproxy.send('wp set 1\n')
 
