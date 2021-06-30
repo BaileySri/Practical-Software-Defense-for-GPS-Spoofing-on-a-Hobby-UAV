@@ -131,7 +131,55 @@ class AutoTestPlane(AutoTest):
         self.progress("TAKEOFF COMPLETE")
     
     #PADLOCK
-    # The test fails but the data is still gathered in the logs
+    # Flies a square for benign data
+    def fly_auto_square(self, timeout=360):
+        self.progress("# Load PDLK Square Waypoints")
+        # load the waypoint count
+        num_wp = self.load_mission("pdlk_auto_square.txt")
+        if not num_wp:
+            raise NotAchievedException("load pdlk_auto_square.txt failed")
+        
+        self.progress("test: Fly a mission from 1 to %u" % num_wp)
+        self.mavproxy.send('wp set 1\n')
+        self.progress("# Beginning Takeoff")
+        loc = self.mav.location()
+        self.change_mode("AUTO")
+        self.wait_ready_to_arm()
+        self.arm_vehicle()
+    	
+    	# fly the mission
+        self.progress("# Beginning Mission")
+        self.wait_mode("RTL", timeout=300)  	
+        # Disarming drone
+        self.disarm_vehicle()
+        self.wait_altitude(loc.alt, loc.alt+5, timeout=120)
+        self.progress("Returned to Takeoff point, Mission Complete.")
+
+        self.progress("Auto mission completed: passed!")
+        
+    #PADLOCK
+    # Fly a circle for benign data, Im using the RTL circling to fly in a circle
+    def fly_auto_circle(self, timeout=360):
+        self.progress("# Beginning Takeoff")
+        loc = self.mav.location()
+        self.takeoff()
+        # Wait takeoff to finish
+        self.set_parameter("RTL_RADIUS", 300) #meters
+        self.wait_altitude(loc.alt+200, loc.alt+210,timeout=120)
+        self.change_mode("RTL")
+        
+        #Allow circling for 120 seconds
+        self.delay_sim_time(120)
+    	
+        # Disarming drone
+        self.disarm_vehicle()
+        self.wait_altitude(loc.alt, loc.alt+5, timeout=120)
+        self.progress("Landed, Mission Complete.")
+
+        self.progress("Auto mission completed: passed!")
+
+    #PADLOCK
+    # Flies North and then attacks before final waypoint
     def fly_auto_attack(self, timeout=360):
         self.progress("# Load PDLK Attack Waypoints")
         # load the waypoint count
@@ -175,7 +223,7 @@ class AutoTestPlane(AutoTest):
         self.wait_mode("RTL")
         self.disarm_vehicle()
         self.wait_altitude(loc.alt, loc.alt+5, timeout=120)
-        self.progress("Returned to Takeoff point, Mission Complete.")
+        self.progress("Landed, Mission Complete.")
 
         self.progress("Auto mission completed: passed!")
 
@@ -3248,6 +3296,14 @@ class AutoTestPlane(AutoTest):
             ("AutoAttack",
              "Run the auto mission with a heavy offset attack",
               self.fly_auto_attack),
+              
+            ("AutoSquare",
+             "A square mission for benign data",
+              self.fly_auto_square),
+              
+            ("AutoCircle",
+             "A circle mission for benign data",
+              self.fly_auto_circle),
 
             ("AuxModeSwitch",
              "Set modes via auxswitches",

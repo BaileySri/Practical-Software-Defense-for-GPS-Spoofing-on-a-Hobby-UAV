@@ -327,13 +327,14 @@ class AutoTestCopter(AutoTest):
 
     #PADLOCK
     # The initial layout was provided from the fly_auto_test function down below
-    def fly_auto_benign(self, timeout=360):
+    # collects benign data for square mission
+    def fly_auto_square(self, timeout=360):
         # Fly mission the data gathering mission
         self.progress("# Load PDLK Data Gathering Waypoints")
         # load the waypoint count
-        num_wp = self.load_mission("pdlk_auto_benign.txt")
+        num_wp = self.load_mission("pdlk_auto_square.txt")
         if not num_wp:
-            raise NotAchievedException("load pdlk_auto_benign.txt failed")
+            raise NotAchievedException("load pdlk_auto_square.txt failed")
 
         self.progress("Setting sensor parameters")        
         # Set sensor parameters
@@ -357,7 +358,86 @@ class AutoTestCopter(AutoTest):
 
         # fly the mission
         self.wait_waypoint(0, num_wp-1, timeout=500)
+        self.change_mode("RTL")
 
+        # wait for disarm
+        self.wait_disarmed()
+        self.progress("MOTORS DISARMED OK")
+
+        self.progress("Auto mission completed: passed!")
+        
+    #PADLOCK
+    # The initial layout was provided from the fly_auto_test function down below
+    # collects benign data for wave mission
+    def fly_auto_wave(self, timeout=360):
+        # Fly mission the data gathering mission
+        self.progress("# Load PDLK Data Gathering Waypoints")
+        # load the waypoint count
+        num_wp = self.load_mission("pdlk_auto_wave.txt")
+        if not num_wp:
+            raise NotAchievedException("load pdlk_auto_wave.txt failed")
+
+        self.progress("Setting sensor parameters")        
+        # Set sensor parameters
+        self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
+        #self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
+        self.set_parameter("SIM_PDLK_GPS_SPD", 50) #mm/s
+        self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
+        self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
+        self.set_parameter("PDLK_CHOI_CI", 0)
+
+        self.progress("test: Fly a mission from 1 to %u" % num_wp)
+        self.mavproxy.send('wp set 1\n')
+
+        self.change_mode("GUIDED")
+        self.wait_ready_to_arm()
+        self.arm_vehicle()
+        self.takeoff(10)
+
+        # switch into AUTO mode
+        self.change_mode("AUTO")
+
+        # fly the mission
+        self.wait_waypoint(0, num_wp-1, timeout=500)
+        self.change_mode("RTL")
+
+        # wait for disarm
+        self.wait_disarmed()
+        self.progress("MOTORS DISARMED OK")
+
+        self.progress("Auto mission completed: passed!")
+        
+    #PADLOCK
+    # The initial layout was provided from the fly_auto_test function down below
+    # collects benign data for flying a circle
+    def fly_auto_circle(self, timeout=360):
+
+        self.progress("Setting sensor parameters")        
+        # Set sensor parameters
+        self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
+        #self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
+        self.set_parameter("SIM_PDLK_GPS_SPD", 50) #mm/s
+        self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
+        self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
+        self.set_parameter("PDLK_CHOI_CI", 0)
+
+	# Takeoff and switch to circle
+        self.progress("Taking off")
+        self.change_mode("GUIDED")
+        self.wait_ready_to_arm()
+        self.arm_vehicle()
+        self.takeoff(10)
+        self.set_rc(3, 1500)
+        self.set_parameter("CIRCLE_RADIUS", 3000)
+        self.change_mode("CIRCLE")
+
+	# Wait 120 seconds
+        self.progress("Starting 120 second delay.")
+        self.delay_sim_time(120)
+	
+	# Finish test
+        self.progress("RTL and then Disarm")
+        self.change_mode("RTL")
         # wait for disarm
         self.wait_disarmed()
         self.progress("MOTORS DISARMED OK")
@@ -7818,9 +7898,19 @@ class AutoTestCopter(AutoTest):
              self.fly_auto_test),
              
              #PADLOCK
-            ("AutoBenign",
-             "Fly in auto to collect data",
-             self.fly_auto_benign),
+            ("AutoSquare",
+             "Fly a square mission to collect data",
+             self.fly_auto_square),
+             
+             #PADLOCK
+             ("AutoCircle",
+             "Fly a circle mission for data",
+             self.fly_auto_circle),
+             
+             #PADLOCK
+             ("AutoWave",
+             "Fly a straight path with varied altitude for data",
+             self.fly_auto_wave),
              
              #PADLOCK
              ("AutoAttack",
