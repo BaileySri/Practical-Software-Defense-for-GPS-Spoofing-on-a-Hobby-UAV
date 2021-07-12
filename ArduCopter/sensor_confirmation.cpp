@@ -2,15 +2,15 @@
 //Sensor Confirmation source code
 //7/12/2021
 
+#include "Copter.h"
+
 //Constant declarations
-unsigned int DELAY = 45000000U;         // Start-Up delay to allow sensors to settle
-unsigned int BIAS_DELAY = 90000000U;    // Delay after Start-Up to allow biasing
+uint32_t DELAY = 45000000U;             // Start-Up delay to allow sensors to settle
+uint32_t BIAS_DELAY = 90000000U;        // Delay after Start-Up to allow biasing
 const float ACC_ERR = 0.000015 * 20;    // (m/s/s)/(sqrt(Hz)) Accelerometer noise (LSM303D) for 400Hz signal
 const float GYRO_ERR = 0.00019;         // (rad/s)/(sqrt(Hz)) Gyro Noise (L3GD20H) Assuming 50Hz Bandwidth
 const float RMS = 1.73;                 // RMS constant useful for tri-axis errors
-const int GPS_RATE = 200;               // ms, GPS Update rate
-
-#include "Copter.h"
+const uint32_t GPS_RATE = 200000;       // us, GPS Update rate
 
 //----Function delcarations----//
 void initialize();
@@ -27,21 +27,21 @@ typedef Vector3f BF;
 
 struct Accel
 {
-    NED Readings;        //m/s/s, Accelerometer readings rotated to NED
-    NED Velocity;        //m/s
+    NED Readings;       //m/s/s, Accelerometer readings rotated to NED
+    NED Velocity;       //m/s
     float Error;        //m/s/s
-    uint32_t Timestamp; //ms
+    uint32_t Timestamp; //us
 
     bool update(const AP_InertialSensor *frontend, NED bias)
     {
-        uint32_t dT = Timestamp - (frontend->get_last_update_usec() / 1000); //ms
+        uint32_t dT = frontend->get_last_update_usec() - Timestamp; //us
         if (dT > 0)
         {
             NED newReading = AP_AHRS_DCM::get_singleton()->body_to_earth(frontend->get_accel()) - bias;
             //Trapezoidal Integration
-            Velocity += ((newReading + Readings) / 2.0F) * (dT * 1000);
+            Velocity += (((newReading + Readings) / 2.0F) * dT) / 1000000;
             Readings = newReading;
-            Error += ACC_ERR * RMS; // ACC_ERR is defined by the frequency of the sensor, constant error every update
+            Error += ACC_ERR * RMS * dT; // Error in acceleration, multiply by time for error in velocity
             Timestamp += dT;
             return true;
         }
@@ -198,7 +198,7 @@ static struct{
 
 void Copter::sensor_confirmation()
 {
-    uint32_t time = AP_HAL::micros64();
+    const uint32_t time = AP_HAL::micros64();
     //Initialize struct data
     if (!framework.init)
     {
@@ -222,6 +222,7 @@ void Copter::sensor_confirmation()
             bias.biased = true;
             gcs().send_text(MAV_SEVERITY_INFO, "Sensors have been biased.");
             gcs().send_text(MAV_SEVERITY_INFO, "Acc (F/R/D): (%f/%f/%f)", bias.AccBias[0], bias.AccBias[1], bias.AccBias[2]);
+            sensors.currAccel.Timestamp = AP_HAL::micros64();
         }
         else
         {
@@ -266,8 +267,16 @@ void update()
 {
     //IMU Sensors
     const AP_InertialSensor* IMU = AP_InertialSensor::get_singleton();
-    if (((IMU->get_last_update_usec()/1000) - sensors.currGps.Timestamp) >= GPS_RATE)
+    if ((IMU->get_last_update_usec() - sensors.currGps.Timestamp) >= GPS_RATE)
     {
+        if(sensors.nextAccel.Timestamp == 0)
+        {
+            // Because our Velocity is based on change in time we need
+            // to persist the timestamp from old to new accelerometer
+            // frames
+            sensors.nextAccel.Timestamp = sensors.currAccel.Timestamp;
+        }
+
         sensors.nextAccel.update(IMU, bias.AccBias);
     }
     else
@@ -344,7 +353,7 @@ bool confirm(const float a, const float a_err, const float b, const float b_err,
 
 bool AccGPS()
 {
-    float dAccVel = sensors.currAccel.Readings.length();
+    float dAccVel = sensors.currAccel.Velocity.length();
     Vector3f dGpsVel = sensors.currGps.Airspeed - sensors.prevGps.Airspeed;
     return(confirm(dAccVel, sensors.currAccel.Error, dGpsVel.length(), sensors.currGps.Sacc+sensors.prevGps.Sacc));
 }
