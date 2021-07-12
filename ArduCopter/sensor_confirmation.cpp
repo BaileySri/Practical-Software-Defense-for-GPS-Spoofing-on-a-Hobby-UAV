@@ -1,114 +1,154 @@
 //PADLOCK
 //Sensor Confirmation source code
-//2/22/2021
+//7/12/2021
 
 //Constant declarations
-const unsigned int DELAY = 45000000U; //Start-Up delay to allow sensors to settle
-const float ACC_NOISE = 0.3;//1.471E-3; // (m/s/s)/(sqrt(Hz)) Accelerometer noise (As defined in LSM303D Datasheet)
+unsigned int DELAY = 45000000U;         // Start-Up delay to allow sensors to settle
+unsigned int BIAS_DELAY = 90000000U;    // Delay after Start-Up to allow biasing
+const float ACC_ERR = 0.000015 * 20;    // (m/s/s)/(sqrt(Hz)) Accelerometer noise (LSM303D) for 400Hz signal
+const float GYRO_ERR = 0.00019;         // (rad/s)/(sqrt(Hz)) Gyro Noise (L3GD20H) Assuming 50Hz Bandwidth
+const float RMS = 1.73;                 // RMS constant useful for tri-axis errors
+const int GPS_RATE = 200;               // ms, GPS Update rate
 
 #include "Copter.h"
 
 //----Function delcarations----//
 void initialize();
-void bias();
 void update();
-bool confirm();
+bool run();
 void recover();
 void debug();
 //----Specific Confirmations----//
-bool confirmVel();
+bool AccGPS();
 bool confirmAlt();
 
 typedef Vector3f NED;
 typedef Vector3f BF;
 
-struct Accel{
-    NED Readings; //m/s/s
-    NED Velocity; //m/s
-    float Noise; //m/s/s
+struct Accel
+{
+    NED Readings;        //m/s/s, Accelerometer readings rotated to NED
+    NED Velocity;        //m/s
+    float Error;        //m/s/s
     uint32_t Timestamp; //ms
 
-    bool update(const AP_InertialSensor *frontend){
-        if(Timestamp != frontend->get_last_update_usec() / 1000){
-            NED newReading = AP_AHRS_DCM::get_singleton()->body_to_earth(frontend->get_accel());
+    bool update(const AP_InertialSensor *frontend, NED bias)
+    {
+        uint32_t dT = Timestamp - (frontend->get_last_update_usec() / 1000); //ms
+        if (dT > 0)
+        {
+            NED newReading = AP_AHRS_DCM::get_singleton()->body_to_earth(frontend->get_accel()) - bias;
             //Trapezoidal Integration
-            Velocity += ((newReading + Readings) / 2.0F) * frontend->get_delta_time();
+            Velocity += ((newReading + Readings) / 2.0F) * (dT * 1000);
             Readings = newReading;
-            Noise += ACC_NOISE * sqrtf( 1E-3/( ( frontend->get_last_update_usec()/1000 ) - ( Timestamp ) ) );
-            Timestamp = frontend->get_last_update_usec() / 1000;
+            Error += ACC_ERR * RMS; // ACC_ERR is defined by the frequency of the sensor, constant error every update
+            Timestamp += dT;
             return true;
         }
         return false;
     }
 
-    void reset(){
+    void reset()
+    {
         Readings.zero();
         Velocity.zero();
-        Noise = 0;
+        Error = 0;
         Timestamp = 0;
     }
 
-    Accel& operator=(const Accel &rhs){
+    Accel &operator=(const Accel &rhs)
+    {
         Readings = rhs.Readings;
         Velocity = rhs.Velocity;
         Timestamp = rhs.Timestamp;
-        Noise = rhs.Noise;
+        Error = rhs.Error;
         return *this;
     }
 };
 
-struct Gyro{
+struct Gyro
+{
     BF Readings; //x = Roll, y = Pitch, z = Yaw
+    float Error;
+    uint32_t Timestamp;
 
-    void reset(){
+    void reset()
+    {
         Readings.zero();
+    }
+
+    Gyro &operator=(const Gyro &rhs)
+    {
+        Readings = rhs.Readings;
+        Timestamp = rhs.Timestamp;
+        Error = rhs.Error;
+        return *this;
     }
 };
 
-struct Mag{
+struct Mag
+{
     Vector3f Readings; //milligauss
 
-    void reset(){
+    void reset()
+    {
         Readings.zero();
     }
 };
 
-struct GPS{
-    int32_t Latitude; //Degrees 1E-7
+struct GPS
+{
+    int32_t Latitude;  //Degrees 1E-7
     int32_t Longitude; //Degrees 1E-7
     int32_t Altitude;
     NED Airspeed; //m/s
-    float Sacc; //m/s GPS 3D RMS Speed Accuracy
-    float Hacc; //m GPS 3D RMS Horizontal Position Accuracy
-    float Vacc; //m GPS 3D RMS Vertical Position Accuracy 
-    float Yaw;
+    float Sacc;   //m/s GPS 3D RMS Speed Accuracy
+    float Hacc;   //m GPS 3D RMS Horizontal Position Accuracy
+    float Vacc;   //m GPS 3D RMS Vertical Position Accuracy
+    float Yaw;    //Degrees, North is considered 0 degrees moving Clock-Wise
     float Yaw_Error;
-    uint32_t Timestamp; //ms
+    uint32_t Timestamp;     //ms
     uint32_t lastTimestamp; //ms
 
-    void update_location(const Location &rhs){
+    void update_location(const Location &rhs)
+    {
         Latitude = rhs.lat;
         Longitude = rhs.lng;
         Altitude = rhs.alt;
     }
 
-    bool update(const AP_GPS *frontend){
-        if(frontend->last_fix_time_ms() != Timestamp){
+    bool update(const AP_GPS *frontend, GPS& prevGps)
+    {
+        uint32_t dT = Timestamp - frontend->last_fix_time_ms();
+        if (dT > 0)
+        {
+            //Save current GPS data to previous GPS data
+            prevGps = *this;
+
+            //Location, Velocity, Heading
             update_location(frontend->location());
             Airspeed = frontend->velocity();
-            if(!frontend->gps_yaw_deg(Yaw, Yaw_Error)){
-                Yaw = -1;
+            if (!frontend->gps_yaw_deg(Yaw, Yaw_Error))
+            {
+                Yaw = 1000;
                 Yaw_Error = -1;
             }
+
+            //Timestamps
             lastTimestamp = Timestamp;
-            Timestamp = frontend->last_fix_time_ms();
-            if(!frontend->speed_accuracy(Sacc)){
+            Timestamp += dT;
+
+            //Accuracy Measurements
+            if (!frontend->speed_accuracy(Sacc))
+            {
                 Sacc = -1;
             }
-            if(!frontend->vertical_accuracy(Vacc)){
+            if (!frontend->vertical_accuracy(Vacc))
+            {
                 Vacc = -1;
             }
-            if(!frontend->horizontal_accuracy(Hacc)){
+            if (!frontend->horizontal_accuracy(Hacc))
+            {
                 Hacc = -1;
             }
             return true;
@@ -116,7 +156,8 @@ struct GPS{
         return false;
     }
 
-    void reset(){
+    void reset()
+    {
         Latitude = 0;
         Longitude = 0;
         Altitude = 0;
@@ -128,153 +169,188 @@ struct GPS{
 };
 
 //Sensor Data
-static struct{
-    Accel currAccel; //North,East,Down (Acceleration in m/s/s)
-    Accel nextAccel; //North,East,Down (Acceleration in m/s/s)
-    Gyro gyro; //Roll,Pitch,Yaw (Rates in radians/sec)
-    /* A Note for the future
-        The mag orientation (+/-) and axis descriptions are provided by part.
-        I couldn't find any documentation in source code but it is worth
-        understanding that the pre-flight callibration process most likely
-        allows for ignorance of the compass orientation as it will just be
-        offset so just assume the mag recorded is correctly set in x,y, and z.
-    */
-    Mag mag; //Mag field about the X,Y, and Z axis (Milligauss)
-    GPS gps; //Latitude,Longitude,Altitude (Degrees 1E-7 and Altitude in cm)
+static struct
+{
+    Accel currAccel; //Acceleration data within GPS update frame
+    Accel nextAccel; //Acceleration data that happens after expected GPS update
+    Gyro currGyro;   //Roll,Pitch,Yaw (Rates in radians/sec)
+    Gyro nextGyro;   //Roll,Pitch,Yaw (Rates in radians/sec)
+    GPS currGps;     //Most recent GPS reading
+    GPS prevGps;     //Previous GPS reading
 } sensors;
 
 //Confirmation Data
-static struct{
-    bool init = false; //Initialized Structs
-    bool gpsAvail; //GPS Data has been updated
+static struct
+{
+    bool init = false;    //Initialized Structs
+    bool gpsAvail;        //GPS Data has been updated
     uint32_t lastConfirm; //ms (Time that the last confirmation occurred)
-    NED lastGPS; //m/s (Velocity provided by last GPS Sensor readings)
-    NED lastAcc; //m/s (Velocity calculated from previous Acc Sensor data)
+    NED lastGPS;          //m/s (Velocity provided by last GPS Sensor readings)
+    NED lastAcc;          //m/s (Velocity calculated from previous Acc Sensor data)
 } framework;
+
+static struct{
+    bool biased = false;    //True when bias has been determined
+    uint32_t Timestamp;     //Used to determine when readings change for bias
+    uint32_t count = 0;     //Number of readings used in bias
+    NED AccBias;             //Bias for NED acceleration
+} bias;
 
 void Copter::sensor_confirmation()
 {
+    uint32_t time = AP_HAL::micros64();
     //Initialize struct data
-    if(!framework.init){
+    if (!framework.init)
+    {
+        gcs().send_text(MAV_SEVERITY_INFO, "PDLK: Initializing...");
         initialize();
+        DELAY += time;
+        BIAS_DELAY += time;
     }
-    if(AP_HAL::micros64() >= DELAY){
-        //Update sensor values 
-        update();
-            
-        //If confirmation returns False, Recover
-        //If confirmation returns True, Nothing
-        if(!confirm()){
-            recover();
+    if (time >= DELAY)
+    {
+        if (!bias.biased && time < BIAS_DELAY)
+        {
+            gcs().send_text(MAV_SEVERITY_INFO, "PDLK: Biasing...");
+            const AP_InertialSensor* IMU = AP_InertialSensor::get_singleton();
+            bias.AccBias += AP_AHRS_DCM::get_singleton()->body_to_earth(IMU->get_accel());
+            bias.count++;
+        }
+        else if(!bias.biased)
+        {
+            bias.AccBias /= bias.count;
+            bias.biased = true;
+            gcs().send_text(MAV_SEVERITY_INFO, "Sensors have been biased.");
+            gcs().send_text(MAV_SEVERITY_INFO, "Acc (F/R/D): (%f/%f/%f)", bias.AccBias[0], bias.AccBias[1], bias.AccBias[2]);
+        }
+        else
+        {
+            //Update sensor values
+            update();
+
+            //If run returns False, Recover
+            //If run returns True, Nothing
+            if (!run())
+            {
+                recover();
+            }
         }
     }
 }
 
-void initialize(){
+void initialize()
+{
+    // Rest sensors
     sensors.currAccel.reset();
     sensors.nextAccel.reset();
-    sensors.mag.reset();
-    sensors.gps.reset();
-    sensors.gyro.reset();
+    sensors.currGyro.reset();
+    sensors.nextGyro.reset();
+    sensors.currGps.reset();
+    sensors.prevGps.reset();
+
+    //Zero framework readings
     framework.lastGPS.zero();
     framework.lastAcc.zero();
     framework.gpsAvail = false;
     framework.init = true;
     framework.lastConfirm = 0;
+
+    //Set bias
+    bias.AccBias.zero();
+    bias.biased = false;
+    bias.count = 0;
+    bias.Timestamp = AP_HAL::micros64();
 }
 
-void update(){
+void update()
+{
     //IMU Sensors
-    if((sensors.currAccel.Timestamp - sensors.gps.Timestamp) >= 200){
-        sensors.nextAccel.update(AP_InertialSensor::get_singleton());
-    } else{
-        sensors.currAccel.update(AP_InertialSensor::get_singleton());
+    const AP_InertialSensor* IMU = AP_InertialSensor::get_singleton();
+    if (((IMU->get_last_update_usec()/1000) - sensors.currGps.Timestamp) >= GPS_RATE)
+    {
+        sensors.nextAccel.update(IMU, bias.AccBias);
     }
-    sensors.gyro.Readings = AP_InertialSensor::get_singleton()->get_gyro();
-    sensors.mag.Readings = AP::compass().get_field();
+    else
+    {
+        sensors.currAccel.update(IMU, bias.AccBias);
+    }
 
     //GPS
-    framework.gpsAvail = sensors.gps.update(AP::gps().get_singleton());
+    // The GPS will be lagging behind the accelerometer in practice so we want to
+    // be sure to update nextAccel in the same moment that the GPS updates
+    framework.gpsAvail = sensors.currGps.update(AP::gps().get_singleton(), sensors.prevGps);
 }
 
-bool confirm(){
-    if(framework.gpsAvail){
-        #if CONFIG_HAL_BOARD == HAL_BOARD_SITL && 0
-            debug();
-        #endif
+bool run()
+{
+    if (framework.gpsAvail)
+    {
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL && 0
+        debug();
+#endif
 
-        if(!confirmVel()){
-            gcs().send_text(MAV_SEVERITY_WARNING,"Velocity outside of error ranges.");
+        if (!AccGPS())
+        {
+            gcs().send_text(MAV_SEVERITY_WARNING, "AccGPS Failed.");
         }
-        if(!confirmAlt()){
-            gcs().send_text(MAV_SEVERITY_WARNING,"Altitude outside of error ranges.");            
-        }
-        
-        //Record previous measurements
-        framework.lastGPS = sensors.gps.Airspeed;
-        framework.lastAcc = sensors.currAccel.Velocity;
-        framework.lastConfirm = sensors.currAccel.Timestamp;
-        //Accumulate velocity
-        sensors.nextAccel.Velocity += sensors.currAccel.Velocity;
-        //Switch to next Accel data
+        // if (!confirmAlt())
+        // {
+        //     gcs().send_text(MAV_SEVERITY_WARNING, "Altitude outside of error ranges.");
+        // }
+
+        //Switch to next IMU data
         sensors.currAccel = sensors.nextAccel;
         sensors.nextAccel.reset();
-        //Retain timestamp for consistency
+        sensors.currGyro = sensors.nextGyro;
+        sensors.nextGyro.reset();
 
         framework.gpsAvail = false;
     }
     return true;
 }
 
-void recover(){
-    gcs().send_text(MAV_SEVERITY_WARNING,"Recovery");
+void recover()
+{
+    gcs().send_text(MAV_SEVERITY_WARNING, "Recovery");
 }
 
-void debug(){
-    #if CONFIG_HAL_BOARD == HAL_BOARD_CHIBIOS
-    gcs().send_text(MAV_SEVERITY_INFO,"CURRENT [%llu] currAcc: %lu | nextAcc: %lu | GPS: %lu",
+void debug()
+{
+#if CONFIG_HAL_BOARD == HAL_BOARD_CHIBIOS
+    gcs().send_text(MAV_SEVERITY_INFO, "CURRENT [%llu] currAcc: %lu | nextAcc: %lu | GPS: %lu",
                     AP_HAL::micros64(),
                     sensors.currAccel.Timestamp,
                     sensors.nextAccel.Timestamp,
                     sensors.gps.Timestamp);
-    #elif CONFIG_HAL_BOARD == HAL_BOARD_SITL
-    gcs().send_text(MAV_SEVERITY_INFO,"CURRENT [%lu] currAcc: %u | nextAcc: %u | GPS: %u",
+#elif CONFIG_HAL_BOARD == HAL_BOARD_SITL
+    gcs().send_text(MAV_SEVERITY_INFO, "CURRENT [%lu] currAcc: %u | nextAcc: %u | GPS: %u",
                     AP_HAL::micros64(),
                     sensors.currAccel.Timestamp,
                     sensors.nextAccel.Timestamp,
-                    sensors.gps.Timestamp);
-    #endif
-    #if 0
-        // for logging
-        uint64_t timestamp = AP_HAL::micros64();
-        FILE *out_file = fopen("sim_log.csv", "a");
-        fprintf(out_file, "%" PRIu64 ", %f, %f, %f, %f, %f, %f\n", \
-                timestamp,
-                framework.accel_vel.North,
-                framework.accel_vel.East,
-                framework.accel_vel.Down,
-                sensors.gps.Airspeed.North,
-                sensors.gps.Airspeed.East,
-                sensors.gps.Airspeed.Down);
-        fclose(out_file);
-    #endif
+                    sensors.currGps.Timestamp);
+#endif
 }
 
-bool confirmVel(){
-    //Total possible error resulting from accelerometer noise
-    float acc_velError = ((sensors.currAccel.Timestamp - framework.lastConfirm) * sensors.currAccel.Noise * 3) / 1000; //Multiplied by 3 to account for noise in 3-Axis
-    //Compare the change in Airspeed from GPS to change in
-    //Dead Reckoning velocity from Accelerometer
-    float gps_change = (sensors.gps.Airspeed - framework.lastGPS).length();
-    float acc_change = (sensors.currAccel.Velocity - framework.lastAcc).length(); 
-    if(gps_change >= acc_change){
-        return((acc_change + acc_velError) - (gps_change - sensors.gps.Sacc) >= 0);
-    } else{
-        return((gps_change + sensors.gps.Sacc) - (acc_change - acc_velError) >= 0);
+bool confirm(const float a, const float a_err, const float b, const float b_err, bool wrap = false)
+{
+    if(a >= b){
+        return(((b + b_err) - (a - a_err)) >= 0);
+    }
+    else
+    {
+        return(((a + a_err) - (b - b_err)) >= 0);
     }
 }
 
-bool confirmAlt(){
+bool AccGPS()
+{
+    float dAccVel = sensors.currAccel.Readings.length();
+    Vector3f dGpsVel = sensors.currGps.Airspeed - sensors.prevGps.Airspeed;
+    return(confirm(dAccVel, sensors.currAccel.Error, dGpsVel.length(), sensors.currGps.Sacc+sensors.prevGps.Sacc));
+}
+
+bool confirmAlt()
+{
     //TODO: Confirmation between Barometer, GPS, and Acc
     return true;
 }
