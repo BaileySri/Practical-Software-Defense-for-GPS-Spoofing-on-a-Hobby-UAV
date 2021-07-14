@@ -37,7 +37,7 @@ struct Accel
         uint32_t dT = frontend->get_last_update_usec() - Timestamp; //us
         if (dT > 0)
         {
-            NED newReading = AP_AHRS_DCM::get_singleton()->body_to_earth(frontend->get_accel()) - bias;
+            NED newReading = (AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned() * frontend->get_accel()) - bias;
             //Trapezoidal Integration
             Velocity += (((newReading + Readings) / 2.0F) * dT) / 1000000;
             Readings = newReading;
@@ -184,11 +184,9 @@ static struct
 {
     bool init = false;    //Initialized Structs
     bool gpsAvail;        //GPS Data has been updated
-    uint32_t lastConfirm; //ms (Time that the last confirmation occurred)
-    NED lastGPS;          //m/s (Velocity provided by last GPS Sensor readings)
-    NED lastAcc;          //m/s (Velocity calculated from previous Acc Sensor data)
 } framework;
 
+//Bias Data
 static struct
 {
     bool biased = false; //True when bias has been determined
@@ -214,7 +212,7 @@ void Copter::sensor_confirmation()
         {
             gcs().send_text(MAV_SEVERITY_INFO, "PDLK: Biasing...");
             const AP_InertialSensor *IMU = AP_InertialSensor::get_singleton();
-            bias.AccBias += AP_AHRS_DCM::get_singleton()->body_to_earth(IMU->get_accel());
+            bias.AccBias += IMU->get_accel() * AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned();
             bias.count++;
         }
         else if (!bias.biased)
@@ -251,11 +249,8 @@ void initialize()
     sensors.prevGps.reset();
 
     //Zero framework readings
-    framework.lastGPS.zero();
-    framework.lastAcc.zero();
     framework.gpsAvail = false;
     framework.init = true;
-    framework.lastConfirm = 0;
 
     //Set bias
     bias.AccBias.zero();
