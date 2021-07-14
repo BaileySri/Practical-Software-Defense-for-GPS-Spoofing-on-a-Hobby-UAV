@@ -5,12 +5,12 @@
 #include "Copter.h"
 
 //Constant declarations
-uint32_t DELAY = 45000000U;             // Start-Up delay to allow sensors to settle
-uint32_t BIAS_DELAY = 90000000U;        // Delay after Start-Up to allow biasing
-const float ACC_ERR = 0.000015 * 20;    // (m/s/s)/(sqrt(Hz)) Accelerometer noise (LSM303D) for 400Hz signal
-const float GYRO_ERR = 0.00019;         // (rad/s)/(sqrt(Hz)) Gyro Noise (L3GD20H) Assuming 50Hz Bandwidth
-const float RMS = 1.73;                 // RMS constant useful for tri-axis errors
-const uint32_t GPS_RATE = 200000;       // us, GPS Update rate
+static uint32_t DELAY = 45000000U;      // Start-Up delay to allow sensors to settle
+static uint32_t BIAS_DELAY = 90000000U; // Delay after Start-Up to allow biasing
+static const float ACC_ERR = 0.0015;    // (m/s/s)/(sqrt(Hz)) Accelerometer noise (LSM303D) Assuming 100Hz Bandwidth
+static const float GYRO_ERR = 0.00019;  // (rad/s)/(sqrt(Hz)) Gyro Noise (L3GD20H) Assuming 50Hz Bandwidth
+static const float RMS = 1.73;          // RMS constant useful for tri-axis errors
+static const uint32_t GPS_RATE = 200;   // us, GPS Update rate
 
 //----Function delcarations----//
 void initialize();
@@ -41,7 +41,7 @@ struct Accel
             //Trapezoidal Integration
             Velocity += (((newReading + Readings) / 2.0F) * dT) / 1000000;
             Readings = newReading;
-            Error += ACC_ERR * RMS * dT; // Error in acceleration, multiply by time for error in velocity
+            Error += (ACC_ERR * RMS * dT) / 1000000; // Error in acceleration, dT is in us and multiply by time for velocity error
             Timestamp += dT;
             return true;
         }
@@ -117,9 +117,9 @@ struct GPS
         Altitude = rhs.alt;
     }
 
-    bool update(const AP_GPS *frontend, GPS& prevGps)
+    bool update(const AP_GPS *frontend, GPS &prevGps)
     {
-        uint32_t dT = Timestamp - frontend->last_fix_time_ms();
+        uint32_t dT = frontend->last_fix_time_ms() - Timestamp;
         if (dT > 0)
         {
             //Save current GPS data to previous GPS data
@@ -189,11 +189,12 @@ static struct
     NED lastAcc;          //m/s (Velocity calculated from previous Acc Sensor data)
 } framework;
 
-static struct{
-    bool biased = false;    //True when bias has been determined
-    uint32_t Timestamp;     //Used to determine when readings change for bias
-    uint32_t count = 0;     //Number of readings used in bias
-    NED AccBias;             //Bias for NED acceleration
+static struct
+{
+    bool biased = false; //True when bias has been determined
+    uint32_t Timestamp;  //Used to determine when readings change for bias
+    uint32_t count = 0;  //Number of readings used in bias
+    NED AccBias;         //Bias for NED acceleration
 } bias;
 
 void Copter::sensor_confirmation()
@@ -212,11 +213,11 @@ void Copter::sensor_confirmation()
         if (!bias.biased && time < BIAS_DELAY)
         {
             gcs().send_text(MAV_SEVERITY_INFO, "PDLK: Biasing...");
-            const AP_InertialSensor* IMU = AP_InertialSensor::get_singleton();
+            const AP_InertialSensor *IMU = AP_InertialSensor::get_singleton();
             bias.AccBias += AP_AHRS_DCM::get_singleton()->body_to_earth(IMU->get_accel());
             bias.count++;
         }
-        else if(!bias.biased)
+        else if (!bias.biased)
         {
             bias.AccBias /= bias.count;
             bias.biased = true;
@@ -266,10 +267,10 @@ void initialize()
 void update()
 {
     //IMU Sensors
-    const AP_InertialSensor* IMU = AP_InertialSensor::get_singleton();
-    if ((IMU->get_last_update_usec() - sensors.currGps.Timestamp) >= GPS_RATE)
+    const AP_InertialSensor *IMU = AP_InertialSensor::get_singleton();
+    if (((IMU->get_last_update_usec() / 1000) - sensors.currGps.Timestamp) >= GPS_RATE)
     {
-        if(sensors.nextAccel.Timestamp == 0)
+        if (sensors.nextAccel.Timestamp == 0)
         {
             // Because our Velocity is based on change in time we need
             // to persist the timestamp from old to new accelerometer
@@ -342,12 +343,13 @@ void debug()
 
 bool confirm(const float a, const float a_err, const float b, const float b_err, bool wrap = false)
 {
-    if(a >= b){
-        return(((b + b_err) - (a - a_err)) >= 0);
+    if (a >= b)
+    {
+        return (((b + b_err) - (a - a_err)) >= 0);
     }
     else
     {
-        return(((a + a_err) - (b - b_err)) >= 0);
+        return (((a + a_err) - (b - b_err)) >= 0);
     }
 }
 
@@ -355,7 +357,7 @@ bool AccGPS()
 {
     float dAccVel = sensors.currAccel.Velocity.length();
     Vector3f dGpsVel = sensors.currGps.Airspeed - sensors.prevGps.Airspeed;
-    return(confirm(dAccVel, sensors.currAccel.Error, dGpsVel.length(), sensors.currGps.Sacc+sensors.prevGps.Sacc));
+    return (confirm(dAccVel, sensors.currAccel.Error, dGpsVel.length(), sensors.currGps.Sacc + sensors.prevGps.Sacc));
 }
 
 bool confirmAlt()
