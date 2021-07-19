@@ -9,12 +9,15 @@
 #include <numeric>
 
 //Constant declarations
-static uint32_t DELAY = 45000000U;      // Start-Up delay to allow sensors to settle
-static uint32_t BIAS_DELAY = 90000000U; // Delay after Start-Up to allow biasing
-static const float ACC_ERR = 0.0015;    // (m/s/s)/(sqrt(Hz)) Accelerometer noise (LSM303D) Assuming 100Hz Bandwidth
-static const float GYRO_ERR = 0.00019;  // (rad/s)/(sqrt(Hz)) Gyro Noise (L3GD20H) Assuming 50Hz Bandwidth
-static const float RMS = 1.73;          // RMS constant useful for tri-axis errors
-static const uint32_t GPS_RATE = 200;   // us, GPS Update rate
+static uint32_t DELAY = 45000000U;       // Start-Up delay to allow sensors to settle
+static uint32_t BIAS_DELAY = 90000000U;  // Delay after Start-Up to allow biasing
+static const float ACC_ERR = 0.0015;     // (m/s/s)/(sqrt(Hz)) Accelerometer noise (LSM303D) Assuming 100Hz Bandwidth
+static const float GYRO_ERR = 0.00019;   // (rad/s)/(sqrt(Hz)) Gyro Noise (L3GD20H) Assuming 50Hz Bandwidth
+static const float OF_GYRO_ERR = 0.0007; // (rad/s) Gyro Noise (ICM-20602) Assuming 100Hz Bandwidth
+static const float LT5_RF_ERR = 1;       // meters, Error in rangefinder when less than 5 meters distance
+static const float GT5_RF_ERR = 2.5;     // meters, Error in rangefinder when greater than or equal to 5 meters distance
+static const float RMS = 1.73;           // RMS constant useful for tri-axis errors
+static const uint32_t GPS_RATE = 200;    // us, GPS Update rate
 
 //----Function delcarations----//
 void initialize();
@@ -26,6 +29,7 @@ void debug();
 //----Specific Confirmations----//
 bool AccGPS();
 bool GpsMag();
+bool GpsOFGC();
 bool confirmAlt();
 
 typedef Vector3f NED;
@@ -59,6 +63,7 @@ struct Accel
         Readings.zero();
         Velocity.zero();
         Error = 0;
+        //Important note, after every reset if time matters assign the old timestamp to the reset sensor
         Timestamp = 0;
     }
 
@@ -97,6 +102,7 @@ struct Gyro
     {
         Readings.zero();
         Error = 0;
+        //Important note, after every reset if time matters assign the old timestamp to the reset sensor
         Timestamp = 0;
         TimeContained = 0;
     }
@@ -189,7 +195,96 @@ struct GPS
         Airspeed.zero();
         Yaw = -1;
         Yaw_Error = -1;
+        //Important note, after every reset if time matters assign the old timestamp to the reset sensor
         Timestamp = 0;
+    }
+};
+
+struct RF
+{
+    float Range;     //cm, Rangefinder reading after being LPF
+    float Timestamp; //ms, Timestamp of last healthy RF reading
+    float RangeErr;  //cm, Error in RF reading
+
+    void update()
+    {
+        uint32_t dT = copter.getRangems() - Timestamp;
+        if (dT > 0)
+        {
+            Range = copter.getRangeFilt();
+            RangeErr = Range >= 500 ? GT5_RF_ERR : LT5_RF_ERR;
+            Timestamp += dT;
+        }
+    }
+
+    void reset()
+    {
+        Range = 0;
+        //Important note, after every reset if time matters assign the old timestamp to the reset sensor
+        Timestamp = 0;
+        RangeErr = 0;
+    }
+};
+
+struct OF
+{
+    Vector2f FlowRate;  // rad/s, this is the angular rate calculated by the camera, i.e., HereFlow
+    Vector2f BodyRate;  // rad/s, in SITL this is the same as the gyroscope. Pitch Roll
+    uint32_t Timestamp; // ms, Timestamp of last OF Update
+    float RateErr;      // rad/s, Error in angular rate. Depends on sensor but HereFlow has a separate Gyroscope
+    float Range;        // cm, Rangefinder reading at update time
+    //I'm letting the OF store the velocity data as the Rangefinder has a typical operating
+    //rate of 270Hz meaning it should have more relevant information on OF update
+    BF VelBF;   //cm/s, Velocity in Body Frame (OF, RF, Barometer)
+    NED VelNED; //cm/s, velocity in NED frame (Mag, OF, RF)
+    NED Err;    //cm/s. Error in velocity in NED frame
+
+    void update(const OpticalFlow *frontend, const RF &currRF)
+    {
+        uint32_t dT = frontend->last_update() - Timestamp; //ms
+        if (dT > 0)
+        {
+            FlowRate = frontend->flowRate();
+            BodyRate = frontend->bodyRate();
+            RateErr += OF_GYRO_ERR;
+            Timestamp += dT;
+            VelBF = Vector3f{tan(FlowRate[0] - BodyRate[0]) * (currRF.Range / 100),      //m/s, Front
+                             tan(FlowRate[1] - BodyRate[1]) * (currRF.Range / 100),      //m/s, Right
+                             ((currRF.Range - Range) / dT) * 10};                        //m/s, Down
+            VelNED = (AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned() * VelBF); //Rotated BF to NED
+
+            BF ErrBF = Vector3f{tan((FlowRate[0] - BodyRate[0]) + RateErr) * (currRF.Range + currRF.RangeErr),
+                                tan((FlowRate[1] - BodyRate[1]) + RateErr) * (currRF.Range + currRF.RangeErr),
+                                ((currRF.Range + currRF.RangeErr - Range) / (dT / 1000.0F))};
+            Err = (AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned() * ErrBF);
+            Range = currRF.Range;
+        }
+    }
+
+    void reset(void)
+    {
+        FlowRate.zero();
+        BodyRate.zero();
+        //Important note, after every reset if time matters assign the old timestamp to the reset sensor
+        Timestamp = 0;
+        RateErr = 0;
+        //Important Note, Optical Flow needs to caarry over previous Range for proper velocity calculations
+        Range = 0;
+        VelBF.zero();
+        VelNED.zero();
+    }
+
+    OF &operator=(const OF &rhs)
+    {
+        FlowRate = rhs.FlowRate;
+        BodyRate = rhs.BodyRate;
+        Timestamp = rhs.Timestamp;
+        RateErr = rhs.RateErr;
+        Range = rhs.Range;
+        VelBF = rhs.VelBF;
+        VelNED = rhs.VelNED;
+        Err = rhs.Err;
+        return *this;
     }
 };
 
@@ -202,13 +297,16 @@ static struct
     Gyro nextGyro;   //Roll,Pitch,Yaw (Rates in radians/sec)
     GPS currGps;     //Most recent GPS reading
     GPS prevGps;     //Previous GPS reading
+    OF currOF;       //Current Optical Flow Data
+    OF nextOF;       //Optical Flow Data that occurs after expected GPS update
+    RF rangefinder;  //Rangefinder Data
 } sensors;
 
 //Confirmation Data
 static struct
 {
-    bool init = false;    //Initialized Structs
-    bool gpsAvail;        //GPS Data has been updated
+    bool init = false; //Initialized Structs
+    bool gpsAvail;     //GPS Data has been updated
 } framework;
 
 //Bias Data
@@ -235,6 +333,7 @@ void Copter::sensor_confirmation()
     {
         if (!bias.biased && time < BIAS_DELAY)
         {
+            //Can't bias rangefinder on the ground, nonlinearity when below 1m reading
             gcs().send_text(MAV_SEVERITY_INFO, "PDLK: Biasing...");
             const AP_InertialSensor *IMU = AP_InertialSensor::get_singleton();
             bias.AccBias += IMU->get_accel() * AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned();
@@ -265,13 +364,16 @@ void Copter::sensor_confirmation()
 
 void initialize()
 {
-    // Rest sensors
+    // Reset sensors
     sensors.currAccel.reset();
     sensors.nextAccel.reset();
     sensors.currGyro.reset();
     sensors.nextGyro.reset();
     sensors.currGps.reset();
     sensors.prevGps.reset();
+    sensors.currOF.reset();
+    sensors.nextOF.reset();
+    sensors.rangefinder.reset();
 
     //Zero framework readings
     framework.gpsAvail = false;
@@ -287,17 +389,10 @@ void initialize()
 void update()
 {
     //IMU Sensors
+    //Updating Current and Previous based on GPS Update rate
     const AP_InertialSensor *IMU = AP_InertialSensor::get_singleton();
     if (((IMU->get_last_update_usec() / 1000) - sensors.currGps.Timestamp) >= GPS_RATE)
     {
-        if (sensors.nextAccel.Timestamp == 0)
-        {
-            // Because our Velocity is based on change in time we need
-            // to persist the timestamp from old to new accelerometer
-            // frames
-            sensors.nextAccel.Timestamp = sensors.currAccel.Timestamp;
-        }
-
         sensors.nextAccel.update(IMU, bias.AccBias);
         sensors.nextGyro.update(IMU);
     }
@@ -311,6 +406,16 @@ void update()
     // The GPS will be lagging behind the accelerometer in practice so we want to
     // be sure to update nextAccel in the same moment that the GPS updates
     framework.gpsAvail = sensors.currGps.update(AP::gps().get_singleton(), sensors.prevGps);
+
+    sensors.rangefinder.update();
+    if ((sensors.currOF.Timestamp - sensors.currGps.Timestamp) >= (GPS_RATE / 1000))
+    {
+        sensors.nextOF.update(AP::opticalflow(), sensors.rangefinder);
+    }
+    else
+    {
+        sensors.currOF.update(AP::opticalflow(), sensors.rangefinder);
+    }
 }
 
 bool run()
@@ -321,13 +426,17 @@ bool run()
         debug();
 #endif
 
-        if (!AccGPS())
+        if (false && !AccGPS())
         {
             gcs().send_text(MAV_SEVERITY_WARNING, "AccGPS Failed.");
         }
-        if (!GpsMag())
+        if (false && !GpsMag())
         {
             gcs().send_text(MAV_SEVERITY_WARNING, "GpsMag Failed.");
+        }
+        if (!GpsOFGC())
+        {
+            gcs().send_text(MAV_SEVERITY_WARNING, "GpsOFGC Failed.");
         }
         // if (!confirmAlt())
         // {
@@ -337,8 +446,16 @@ bool run()
         //Switch to next IMU data
         sensors.currAccel = sensors.nextAccel;
         sensors.nextAccel.reset();
+        sensors.nextAccel.Timestamp = sensors.currAccel.Timestamp;
         sensors.currGyro = sensors.nextGyro;
         sensors.nextGyro.reset();
+        sensors.nextGyro.Timestamp = sensors.currGyro.Timestamp;
+
+        //Switch to next OF data
+        sensors.currOF = sensors.nextOF;
+        sensors.nextOF.reset();
+        sensors.nextOF.Timestamp = sensors.currOF.Timestamp;
+        sensors.nextOF.Range = sensors.currOF.Range;
 
         framework.gpsAvail = false;
     }
@@ -369,7 +486,8 @@ void debug()
 
 bool confirm(const float a, const float a_err, const float b, const float b_err, bool wrap = false)
 {
-    if(!wrap){
+    if (!wrap)
+    {
         if (a >= b)
         {
             return (((b + b_err) - (a - a_err)) >= 0);
@@ -378,38 +496,43 @@ bool confirm(const float a, const float a_err, const float b, const float b_err,
         {
             return (((a + a_err) - (b - b_err)) >= 0);
         }
-    } else{
+    }
+    else
+    {
         float lower = 0;
         float upper = 0;
-        if(a < b)
+        if (a < b)
         {
             lower = a + a_err;
-            upper = b - b_err; 
-        } else
+            upper = b - b_err;
+        }
+        else
         {
             lower = b + b_err;
             upper = a - a_err;
         }
-        if((lower >= 360) || (upper <= 0))
+        if ((lower >= 360) || (upper <= 0))
         {
             // If wrapping occurs then confirm
             return true;
-        } else if(lower - upper >= 0)
+        }
+        else if (lower - upper >= 0)
         {
             // This implies the lower + error is greater than upper - error
             return true;
         }
         //Swapping directions to see if moving away from each other causes wrapping
-        if(a >= b)
+        if (a >= b)
         {
             upper = a + a_err;
-            lower = b - b_err; 
-        } else
+            lower = b - b_err;
+        }
+        else
         {
             upper = b + b_err;
             lower = a - a_err;
         }
-        if((lower <= 0) && (upper >= 360))
+        if ((lower <= 0) && (upper >= 360))
         {
             // If both wrap its an easy confirmation
             return true;
@@ -420,7 +543,8 @@ bool confirm(const float a, const float a_err, const float b, const float b_err,
             lower = fmod(lower, 360);
             if (upper - lower >= 0)
                 return true;
-        } else if (upper >= 360)
+        }
+        else if (upper >= 360)
         {
             // If the upper value wraps around, confirm if it becomes greater than the lower
             upper = fmod(upper, 360);
@@ -430,7 +554,6 @@ bool confirm(const float a, const float a_err, const float b, const float b_err,
         return false;
     }
 }
-
 
 // Confirm change in velocity of GPS and Accelerometer
 bool AccGPS()
@@ -443,32 +566,69 @@ bool AccGPS()
 // Confirm ground course based on GPS movement and Magnetometer heading
 bool GpsMag()
 {
-    if(abs(sensors.currGps.Airspeed[0]) < 0.05 && abs(sensors.currGps.Airspeed[1]) < 0.05)
+    if (abs(sensors.currGps.Airspeed[0]) < 0.05 && abs(sensors.currGps.Airspeed[1]) < 0.05)
     {
         // Speed is below potential error, GpsMag is unusable
         return true;
     }
-    std::vector<float> north {1, 0};
-    std::vector<float> gps {sensors.currGps.Airspeed[0], sensors.currGps.Airspeed[1]};
-    
-    float dot = gps[0] * gps[0]; // N * 1 + E * 0
+    std::vector<float> north{1, 0};
+    std::vector<float> gps{sensors.currGps.Airspeed[0], sensors.currGps.Airspeed[1]};
+
+    float dot = gps[0];  // N * 1 + E * 0
     float det = -gps[1]; // N * 0 - E * 1
     float GpsGC = atan2(det, dot);
 
     const Matrix3f dcm = AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned();
-    float MagGC = ToDeg(atan2f(dcm.b[0],dcm.a[0]));
+    float MagGC = ToDeg(atan2f(dcm.b[0], dcm.a[0]));
     if (MagGC < 0)
         MagGC += 360;
 
-    std::vector<float> ErrGps {abs(sensors.currGps.Airspeed[0]) - abs(sensors.currGps.Hacc/(GPS_RATE / (float)1000)),
-                               abs(sensors.currGps.Airspeed[1]) + abs(sensors.currGps.Hacc/(GPS_RATE / (float)1000))};
+    std::vector<float> ErrGps{abs(sensors.currGps.Airspeed[0]) - abs(sensors.currGps.Hacc / (GPS_RATE / (float)1000)),
+                              abs(sensors.currGps.Airspeed[1]) + abs(sensors.currGps.Hacc / (GPS_RATE / (float)1000))};
     gps[0] = abs(gps[0]);
     gps[1] = abs(gps[1]);
     dot = gps[0] * ErrGps[0] + gps[1] * ErrGps[1]; // N * N + E * E
     det = gps[0] * ErrGps[1] - gps[1] * ErrGps[0]; // N * E - E * N
     float ErrGpsGC = ToDeg(atan2(det, dot));
 
-    return(confirm(GpsGC, ErrGpsGC, MagGC, ToDeg(sensors.currGyro.Error * (sensors.currGyro.TimeContained / (float)1000000))));
+    return (confirm(GpsGC, ErrGpsGC, MagGC, ToDeg(sensors.currGyro.Error * (sensors.currGyro.TimeContained / (float)1000000))));
+}
+
+// Confirm ground course based on GPS movement and Optical Flow movement with Magnetometer for rotation
+bool GpsOFGC()
+{
+    if (abs(sensors.currGps.Airspeed[0]) < 0.05 && abs(sensors.currGps.Airspeed[1]) < 0.05)
+    {
+        // Speed is below potential error, GpsOF is unusable
+        return true;
+    }
+    std::vector<float> north{1, 0};
+
+    std::vector<float> gps{sensors.currGps.Airspeed[0], sensors.currGps.Airspeed[1]};
+    float dot = gps[0];  // N * 1 + E * 0
+    float det = -gps[1]; // N * 0 - E * 1
+    float GpsGC = atan2(det, dot);
+
+    std::vector<float> OF{sensors.currOF.VelNED[0], sensors.currOF.VelNED[1]};
+    dot = OF[0];
+    det = -OF[1];
+    float OFGC = atan2(det, dot);
+
+    std::vector<float> ErrGps{abs(sensors.currGps.Airspeed[0]) - abs(sensors.currGps.Hacc / (GPS_RATE / (float)1000)),
+                              abs(sensors.currGps.Airspeed[1]) + abs(sensors.currGps.Hacc / (GPS_RATE / (float)1000))};
+    gps[0] = abs(gps[0]);
+    gps[1] = abs(gps[1]);
+    dot = gps[0] * ErrGps[0] + gps[1] * ErrGps[1]; // N * N + E * E
+    det = gps[0] * ErrGps[1] - gps[1] * ErrGps[0]; // N * E - E * N
+    float ErrGpsGC = ToDeg(atan2(det, dot));
+
+    OF[0] = abs(OF[0]);
+    OF[1] = abs(OF[1]);
+    dot = OF[0] * abs(sensors.currOF.Err[0]) + OF[1] * abs(sensors.currOF.Err[1]); // N * N + E * E
+    det = OF[0] * abs(sensors.currOF.Err[1]) - OF[1] * abs(sensors.currOF.Err[0]); // N * E - E * N
+    float ErrOFGC = ToDeg(atan2(det, dot));
+
+    return (confirm(GpsGC, ErrGpsGC, OFGC, ErrOFGC));
 }
 
 bool confirmAlt()
