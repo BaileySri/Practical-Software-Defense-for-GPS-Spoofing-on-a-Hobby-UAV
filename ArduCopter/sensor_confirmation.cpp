@@ -572,17 +572,12 @@ bool GpsMag()
         return true;
     }
     std::vector<float> north{1, 0};
-    std::vector<float> gps{sensors.currGps.Airspeed[0], sensors.currGps.Airspeed[1]};
 
+    //GPS and GPS Error
+    std::vector<float> gps{sensors.currGps.Airspeed[0], sensors.currGps.Airspeed[1]};
     float dot = gps[0];  // N * 1 + E * 0
     float det = -gps[1]; // N * 0 - E * 1
     float GpsGC = atan2(det, dot);
-
-    const Matrix3f dcm = AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned();
-    float MagGC = ToDeg(atan2f(dcm.b[0], dcm.a[0]));
-    if (MagGC < 0)
-        MagGC += 360;
-
     std::vector<float> ErrGps{abs(sensors.currGps.Airspeed[0]) - abs(sensors.currGps.Hacc / (GPS_RATE / (float)1000)),
                               abs(sensors.currGps.Airspeed[1]) + abs(sensors.currGps.Hacc / (GPS_RATE / (float)1000))};
     gps[0] = abs(gps[0]);
@@ -590,6 +585,14 @@ bool GpsMag()
     dot = gps[0] * ErrGps[0] + gps[1] * ErrGps[1]; // N * N + E * E
     det = gps[0] * ErrGps[1] - gps[1] * ErrGps[0]; // N * E - E * N
     float ErrGpsGC = ToDeg(atan2(det, dot));
+
+    //Magnetometer with Gyro Error
+    const Matrix3f dcm = AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned();
+    float MagGC = ToDeg(atan2f(dcm.b[0], dcm.a[0]));
+    if (MagGC < 0)
+        MagGC += 360;
+
+
 
     return (confirm(GpsGC, ErrGpsGC, MagGC, ToDeg(sensors.currGyro.Error * (sensors.currGyro.TimeContained / (float)1000000))));
 }
@@ -604,16 +607,11 @@ bool GpsOFGC()
     }
     std::vector<float> north{1, 0};
 
+    //GPS and GPS Error
     std::vector<float> gps{sensors.currGps.Airspeed[0], sensors.currGps.Airspeed[1]};
     float dot = gps[0];  // N * 1 + E * 0
     float det = -gps[1]; // N * 0 - E * 1
     float GpsGC = atan2(det, dot);
-
-    std::vector<float> OF{sensors.currOF.VelNED[0], sensors.currOF.VelNED[1]};
-    dot = OF[0];
-    det = -OF[1];
-    float OFGC = atan2(det, dot);
-
     std::vector<float> ErrGps{abs(sensors.currGps.Airspeed[0]) - abs(sensors.currGps.Hacc / (GPS_RATE / (float)1000)),
                               abs(sensors.currGps.Airspeed[1]) + abs(sensors.currGps.Hacc / (GPS_RATE / (float)1000))};
     gps[0] = abs(gps[0]);
@@ -622,13 +620,93 @@ bool GpsOFGC()
     det = gps[0] * ErrGps[1] - gps[1] * ErrGps[0]; // N * E - E * N
     float ErrGpsGC = ToDeg(atan2(det, dot));
 
+    //Optical Flow and Optical Flow Error
+    std::vector<float> OF{sensors.currOF.VelNED[0], sensors.currOF.VelNED[1]};
+    dot = OF[0];
+    det = -OF[1];
+    float OFGC = atan2(det, dot);
     OF[0] = abs(OF[0]);
     OF[1] = abs(OF[1]);
     dot = OF[0] * abs(sensors.currOF.Err[0]) + OF[1] * abs(sensors.currOF.Err[1]); // N * N + E * E
     det = OF[0] * abs(sensors.currOF.Err[1]) - OF[1] * abs(sensors.currOF.Err[0]); // N * E - E * N
     float ErrOFGC = ToDeg(atan2(det, dot));
 
-    return (confirm(GpsGC, ErrGpsGC, OFGC, ErrOFGC));
+    return (confirm(GpsGC, ErrGpsGC, OFGC, ErrOFGC, true));
+}
+
+// Confirm ground course based on GPS movement and Accelerometer movement with Magnetometer for rotation
+bool AccGpsGC()
+{
+    if (abs(sensors.currGps.Airspeed[0]) < 0.05 && abs(sensors.currGps.Airspeed[1]) < 0.05)
+    {
+        // Speed is below potential error, GpsAcc is unusable
+        return true;
+    }
+    std::vector<float> north{1, 0};
+
+    //GPS and GPS Error
+    std::vector<float> gps{sensors.currGps.Airspeed[0], sensors.currGps.Airspeed[1]};
+    float dot = gps[0];  // N * 1 + E * 0
+    float det = -gps[1]; // N * 0 - E * 1
+    float GpsGC = atan2(det, dot);
+    std::vector<float> ErrGps{abs(sensors.currGps.Airspeed[0]) - abs(sensors.currGps.Hacc / (GPS_RATE / (float)1000)),
+                              abs(sensors.currGps.Airspeed[1]) + abs(sensors.currGps.Hacc / (GPS_RATE / (float)1000))};
+    gps[0] = abs(gps[0]);
+    gps[1] = abs(gps[1]);
+    dot = gps[0] * ErrGps[0] + gps[1] * ErrGps[1]; // N * N + E * E
+    det = gps[0] * ErrGps[1] - gps[1] * ErrGps[0]; // N * E - E * N
+    float ErrGpsGC = ToDeg(atan2(det, dot));
+
+    //Accelerometer and Accelerometer Error
+    std::vector<float> Acc{sensors.currAccel.Velocity[0], sensors.currAccel.Velocity[1]};
+    dot = Acc[0];
+    det = -Acc[1];
+    float AccGC = atan2(det, dot);
+    Acc[0] = abs(Acc[0]);
+    Acc[1] = abs(Acc[1]);
+    dot = Acc[0] * abs(sensors.currAccel.Error) + Acc[1] * abs(sensors.currAccel.Error); // N * N + E * E
+    det = Acc[0] * abs(sensors.currAccel.Error]) - Acc[1] * abs(sensors.currAccel.Error); // N * E - E * N
+    float ErrAccGC = ToDeg(atan2(det, dot));
+
+    return (confirm(GpsGC, ErrGpsGC, AccGC, ErrAccGC, true));
+}
+
+// Confirm ground course based on Accelerometer and Optical Flow movement with Magnetometer for rotation
+bool AccOFGC()
+{
+    if (abs(sensors.currAccel.Velocity[0] < sensors.currAccel.Error && abs(sensors.currAccel.Velocity[1]) < sensors.currAccel.Error))
+    {
+        // Speed is below potential error, GpsAcc is unusable
+        return true;
+    }
+    std::vector<float> north{1, 0};
+
+    //Accelerometer and Accelerometer Error
+    std::vector<float> Acc{sensors.currAccel.Velocity[0], sensors.currAccel.Velocity[1]};
+    float dot = Acc[0];  // N * 1 + E * 0
+    float det = -Acc[1]; // N * 0 - E * 1
+    float AccGC = atan2(det, dot);
+    Acc[0] = abs(Acc[0]);
+    Acc[1] = abs(Acc[1]);
+    dot = Acc[0] * abs(sensors.currAccel.Error) + Acc[1] * abs(sensors.currAccel.Error); // N * N + E * E
+    det = Acc[0] * abs(sensors.currAccel.Error]) - Acc[1] * abs(sensors.currAccel.Error); // N * E - E * N
+    float ErrAccGC = ToDeg(atan2(det, dot));
+
+    //Optical Flow and Optical Flow Error
+    std::vector<float> OF{sensors.currOF.VelNED[0], sensors.currOF.VelNED[1]};
+    dot = OF[0];
+    det = -OF[1];
+    float OFGC = atan2(det, dot);
+    std::vector<float> ErrOF{abs(sensors.currGps.Airspeed[0]) - abs(sensors.currGps.Hacc / (GPS_RATE / (float)1000)),
+                              abs(sensors.currGps.Airspeed[1]) + abs(sensors.currGps.Hacc / (GPS_RATE / (float)1000))};
+    OF[0] = abs(OF[0]);
+    OF[1] = abs(OF[1]);
+    dot = OF[0] * ErrOF[0] + OF[1] * ErrOF[1]; // N * N + E * E
+    det = OF[0] * ErrOF[1] - OF[1] * ErrOF[0]; // N * E - E * N
+    float ErrOFGC = ToDeg(atan2(det, dot));
+
+
+    return (confirm(OFGC, ErrOFGC, AccGC, ErrAccGC, true));
 }
 
 bool confirmAlt()
