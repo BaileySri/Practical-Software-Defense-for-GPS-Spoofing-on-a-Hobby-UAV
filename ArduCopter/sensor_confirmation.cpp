@@ -28,7 +28,9 @@ void recover();
 void debug();
 //----Specific Confirmations----//
 bool AccGPS();
-bool GpsMag();
+bool AccGpsGC();
+bool AccOFGC();
+bool GpsMagGC();
 bool GpsOFGC();
 bool confirmAlt();
 
@@ -430,7 +432,7 @@ bool run()
         {
             gcs().send_text(MAV_SEVERITY_WARNING, "AccGPS Failed.");
         }
-        if (false && !GpsMag())
+        if (false && !GpsMagGC())
         {
             gcs().send_text(MAV_SEVERITY_WARNING, "GpsMag Failed.");
         }
@@ -564,7 +566,7 @@ bool AccGPS()
 }
 
 // Confirm ground course based on GPS movement and Magnetometer heading
-bool GpsMag()
+bool GpsMagGC()
 {
     if (abs(sensors.currGps.Airspeed[0]) < 0.05 && abs(sensors.currGps.Airspeed[1]) < 0.05)
     {
@@ -592,9 +594,7 @@ bool GpsMag()
     if (MagGC < 0)
         MagGC += 360;
 
-
-
-    return (confirm(GpsGC, ErrGpsGC, MagGC, ToDeg(sensors.currGyro.Error * (sensors.currGyro.TimeContained / (float)1000000))));
+    return (confirm(GpsGC, ErrGpsGC, MagGC, ToDeg(sensors.currGyro.Error * (sensors.currGyro.TimeContained / (float)1000000)), true));
 }
 
 // Confirm ground course based on GPS movement and Optical Flow movement with Magnetometer for rotation
@@ -665,7 +665,7 @@ bool AccGpsGC()
     Acc[0] = abs(Acc[0]);
     Acc[1] = abs(Acc[1]);
     dot = Acc[0] * abs(sensors.currAccel.Error) + Acc[1] * abs(sensors.currAccel.Error); // N * N + E * E
-    det = Acc[0] * abs(sensors.currAccel.Error]) - Acc[1] * abs(sensors.currAccel.Error); // N * E - E * N
+    det = Acc[0] * abs(sensors.currAccel.Error) - Acc[1] * abs(sensors.currAccel.Error); // N * E - E * N
     float ErrAccGC = ToDeg(atan2(det, dot));
 
     return (confirm(GpsGC, ErrGpsGC, AccGC, ErrAccGC, true));
@@ -689,7 +689,7 @@ bool AccOFGC()
     Acc[0] = abs(Acc[0]);
     Acc[1] = abs(Acc[1]);
     dot = Acc[0] * abs(sensors.currAccel.Error) + Acc[1] * abs(sensors.currAccel.Error); // N * N + E * E
-    det = Acc[0] * abs(sensors.currAccel.Error]) - Acc[1] * abs(sensors.currAccel.Error); // N * E - E * N
+    det = Acc[0] * abs(sensors.currAccel.Error) - Acc[1] * abs(sensors.currAccel.Error); // N * E - E * N
     float ErrAccGC = ToDeg(atan2(det, dot));
 
     //Optical Flow and Optical Flow Error
@@ -697,8 +697,8 @@ bool AccOFGC()
     dot = OF[0];
     det = -OF[1];
     float OFGC = atan2(det, dot);
-    std::vector<float> ErrOF{abs(sensors.currGps.Airspeed[0]) - abs(sensors.currGps.Hacc / (GPS_RATE / (float)1000)),
-                              abs(sensors.currGps.Airspeed[1]) + abs(sensors.currGps.Hacc / (GPS_RATE / (float)1000))};
+    std::vector<float> ErrOF{abs(sensors.currOF.VelNED[0]) - abs(sensors.currOF.Err[0]),
+                              abs(sensors.currOF.VelNED[1]) + abs(sensors.currOF.Err[1])};
     OF[0] = abs(OF[0]);
     OF[1] = abs(OF[1]);
     dot = OF[0] * ErrOF[0] + OF[1] * ErrOF[1]; // N * N + E * E
