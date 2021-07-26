@@ -783,6 +783,54 @@ struct PACKED log_sensors_4 {
     float gps_vel_D;
 };
 
+struct PACKED log_confirmation_1 {
+    LOG_PACKET_HEADER;
+    uint64_t time_us;
+    //Optical Flow and Error
+    float C_OF_North;
+    float C_OF_East;
+    float C_OF_Down;
+    float C_OF_North_Err;
+    float C_OF_East_Err;
+    float C_OF_Down_Err;
+    float P_OF_North;
+    float P_OF_East;
+    float P_OF_Down;
+    float P_OF_North_Err;
+    float P_OF_East_Err;
+    float P_OF_Down_Err;
+};
+
+struct PACKED log_confirmation_2 {
+    LOG_PACKET_HEADER
+    uint64_t time_us;
+    //GPS and Error
+    float C_GPS_North;
+    float C_GPS_East;
+    float C_GPS_Down;
+    float C_GPS_Err;
+    float P_GPS_North;
+    float P_GPS_East;
+    float P_GPS_Down;
+    float P_GPS_Err;
+};
+
+struct PACKED log_confirmation_3 {
+    LOG_PACKET_HEADER
+    uint64_t time_us;
+    //Accelerometer, Acccelerometer Error, and relevant Magnetometer readings
+    float C_ACC_North;
+    float C_ACC_East;
+    float C_ACC_Down;
+    float C_ACC_Err;
+    float N_ACC_North;
+    float N_ACC_East;
+    float N_ACC_Down;
+    float N_ACC_Err;
+    float M_1_0;
+    float M_0_0;
+};
+
 // FMT messages define all message formats other than FMT
 // UNIT messages define units which can be referenced by FMTU messages
 // FMTU messages associate types (e.g. centimeters/second/second) to FMT message fields
@@ -1424,7 +1472,13 @@ LOG_STRUCTURE_FROM_VISUALODOM \
     { LOG_SNSR_3_MSG, sizeof(log_sensors_3), \
       "SNS3", "Qfffffffff", "TimeUS,m00,m01,m02,m10,m11,m12,m20,m21,m22", "s---------", "F---------"}, \
     { LOG_SNSR_4_MSG, sizeof(log_sensors_4), \
-      "SNS4", "Qiiifffff", "TimeUS,gprLat,gprLng,gprAlt,gprGC,gpGC,gprN,gprE,gprD", "sDUmhhnnn", "FGGB00000"}
+      "SNS4", "Qiiifffff", "TimeUS,gprLat,gprLng,gprAlt,gprGC,gpGC,gprN,gprE,gprD", "sDUmhhnnn", "FGGB00000"}, \
+    { LOG_CNFR_1_MSG, sizeof(log_confirmation_1), \
+      "CNF1", "Qffffffffffff", "TimeUS,COFN,COFE,COFD,CNe,CEe,CDe,POFN,POFE,POFD,PNe,PEe,PDe", "snnnnnnnnnnnn", "FBBBBBBBBBBBB"}, \
+    { LOG_CNFR_2_MSG, sizeof(log_confirmation_2), \
+      "CNF2", "Qffffffff", "TimeUS,CGpN,CGpE,CGpD,CGpe,PGpN,PGpE,PGpD,PGpe", "snnnnnnnn", "F00000000"}, \
+    { LOG_CNFR_3_MSG, sizeof(log_confirmation_3), \
+      "CNF3", "Qffffffffff", "TimeUS,CAN,CAE,CAD,CAe,NAN,NAE,NAD,NAe,m10,m00", "snnnnnnnn--", "F00000000--"}
     
     //PADLOCK
     //Array declaration of sensor logger
@@ -1533,7 +1587,11 @@ enum LogMessages : uint8_t {
     LOG_SNSR_2_MSG,
     LOG_SNSR_3_MSG,
     LOG_SNSR_4_MSG,
-    
+    LOG_CNFR_1_MSG,
+    LOG_CNFR_2_MSG,
+    LOG_CNFR_3_MSG,
+    LOG_CNFR_4_MSG,
+
     _LOG_LAST_MSG_
 };
 

@@ -28,11 +28,12 @@ void recover();
 void debug();
 //----Specific Confirmations----//
 bool AccGPS();
+bool AccOF();
+bool GpsOF();
 bool AccGpsGC();
 bool AccOFGC();
 bool GpsMagGC();
 bool GpsOFGC();
-bool confirmAlt();
 
 typedef Vector3f NED;
 typedef Vector3f BF;
@@ -41,7 +42,7 @@ struct Accel
 {
     NED Readings;       //m/s/s, Accelerometer readings rotated to NED
     NED Velocity;       //m/s
-    float Error;        //m/s/s
+    float Error;        //m/s
     uint32_t Timestamp; //us
 
     bool update(const AP_InertialSensor *frontend, NED bias)
@@ -299,6 +300,7 @@ static struct
     Gyro nextGyro;   //Roll,Pitch,Yaw (Rates in radians/sec)
     GPS currGps;     //Most recent GPS reading
     GPS prevGps;     //Previous GPS reading
+    OF prevOF;       //Previous Optical Flow Data
     OF currOF;       //Current Optical Flow Data
     OF nextOF;       //Optical Flow Data that occurs after expected GPS update
     RF rangefinder;  //Rangefinder Data
@@ -427,7 +429,19 @@ bool run()
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL && 0
         debug();
 #endif
-
+        AP_Logger::get_singleton()->Write_CNFR(sensors.prevOF.VelNED,
+                                               sensors.prevOF.Err,
+                                               sensors.currOF.VelNED,
+                                               sensors.currOF.Err,
+                                               sensors.prevGps.Airspeed,
+                                               sensors.prevGps.Sacc,
+                                               sensors.currGps.Airspeed,
+                                               sensors.currGps.Sacc,
+                                               sensors.currAccel.Velocity,
+                                               sensors.currAccel.Error,
+                                               sensors.nextAccel.Velocity,
+                                               sensors.nextAccel.Error);
+        /*
         if (false && !AccGPS())
         {
             gcs().send_text(MAV_SEVERITY_WARNING, "AccGPS Failed.");
@@ -444,7 +458,8 @@ bool run()
         // {
         //     gcs().send_text(MAV_SEVERITY_WARNING, "Altitude outside of error ranges.");
         // }
-
+        */
+       
         //Switch to next IMU data
         sensors.currAccel = sensors.nextAccel;
         sensors.nextAccel.reset();
@@ -454,6 +469,7 @@ bool run()
         sensors.nextGyro.Timestamp = sensors.currGyro.Timestamp;
 
         //Switch to next OF data
+        sensors.prevOF = sensors.currOF;
         sensors.currOF = sensors.nextOF;
         sensors.nextOF.reset();
         sensors.nextOF.Timestamp = sensors.currOF.Timestamp;
@@ -563,6 +579,20 @@ bool AccGPS()
     float dAccVel = sensors.currAccel.Velocity.length();
     Vector3f dGpsVel = sensors.currGps.Airspeed - sensors.prevGps.Airspeed;
     return (confirm(dAccVel, sensors.currAccel.Error, dGpsVel.length(), sensors.currGps.Sacc + sensors.prevGps.Sacc));
+}
+
+// Confirm change in velocity of GPS and Accelerometer
+bool AccOF()
+{
+    float dAccVel = sensors.currAccel.Velocity.length();
+    Vector3f dGpsVel = sensors.currOF.VelNED - sensors.prevOF.VelNED;
+    return (confirm(dAccVel, sensors.currAccel.Error, dGpsVel.length(), sensors.currGps.Sacc + sensors.prevGps.Sacc));
+}
+
+// Confirm velocity of GPS and Optical Flow Sensor
+bool GpsOF()
+{
+    return (confirm(sensors.currOF.VelNED.length(), sensors.currOF.Err.length(), sensors.currGps.Airspeed.length(), sensors.currGps.Sacc));
 }
 
 // Confirm ground course based on GPS movement and Magnetometer heading
@@ -707,10 +737,4 @@ bool AccOFGC()
 
 
     return (confirm(OFGC, ErrOFGC, AccGC, ErrAccGC, true));
-}
-
-bool confirmAlt()
-{
-    //TODO: Confirmation between Barometer, GPS, and Acc
-    return true;
 }

@@ -339,7 +339,13 @@ public:
     //Log write function
     void Write_SNSR(const float &BAlt, const float &rf_dist, const Vector2f &body_rate, const Vector2f &flow_rate, const uint32_t &OF_Time);
     void Write_SNSR(const float &BAlt);
-    
+    void Write_CNFR(const Vector3f &P_OF, const Vector3f &P_OF_Err,
+                    const Vector3f &C_OF, const Vector3f &C_OF_Err,
+                    const Vector3f &P_GPS, const float P_GPS_Err,
+                    const Vector3f &C_GPS, const float C_GPS_Err,
+                    const Vector3f &C_ACC, const float C_ACC_Err,
+                    const Vector3f &N_ACC, const float N_ACC_Err);
+
     void Write(const char *name, const char *labels, const char *fmt, ...);
     void Write(const char *name, const char *labels, const char *units, const char *mults, const char *fmt, ...);
     void WriteStreaming(const char *name, const char *labels, const char *fmt, ...);
