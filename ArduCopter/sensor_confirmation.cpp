@@ -14,8 +14,8 @@ static uint32_t BIAS_DELAY = 90000000U;  // Delay after Start-Up to allow biasin
 static const float ACC_ERR = 0.0015;     // (m/s/s)/(sqrt(Hz)) Accelerometer noise (LSM303D) Assuming 100Hz Bandwidth
 static const float GYRO_ERR = 0.00019;   // (rad/s)/(sqrt(Hz)) Gyro Noise (L3GD20H) Assuming 50Hz Bandwidth
 static const float OF_GYRO_ERR = 0.0007; // (rad/s) Gyro Noise (ICM-20602) Assuming 100Hz Bandwidth
-static const float LT5_RF_ERR = 1;       // meters, Error in rangefinder when less than 5 meters distance
-static const float GT5_RF_ERR = 2.5;     // meters, Error in rangefinder when greater than or equal to 5 meters distance
+static const float LT5_RF_ERR = 0.01;    // meters, Error in rangefinder when less than 5 meters distance
+static const float GT5_RF_ERR = 0.025;   // meters, Error in rangefinder when greater than or equal to 5 meters distance
 static const float RMS = 1.73;           // RMS constant useful for tri-axis errors
 static const uint32_t GPS_RATE = 200;    // us, GPS Update rate
 
@@ -26,6 +26,81 @@ bool run();
 void recover();
 //----   Helper Functions  ----//
 void debug();
+bool confirm(const float a, const float a_err, const float b, const float b_err, bool wrap = false)
+{
+    if (!wrap)
+    {
+        if (a >= b)
+        {
+            return (((b + b_err) - (a - a_err)) >= 0);
+        }
+        else
+        {
+            return (((a + a_err) - (b - b_err)) >= 0);
+        }
+    }
+    else
+    {
+        float lower = 0;
+        float upper = 0;
+        if (a < b)
+        {
+            lower = a + a_err;
+            upper = b - b_err;
+        }
+        else
+        {
+            lower = b + b_err;
+            upper = a - a_err;
+        }
+        if ((lower >= 360) || (upper <= 0))
+        {
+            // If wrapping occurs then confirm
+            return true;
+        }
+        else if (lower - upper >= 0)
+        {
+            // This implies the lower + error is greater than upper - error
+            return true;
+        }
+        //Swapping directions to see if moving away from each other causes wrapping
+        if (a >= b)
+        {
+            upper = a + a_err;
+            lower = b - b_err;
+        }
+        else
+        {
+            upper = b + b_err;
+            lower = a - a_err;
+        }
+        if ((lower <= 0) && (upper >= 360))
+        {
+            // If both wrap its an easy confirmation
+            return true;
+        }
+        else if (lower <= 0)
+        {
+            // If the lower value wraps around, confirm if it becomes less than the upper
+            lower = fmod(lower, 360);
+            if (upper - lower >= 0)
+                return true;
+        }
+        else if (upper >= 360)
+        {
+            // If the upper value wraps around, confirm if it becomes greater than the lower
+            upper = fmod(upper, 360);
+            if (upper - lower >= 0)
+                return true;
+        }
+        return false;
+    }
+}
+Vector3f abs(const Vector3f &x)
+{
+    return Vector3f{abs(x.x), abs(x.y), abs(x.z)};
+}
+
 //----Specific Confirmations----//
 bool AccGPS();
 bool AccOF();
@@ -205,17 +280,17 @@ struct GPS
 
 struct RF
 {
-    float Range;     //cm, Rangefinder reading after being LPF
+    float Range;     //meters, Rangefinder reading after being LPF
     float Timestamp; //ms, Timestamp of last healthy RF reading
-    float RangeErr;  //cm, Error in RF reading
+    float RangeErr;  //meters, Error in RF reading
 
     void update()
     {
         uint32_t dT = copter.getRangems() - Timestamp;
         if (dT > 0)
         {
-            Range = copter.getRangeFilt();
-            RangeErr = Range >= 500 ? GT5_RF_ERR : LT5_RF_ERR;
+            Range = copter.getRangeFilt() / 100;
+            RangeErr = Range >= 5 ? GT5_RF_ERR : LT5_RF_ERR;
             Timestamp += dT;
         }
     }
@@ -251,15 +326,15 @@ struct OF
             BodyRate = frontend->bodyRate();
             RateErr += OF_GYRO_ERR;
             Timestamp += dT;
-            VelBF = Vector3f{tan(FlowRate[0] - BodyRate[0]) * (currRF.Range / 100),      //m/s, Front
-                             tan(FlowRate[1] - BodyRate[1]) * (currRF.Range / 100),      //m/s, Right
-                             ((currRF.Range - Range) / dT) * 10};                        //m/s, Down
+            VelBF = Vector3f{tan(FlowRate[0] - BodyRate[0]) * (currRF.Range),   //m/s, Front
+                             tan(FlowRate[1] - BodyRate[1]) * (currRF.Range),   //m/s, Right
+                             ((currRF.Range - Range) / (dT / 1000.0F))};           //m/s, Down
             VelNED = (AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned() * VelBF); //Rotated BF to NED
 
-            BF ErrBF = Vector3f{tan((FlowRate[0] - BodyRate[0]) + RateErr) * (currRF.Range + currRF.RangeErr),
-                                tan((FlowRate[1] - BodyRate[1]) + RateErr) * (currRF.Range + currRF.RangeErr),
+            BF ErrBF = Vector3f{tan((FlowRate[0] - BodyRate[0]) + RateErr) * ((currRF.Range) + currRF.RangeErr),
+                                tan((FlowRate[1] - BodyRate[1]) + RateErr) * ((currRF.Range) + currRF.RangeErr),
                                 ((currRF.Range + currRF.RangeErr - Range) / (dT / 1000.0F))};
-            Err = (AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned() * ErrBF);
+            Err = (AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned() * abs(ErrBF - VelBF));
             Range = currRF.Range;
         }
     }
@@ -459,7 +534,7 @@ bool run()
         //     gcs().send_text(MAV_SEVERITY_WARNING, "Altitude outside of error ranges.");
         // }
         */
-       
+
         //Switch to next IMU data
         sensors.currAccel = sensors.nextAccel;
         sensors.nextAccel.reset();
@@ -500,77 +575,6 @@ void debug()
                     sensors.nextAccel.Timestamp,
                     sensors.currGps.Timestamp);
 #endif
-}
-
-bool confirm(const float a, const float a_err, const float b, const float b_err, bool wrap = false)
-{
-    if (!wrap)
-    {
-        if (a >= b)
-        {
-            return (((b + b_err) - (a - a_err)) >= 0);
-        }
-        else
-        {
-            return (((a + a_err) - (b - b_err)) >= 0);
-        }
-    }
-    else
-    {
-        float lower = 0;
-        float upper = 0;
-        if (a < b)
-        {
-            lower = a + a_err;
-            upper = b - b_err;
-        }
-        else
-        {
-            lower = b + b_err;
-            upper = a - a_err;
-        }
-        if ((lower >= 360) || (upper <= 0))
-        {
-            // If wrapping occurs then confirm
-            return true;
-        }
-        else if (lower - upper >= 0)
-        {
-            // This implies the lower + error is greater than upper - error
-            return true;
-        }
-        //Swapping directions to see if moving away from each other causes wrapping
-        if (a >= b)
-        {
-            upper = a + a_err;
-            lower = b - b_err;
-        }
-        else
-        {
-            upper = b + b_err;
-            lower = a - a_err;
-        }
-        if ((lower <= 0) && (upper >= 360))
-        {
-            // If both wrap its an easy confirmation
-            return true;
-        }
-        else if (lower <= 0)
-        {
-            // If the lower value wraps around, confirm if it becomes less than the upper
-            lower = fmod(lower, 360);
-            if (upper - lower >= 0)
-                return true;
-        }
-        else if (upper >= 360)
-        {
-            // If the upper value wraps around, confirm if it becomes greater than the lower
-            upper = fmod(upper, 360);
-            if (upper - lower >= 0)
-                return true;
-        }
-        return false;
-    }
 }
 
 // Confirm change in velocity of GPS and Accelerometer
@@ -728,13 +732,12 @@ bool AccOFGC()
     det = -OF[1];
     float OFGC = atan2(det, dot);
     std::vector<float> ErrOF{abs(sensors.currOF.VelNED[0]) - abs(sensors.currOF.Err[0]),
-                              abs(sensors.currOF.VelNED[1]) + abs(sensors.currOF.Err[1])};
+                             abs(sensors.currOF.VelNED[1]) + abs(sensors.currOF.Err[1])};
     OF[0] = abs(OF[0]);
     OF[1] = abs(OF[1]);
     dot = OF[0] * ErrOF[0] + OF[1] * ErrOF[1]; // N * N + E * E
     det = OF[0] * ErrOF[1] - OF[1] * ErrOF[0]; // N * E - E * N
     float ErrOFGC = ToDeg(atan2(det, dot));
-
 
     return (confirm(OFGC, ErrOFGC, AccGC, ErrAccGC, true));
 }
