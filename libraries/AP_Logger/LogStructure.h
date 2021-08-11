@@ -831,6 +831,32 @@ struct PACKED log_confirmation_3 {
     float M_0_0;
 };
 
+struct PACKED log_accof_1 {
+    LOG_PACKET_HEADER
+    uint64_t time_us;
+    float C_OF_North;
+    float C_OF_East;
+    float C_OF_Down;
+    float C_OF_North_Err;
+    float C_OF_East_Err;
+    float C_OF_Down_Err;
+    float P_OF_North;
+    float P_OF_East;
+    float P_OF_Down;
+    float P_OF_North_Err;
+    float P_OF_East_Err;
+    float P_OF_Down_Err;
+};
+
+struct PACKED log_accof_2{
+  LOG_PACKET_HEADER
+  uint64_t time_us;
+  float C_ACC_North;
+  float C_ACC_East;
+  float C_ACC_Down;
+  float C_ACC_Err;
+};
+
 // FMT messages define all message formats other than FMT
 // UNIT messages define units which can be referenced by FMTU messages
 // FMTU messages associate types (e.g. centimeters/second/second) to FMT message fields
@@ -1478,7 +1504,11 @@ LOG_STRUCTURE_FROM_VISUALODOM \
     { LOG_CNFR_2_MSG, sizeof(log_confirmation_2), \
       "CNF2", "Qffffffff", "TimeUS,CGpN,CGpE,CGpD,CGpe,PGpN,PGpE,PGpD,PGpe", "snnnnnnnn", "F00000000"}, \
     { LOG_CNFR_3_MSG, sizeof(log_confirmation_3), \
-      "CNF3", "Qffffffffff", "TimeUS,CAN,CAE,CAD,CAe,NAN,NAE,NAD,NAe,m10,m00", "snnnnnnnn--", "F00000000--"}
+      "CNF3", "Qffffffffff", "TimeUS,CAN,CAE,CAD,CAe,NAN,NAE,NAD,NAe,m10,m00", "snnnnnnnn--", "F00000000--"}, \
+    { LOG_ACCOF_1_MSG, sizeof(log_accof_1), \
+      "ACO1", "Qffffffffffff", "TimeUS,COFN,COFE,COFD,CNe,CEe,CDe,POFN,POFE,POFD,PNe,PEe,PDe", "snnnnnnnnnnnn", "F000000000000"}, \
+    { LOG_ACCOF_2_MSG, sizeof(log_accof_2), \
+      "ACO2", "Qffff", "TimeUS,CAN,CAE,CAD,CAe", "snnnn", "F0000"}
     
     //PADLOCK
     //Array declaration of sensor logger
@@ -1590,7 +1620,8 @@ enum LogMessages : uint8_t {
     LOG_CNFR_1_MSG,
     LOG_CNFR_2_MSG,
     LOG_CNFR_3_MSG,
-    LOG_CNFR_4_MSG,
+    LOG_ACCOF_1_MSG,
+    LOG_ACCOF_2_MSG,
 
     _LOG_LAST_MSG_
 };

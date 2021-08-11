@@ -13,6 +13,7 @@ static uint32_t DELAY = 45000000U;       // Start-Up delay to allow sensors to s
 static uint32_t BIAS_DELAY = 90000000U;  // Delay after Start-Up to allow biasing
 static const float ACC_ERR = 0.0015;     // (m/s/s)/(sqrt(Hz)) Accelerometer noise (LSM303D) Assuming 100Hz Bandwidth
 static const float GYRO_ERR = 0.00019;   // (rad/s)/(sqrt(Hz)) Gyro Noise (L3GD20H) Assuming 50Hz Bandwidth
+static const float FLOW_ERR = 0.05;      // rad/s, In SITL there is a defined FLOW Noise that should be accounted for
 static const float OF_GYRO_ERR = 0.0007; // (rad/s) Gyro Noise (ICM-20602) Assuming 100Hz Bandwidth
 static const float LT5_RF_ERR = 0.01;    // meters, Error in rangefinder when less than 5 meters distance
 static const float GT5_RF_ERR = 0.025;   // meters, Error in rangefinder when greater than or equal to 5 meters distance
@@ -317,7 +318,7 @@ struct OF
     NED VelNED; //cm/s, velocity in NED frame (Mag, OF, RF)
     NED Err;    //cm/s. Error in velocity in NED frame
 
-    void update(const OpticalFlow *frontend, const RF &currRF)
+    bool update(const OpticalFlow *frontend, const RF &currRF)
     {
         uint32_t dT = frontend->last_update() - Timestamp; //ms
         if (dT > 0)
@@ -326,17 +327,19 @@ struct OF
             BodyRate = frontend->bodyRate();
             RateErr += OF_GYRO_ERR;
             Timestamp += dT;
-            VelBF = Vector3f{tan(FlowRate[0] - BodyRate[0]) * (currRF.Range),   //m/s, Front
-                             tan(FlowRate[1] - BodyRate[1]) * (currRF.Range),   //m/s, Right
-                             ((currRF.Range - Range) / (dT / 1000.0F))};           //m/s, Down
+            VelBF = Vector3f{tan(FlowRate[1] - BodyRate[1]) * (currRF.Range),            //m/s, Front
+                             tan(FlowRate[0] - BodyRate[0]) * (currRF.Range),            //m/s, Right
+                             ((currRF.Range - Range) / (dT / 1000.0F))};                 //m/s, Down
             VelNED = (AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned() * VelBF); //Rotated BF to NED
 
-            BF ErrBF = Vector3f{tan((FlowRate[0] - BodyRate[0]) + RateErr) * ((currRF.Range) + currRF.RangeErr),
-                                tan((FlowRate[1] - BodyRate[1]) + RateErr) * ((currRF.Range) + currRF.RangeErr),
+            BF ErrBF = Vector3f{tan((FlowRate[1] - BodyRate[1]) + RateErr + FLOW_ERR) * ((currRF.Range) + currRF.RangeErr),
+                                tan((FlowRate[0] - BodyRate[0]) + RateErr + FLOW_ERR) * ((currRF.Range) + currRF.RangeErr),
                                 ((currRF.Range + currRF.RangeErr - Range) / (dT / 1000.0F))};
             Err = (AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned() * abs(ErrBF - VelBF));
             Range = currRF.Range;
+            return true;
         }
+        return false;
     }
 
     void reset(void)
@@ -379,6 +382,13 @@ static struct
     OF currOF;       //Current Optical Flow Data
     OF nextOF;       //Optical Flow Data that occurs after expected GPS update
     RF rangefinder;  //Rangefinder Data
+
+    //Data for Accelerometer confirming to Optical Flow
+    Accel pOFAccel;
+    Accel cOFAccel;
+    Accel nOFAccel;
+    OF pOF;
+    OF cOF;
 } sensors;
 
 //Confirmation Data
@@ -386,6 +396,7 @@ static struct
 {
     bool init = false; //Initialized Structs
     bool gpsAvail;     //GPS Data has been updated
+    bool ofAvail;      // OF Data has been updated
 } framework;
 
 //Bias Data
@@ -467,9 +478,34 @@ void initialize()
 
 void update()
 {
+    const AP_InertialSensor *IMU = AP_InertialSensor::get_singleton();
+    const OpticalFlow *OF = AP::opticalflow();
+
+    //---OF---//
+    // OF specific confirmation for accelerometer
+    //RF
+    sensors.rangefinder.update();
+
+    //Update the ACCOF sensors
+    framework.ofAvail = sensors.cOF.update(OF, sensors.rangefinder);
+    if(framework.ofAvail)
+    {
+        sensors.nOFAccel.Timestamp = sensors.cOFAccel.Timestamp;
+        sensors.nOFAccel.update(IMU, bias.AccBias);
+    } else
+    {
+        sensors.cOFAccel.update(IMU, bias.AccBias);
+    }
+    
+    //---GPS---//
+    // GPS specific confirmation updates below
+    // The GPS will be lagging behind the accelerometer in practice so we want to
+    // be sure to update nextAccel in the same moment that the GPS updates
+    framework.gpsAvail = sensors.currGps.update(AP::gps().get_singleton(), sensors.prevGps);
+    
     //IMU Sensors
     //Updating Current and Previous based on GPS Update rate
-    const AP_InertialSensor *IMU = AP_InertialSensor::get_singleton();
+
     if (((IMU->get_last_update_usec() / 1000) - sensors.currGps.Timestamp) >= GPS_RATE)
     {
         sensors.nextAccel.update(IMU, bias.AccBias);
@@ -481,19 +517,13 @@ void update()
         sensors.currGyro.update(IMU);
     }
 
-    //GPS
-    // The GPS will be lagging behind the accelerometer in practice so we want to
-    // be sure to update nextAccel in the same moment that the GPS updates
-    framework.gpsAvail = sensors.currGps.update(AP::gps().get_singleton(), sensors.prevGps);
-
-    sensors.rangefinder.update();
     if ((sensors.currOF.Timestamp - sensors.currGps.Timestamp) >= (GPS_RATE / 1000))
     {
-        sensors.nextOF.update(AP::opticalflow(), sensors.rangefinder);
+        sensors.nextOF.update(OF, sensors.rangefinder);
     }
     else
     {
-        sensors.currOF.update(AP::opticalflow(), sensors.rangefinder);
+        sensors.currOF.update(OF, sensors.rangefinder);
     }
 }
 
@@ -552,6 +582,31 @@ bool run()
 
         framework.gpsAvail = false;
     }
+    if(framework.ofAvail)
+    {
+        AP_Logger::get_singleton()->Write_CNFR2(sensors.pOF.VelNED,
+                                               sensors.pOF.Err,
+                                               sensors.cOF.VelNED,
+                                               sensors.cOF.Err,
+                                               sensors.cOFAccel.Velocity,
+                                               sensors.cOFAccel.Error);
+        // if (!AccOF())
+        // {
+        //     gcs().send_text(MAV_SEVERITY_WARNING, "AccOF Failed.");
+        // }
+        //Save current accelerometer data and move new data into current sensor
+        sensors.pOFAccel = sensors.cOFAccel;
+        sensors.cOFAccel = sensors.nOFAccel;
+        sensors.nOFAccel.reset();
+
+        //Save current OF data and reset current
+        sensors.pOF = sensors.cOF;
+        sensors.cOF.reset();
+        sensors.cOF.Timestamp = sensors.pOF.Timestamp;
+        sensors.cOF.Range = sensors.pOF.Range;
+
+        framework.ofAvail = false;
+    }
     return true;
 }
 
@@ -585,12 +640,12 @@ bool AccGPS()
     return (confirm(dAccVel, sensors.currAccel.Error, dGpsVel.length(), sensors.currGps.Sacc + sensors.prevGps.Sacc));
 }
 
-// Confirm change in velocity of GPS and Accelerometer
+// Confirm change in velocity of Accelerometer and OF
 bool AccOF()
 {
-    float dAccVel = sensors.currAccel.Velocity.length();
-    Vector3f dGpsVel = sensors.currOF.VelNED - sensors.prevOF.VelNED;
-    return (confirm(dAccVel, sensors.currAccel.Error, dGpsVel.length(), sensors.currGps.Sacc + sensors.prevGps.Sacc));
+    float dAccVel = sensors.cOFAccel.Velocity.length();
+    Vector3f dOFVel = sensors.cOF.VelNED - sensors.pOF.VelNED;
+    return (confirm(dAccVel, sensors.currAccel.Error, dOFVel.length(), sensors.cOF.Err.length() + sensors.pOF.Err.length()));
 }
 
 // Confirm velocity of GPS and Optical Flow Sensor

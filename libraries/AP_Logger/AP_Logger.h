@@ -345,6 +345,9 @@ public:
                     const Vector3f &C_GPS, const float C_GPS_Err,
                     const Vector3f &C_ACC, const float C_ACC_Err,
                     const Vector3f &N_ACC, const float N_ACC_Err);
+    void Write_CNFR2(const Vector3f &P_OF, const Vector3f &P_OF_Err,
+                    const Vector3f &C_OF, const Vector3f &C_OF_Err,
+                    const Vector3f &C_ACC, const float C_ACC_Err);
 
     void Write(const char *name, const char *labels, const char *fmt, ...);
     void Write(const char *name, const char *labels, const char *units, const char *mults, const char *fmt, ...);

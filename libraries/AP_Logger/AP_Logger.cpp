@@ -1200,6 +1200,42 @@ void AP_Logger::Write_CNFR(const Vector3f &P_OF, const Vector3f &P_OF_Err,
     FOR_EACH_BACKEND(WriteBlock(&pkt3, sizeof(pkt3)));
 }
 
+void AP_Logger::Write_CNFR2(const Vector3f &P_OF, const Vector3f &P_OF_Err,
+                           const Vector3f &C_OF, const Vector3f &C_OF_Err,
+                           const Vector3f &C_ACC, const float C_ACC_Err)
+{
+    uint32_t timestamp = AP_HAL::micros64();
+    struct log_accof_1 pkt1 = {
+        LOG_PACKET_HEADER_INIT(LOG_ACCOF_1_MSG),
+        time_us : timestamp,
+        C_OF_North : C_OF.x,
+        C_OF_East : C_OF.y,
+        C_OF_Down : C_OF.z,
+        C_OF_North_Err : C_OF_Err.x,
+        C_OF_East_Err : C_OF_Err.y,
+        C_OF_Down_Err : C_OF_Err.z,
+        P_OF_North : P_OF.x,
+        P_OF_East : P_OF.y,
+        P_OF_Down : P_OF.z,
+        P_OF_North_Err : P_OF_Err.x,
+        P_OF_East_Err : P_OF_Err.y,
+        P_OF_Down_Err : P_OF_Err.z,
+
+    };
+
+    struct log_accof_2 pkt2 = {
+        LOG_PACKET_HEADER_INIT(LOG_ACCOF_2_MSG),
+        time_us : timestamp,
+        C_ACC_North : C_ACC.x,
+        C_ACC_East : C_ACC.y,
+        C_ACC_Down : C_ACC.z,
+        C_ACC_Err : C_ACC_Err,
+    };
+
+    FOR_EACH_BACKEND(WriteBlock(&pkt1, sizeof(pkt1)));
+    FOR_EACH_BACKEND(WriteBlock(&pkt2, sizeof(pkt2)));
+}
+
 // output a FMT message for each backend if not already done so
 void AP_Logger::Safe_Write_Emit_FMT(log_write_fmt *f)
 {
