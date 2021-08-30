@@ -10,6 +10,7 @@ from __future__ import print_function
 import copy
 import math
 import os
+from re import S
 import shutil
 import time
 import numpy
@@ -338,12 +339,18 @@ class AutoTestCopter(AutoTest):
 
         self.progress("Setting sensor parameters")        
         # Set sensor parameters
-        self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
-        #self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
+        #self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
+        self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
         self.set_parameter("SIM_PDLK_GPS_SPD", 50) #mm/s
         self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
         self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
         self.set_parameter("PDLK_CHOI_CI", 0)
+
+        #Set Optical Flow
+        self.set_parameter("SIM_FLOW_ENABLE", 1)
+        self.set_parameter("FLOW_TYPE", 10)
+        self.set_analog_rangefinder_parameters()
+        self.reboot_sitl()
 
         self.progress("test: Fly a mission from 1 to %u" % num_wp)
         self.mavproxy.send('wp set 1\n')
@@ -379,12 +386,18 @@ class AutoTestCopter(AutoTest):
 
         self.progress("Setting sensor parameters")        
         # Set sensor parameters
-        self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
-        #self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
+        #self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
+        self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
         self.set_parameter("SIM_PDLK_GPS_SPD", 50) #mm/s
         self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
         self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
         self.set_parameter("PDLK_CHOI_CI", 0)
+
+        #Set Optical Flow
+        self.set_parameter("SIM_FLOW_ENABLE", 1)
+        self.set_parameter("FLOW_TYPE", 10)
+        self.set_analog_rangefinder_parameters()
+        self.reboot_sitl()
 
         self.progress("test: Fly a mission from 1 to %u" % num_wp)
         self.mavproxy.send('wp set 1\n')
@@ -414,14 +427,25 @@ class AutoTestCopter(AutoTest):
 
         self.progress("Setting sensor parameters")        
         # Set sensor parameters
-        self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
-        #self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
+        # No Noise
+        #self.set_parameter("SIM_PDLK_GPS", 0)
+        #self.set_parameter("SIM_PDLK_GPS_SPD", 0)
+        #self.set_parameter("SIM_PDLK_ACC", 0)
+        #self.set_parameter("SIM_PDLK_GYRO", 0)
+        #self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
+        self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
         self.set_parameter("SIM_PDLK_GPS_SPD", 50) #mm/s
         self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
         self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
         self.set_parameter("PDLK_CHOI_CI", 0)
 
-	# Takeoff and switch to circle
+        #Set Optical Flow
+        self.set_parameter("SIM_FLOW_ENABLE", 1)
+        self.set_parameter("FLOW_TYPE", 10)
+        self.set_analog_rangefinder_parameters()
+        self.reboot_sitl()
+
+	    # Takeoff and switch to circle
         self.progress("Taking off")
         self.change_mode("GUIDED")
         self.wait_ready_to_arm()
@@ -431,11 +455,11 @@ class AutoTestCopter(AutoTest):
         self.set_parameter("CIRCLE_RADIUS", 3000)
         self.change_mode("CIRCLE")
 
-	# Wait 120 seconds
+	    # Wait 120 seconds
         self.progress("Starting 120 second delay.")
         self.delay_sim_time(120)
 	
-	# Finish test
+	    # Finish test
         self.progress("RTL and then Disarm")
         self.change_mode("RTL")
         # wait for disarm
@@ -444,6 +468,61 @@ class AutoTestCopter(AutoTest):
 
         self.progress("Auto mission completed: passed!")
         
+    #PADLOCK
+    # This acts as the subtle attack as well as the attack during flight
+    def fly_auto_idle(self, timeout=360):
+        self.progress("Setting sensor parameters")        
+        # Set sensor parameters
+        #self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
+        self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
+        self.set_parameter("SIM_PDLK_GPS_SPD", 50) #mm/s
+        self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
+        self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
+        self.set_parameter("PDLK_CHOI_CI", 0)
+
+        #Set Optical Flow
+        self.set_parameter("SIM_FLOW_ENABLE", 1)
+        self.set_parameter("FLOW_TYPE", 10)
+        self.set_analog_rangefinder_parameters()
+        self.reboot_sitl()
+
+        self.change_mode("GUIDED")
+        self.wait_ready_to_arm()
+        self.arm_vehicle()
+        self.takeoff(25)
+        self.change_mode("AUTO")
+        self.delay_sim_time(5)
+
+	    # Adjust the below parameter to change attack strength in autotest
+        # Attack value is in cm
+        Attack_Offset = 100
+        Attack_Delay = 10
+        self.set_parameter("GPS_PDLK_E", Attack_Offset)
+        self.set_parameter("GPS_PDLK_N", 0)
+        self.set_parameter("GPS_PDLK_ATK", 1)
+        self.delay_sim_time(Attack_Delay)
+        
+        self.set_parameter("GPS_PDLK_E", 0)
+        self.set_parameter("GPS_PDLK_N", Attack_Offset)
+        self.delay_sim_time(Attack_Delay)
+
+        self.set_parameter("GPS_PDLK_E", -Attack_Offset)
+        self.set_parameter("GPS_PDLK_N", 0)
+        self.delay_sim_time(Attack_Delay)
+
+        self.set_parameter("GPS_PDLK_E", 0)
+        self.set_parameter("GPS_PDLK_N", -Attack_Offset)
+        self.delay_sim_time(Attack_Delay)
+
+        # Disable and land
+        self.set_parameter("GPS_PDLK_ATK", 0)
+        self.change_mode("LAND")
+        # wait for disarm
+        self.wait_disarmed()
+        self.progress("Landed and Disarmed")
+
+        self.progress("Auto mission completed: passed!")
+
     #PADLOCK
     # The initial layout was provided from the fly_auto_test function down below
     def fly_auto_attack(self, timeout=360):
@@ -462,9 +541,15 @@ class AutoTestCopter(AutoTest):
         self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
         self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
         self.set_parameter("PDLK_CHOI_CI", 0)
+        
+        #Set Optical Flow
+        self.set_parameter("SIM_FLOW_ENABLE", 1)
+        self.set_parameter("FLOW_TYPE", 10)
+        self.set_analog_rangefinder_parameters()
+        self.reboot_sitl()
+
         self.progress("test: Fly a mission from 1 to %u" % num_wp)
         self.mavproxy.send('wp set 1\n')
-
         self.change_mode("GUIDED")
         self.wait_ready_to_arm()
         self.arm_vehicle()
@@ -482,56 +567,13 @@ class AutoTestCopter(AutoTest):
                 self.show_gps_and_sim_positions(False)
             raise e
 
-	# Adjust the below parameter to change attack strength in autotest
+	    # Adjust the below parameter to change attack strength in autotest
+        # Attack value is in cm
         self.set_parameter("GPS_PDLK_E", 1)
         self.set_parameter("GPS_PDLK_ATK", 1)
 
         # Allow the attack time to deviate the QuadCopters path
         self.delay_sim_time(60)
-        self.set_parameter("GPS_PDLK_ATK", 0)
-        self.change_mode("LAND")
-        # wait for disarm
-        self.wait_disarmed()
-        self.progress("Landed and Disarmed")
-
-        self.progress("Auto mission completed: passed!")
-
-    #PADLOCK
-    # The initial layout was provided from the fly_auto_test function down below
-    def fly_auto_turnback(self, timeout=360):
-        # Fly mission the data gathering mission
-        self.progress("# Load PDLK Turnback Waypoints")
-        # load the waypoint count
-        num_wp = self.load_mission("pdlk_auto_turnback.txt")
-        if not num_wp:
-            raise NotAchievedException("load pdlk_auto_turnback.txt failed")
-
-        self.progress("test: Fly a mission from 1 to %u" % num_wp)
-        self.mavproxy.send('wp set 1\n')
-
-        self.change_mode("GUIDED")
-        self.wait_ready_to_arm()
-        self.arm_vehicle()
-        self.takeoff(10)
-        
-        # switch into AUTO mode
-        self.change_mode("AUTO")
-
-        seq = 0
-        m = 100
-        target = 3
-        while seq != num_wp - 1:
-            seq = self.mav.waypoint_current()
-            self.progress("Waypoint is currently at %u, Waiting on %u" % (seq, num_wp-1))
-        while m >= target:
-            m = self.mav.recv_match(type='NAV_CONTROLLER_OUTPUT',
-                                    blocking=True).wp_dist
-            self.progress("Distance to waypoint is %u, Waiting on %u" % (m, target))
-        self.set_parameter("GPS_PDLK_N", 500)
-        self.set_parameter("GPS_PDLK_ATK", 1)
-
-        # Allow time for the attack to cause deviation before disabling
-        self.delay_sim_time(20)
         self.set_parameter("GPS_PDLK_ATK", 0)
         self.change_mode("LAND")
         # wait for disarm
@@ -7918,9 +7960,9 @@ class AutoTestCopter(AutoTest):
              self.fly_auto_attack),
              
              #PADLOCK
-             ("AutoTurnback",
-             "Fly in auto and then overshoot, turning back drone",
-             self.fly_auto_turnback),
+             ("AutoIdle",
+             "Raise altitude in guided mode, then attack",
+             self.fly_auto_idle),
 
             ("SplineLastWaypoint",
              "Test Spline as last waypoint",

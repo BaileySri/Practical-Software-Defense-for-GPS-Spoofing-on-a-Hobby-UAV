@@ -126,7 +126,17 @@ public:
     friend class Sailboat;
 
     Rover(void);
+    //PADLOCK
+    void sensor_confirmation(float Rangems, float range);
+    // cm, last rangefinder reading from LowPassFilter
+    float getRange(void){
+        return this->rangefinder.distance_cm_orient((Rotation)0);
+    };
 
+    // ms, Timestamp of last healthy rangefinder update
+    uint32_t getRangems(void){
+        return this->rangefinder.last_reading_ms((Rotation)0);
+    }
 private:
 
     // must be the first AP_Param variable declared to ensure its
