@@ -352,12 +352,13 @@ class AutoTestCopter(AutoTest):
         self.set_analog_rangefinder_parameters()
         self.reboot_sitl()
 
+        #Enable Sensor Confirmation for CNF Logging
+        self.set_parameter("PDLK_SNSR_CONF", 1)
+        #Delay for bias
+        self.delay_sim_time(135)
+
         self.progress("test: Fly a mission from 1 to %u" % num_wp)
         self.mavproxy.send('wp set 1\n')
-
-        self.change_mode("GUIDED")
-        self.wait_ready_to_arm()
-        self.arm_vehicle()
         self.takeoff(10)
 
         # switch into AUTO mode
@@ -399,12 +400,13 @@ class AutoTestCopter(AutoTest):
         self.set_analog_rangefinder_parameters()
         self.reboot_sitl()
 
+        #Enable Sensor Confirmation for CNF Logging
+        self.set_parameter("PDLK_SNSR_CONF", 1)
+        #Delay for bias
+        self.delay_sim_time(135)
+
         self.progress("test: Fly a mission from 1 to %u" % num_wp)
         self.mavproxy.send('wp set 1\n')
-
-        self.change_mode("GUIDED")
-        self.wait_ready_to_arm()
-        self.arm_vehicle()
         self.takeoff(10)
 
         # switch into AUTO mode
@@ -445,11 +447,13 @@ class AutoTestCopter(AutoTest):
         self.set_analog_rangefinder_parameters()
         self.reboot_sitl()
 
+        #Enable Sensor Confirmation for CNF Logging
+        self.set_parameter("PDLK_SNSR_CONF", 1)
+        #Delay for bias
+        self.delay_sim_time(135)
+
 	    # Takeoff and switch to circle
         self.progress("Taking off")
-        self.change_mode("GUIDED")
-        self.wait_ready_to_arm()
-        self.arm_vehicle()
         self.takeoff(10)
         self.set_rc(3, 1500)
         self.set_parameter("CIRCLE_RADIUS", 3000)
@@ -486,16 +490,18 @@ class AutoTestCopter(AutoTest):
         self.set_analog_rangefinder_parameters()
         self.reboot_sitl()
 
-        self.change_mode("GUIDED")
-        self.wait_ready_to_arm()
-        self.arm_vehicle()
+        #Enable Sensor Confirmation for CNF Logging
+        self.set_parameter("PDLK_SNSR_CONF", 1)
+        #Delay for bias
+        self.delay_sim_time(135)
+
         self.takeoff(25)
-        self.change_mode("AUTO")
+        self.change_mode("GUIDED")
         self.delay_sim_time(5)
 
 	    # Adjust the below parameter to change attack strength in autotest
         # Attack value is in cm
-        Attack_Offset = 100
+        Attack_Offset = 250
         Attack_Delay = 10
         self.set_parameter("GPS_PDLK_E", Attack_Offset)
         self.set_parameter("GPS_PDLK_N", 0)
@@ -548,11 +554,13 @@ class AutoTestCopter(AutoTest):
         self.set_analog_rangefinder_parameters()
         self.reboot_sitl()
 
+        #Enable Sensor Confirmation for CNF Logging
+        self.set_parameter("PDLK_SNSR_CONF", 1)
+        #Delay for bias
+        self.delay_sim_time(135)
+
         self.progress("test: Fly a mission from 1 to %u" % num_wp)
         self.mavproxy.send('wp set 1\n')
-        self.change_mode("GUIDED")
-        self.wait_ready_to_arm()
-        self.arm_vehicle()
         self.takeoff(10)
 
         # switch into AUTO mode
@@ -569,7 +577,7 @@ class AutoTestCopter(AutoTest):
 
 	    # Adjust the below parameter to change attack strength in autotest
         # Attack value is in cm
-        self.set_parameter("GPS_PDLK_E", 1)
+        self.set_parameter("GPS_PDLK_E", 250)
         self.set_parameter("GPS_PDLK_ATK", 1)
 
         # Allow the attack time to deviate the QuadCopters path
