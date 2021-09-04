@@ -161,7 +161,17 @@ public:
     friend class ModeTakeoff;
 
     Plane(void);
+    
+    //PADLOCK
+    // cm, last rangefinder reading from LowPassFilter
+    float getRange(void){
+        return rangefinder_state.last_distance;
+    };
 
+    // ms, Timestamp of last healthy rangefinder update
+    uint32_t getRangems(void){
+        return rangefinder_state.last_correction_time_ms;
+    }
 private:
 
     // key aircraft parameters passed to multiple libraries
@@ -1128,6 +1138,8 @@ public:
     void failsafe_check(void);
     bool set_target_location(const Location& target_loc) override;
     bool get_target_location(Location& target_loc) override;
+    //PADLOCK
+    void sensor_confirmation();
 };
 
 extern Plane plane;
