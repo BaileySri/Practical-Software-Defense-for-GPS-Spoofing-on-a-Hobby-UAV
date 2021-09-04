@@ -536,13 +536,14 @@ bool run()
                                                sensors.currOF.VelNED,
                                                sensors.currOF.Err,
                                                sensors.prevGps.Airspeed,
-                                               sensors.prevGps.Sacc,
+                                               sensors.prevGps.Hacc,
                                                sensors.currGps.Airspeed,
-                                               sensors.currGps.Sacc,
+                                               sensors.currGps.Hacc,
                                                sensors.currAccel.Velocity,
                                                sensors.currAccel.Error,
                                                sensors.nextAccel.Velocity,
-                                               sensors.nextAccel.Error);
+                                               sensors.nextAccel.Error,
+                                               ToDeg(sensors.currGyro.Error * (sensors.currGyro.TimeContained / (float)1000000)));
 
         // if (!AccGPS())
         // {
@@ -552,14 +553,14 @@ bool run()
         // {
         //     gcs().send_text(MAV_SEVERITY_WARNING, "GpsMag Failed.");
         // }
-        if(!GpsOF())
-        {
-            gcs().send_text(MAV_SEVERITY_WARNING, "GpsOF Failed.");
-        }
-        if (!GpsOFGC())
-        {
-            gcs().send_text(MAV_SEVERITY_WARNING, "GpsOFGC Failed.");
-        }
+        // if(!GpsOF())
+        // {
+        //     gcs().send_text(MAV_SEVERITY_WARNING, "GpsOF Failed.");
+        // }
+        // if (!GpsOFGC())
+        // {
+        //     gcs().send_text(MAV_SEVERITY_WARNING, "GpsOFGC Failed.");
+        // }
         // if (!confirmAlt())
         // {
         //     gcs().send_text(MAV_SEVERITY_WARNING, "Altitude outside of error ranges.");
@@ -583,7 +584,7 @@ bool run()
     }
     if(framework.ofAvail)
     {
-        AP_Logger::get_singleton()->Write_CNFR2(sensors.pOF.VelNED,
+        AP_Logger::get_singleton()->Write_ACO(sensors.pOF.VelNED,
                                                sensors.pOF.Err,
                                                sensors.cOF.VelNED,
                                                sensors.cOF.Err,

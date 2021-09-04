@@ -1141,7 +1141,8 @@ void AP_Logger::Write_CNFR(const Vector3f &P_OF, const Vector3f &P_OF_Err,
                            const Vector3f &P_GPS, const float P_GPS_Err,
                            const Vector3f &C_GPS, const float C_GPS_Err,
                            const Vector3f &C_ACC, const float C_ACC_Err,
-                           const Vector3f &N_ACC, const float N_ACC_Err)
+                           const Vector3f &N_ACC, const float N_ACC_Err,
+                           const float  Gyro_Err)
 {
     uint32_t timestamp = AP_HAL::micros64();
     struct log_confirmation_1 pkt1 = {
@@ -1193,6 +1194,7 @@ void AP_Logger::Write_CNFR(const Vector3f &P_OF, const Vector3f &P_OF_Err,
         N_ACC_Err : N_ACC_Err,
         M_1_0 : dcm.b[0],
         M_0_0 : dcm.a[0],
+        GYRO_Err : Gyro_Err,
     };
 
     FOR_EACH_BACKEND(WriteBlock(&pkt1, sizeof(pkt1)));
@@ -1200,7 +1202,7 @@ void AP_Logger::Write_CNFR(const Vector3f &P_OF, const Vector3f &P_OF_Err,
     FOR_EACH_BACKEND(WriteBlock(&pkt3, sizeof(pkt3)));
 }
 
-void AP_Logger::Write_CNFR2(const Vector3f &P_OF, const Vector3f &P_OF_Err,
+void AP_Logger::Write_ACO(const Vector3f &P_OF, const Vector3f &P_OF_Err,
                            const Vector3f &C_OF, const Vector3f &C_OF_Err,
                            const Vector3f &C_ACC, const float C_ACC_Err)
 {

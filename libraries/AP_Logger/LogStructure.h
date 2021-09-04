@@ -829,6 +829,7 @@ struct PACKED log_confirmation_3 {
     float N_ACC_Err;
     float M_1_0;
     float M_0_0;
+    float GYRO_Err;
 };
 
 struct PACKED log_accof_1 {
@@ -1504,7 +1505,7 @@ LOG_STRUCTURE_FROM_VISUALODOM \
     { LOG_CNFR_2_MSG, sizeof(log_confirmation_2), \
       "CNF2", "Qffffffff", "TimeUS,CGpN,CGpE,CGpD,CGpe,PGpN,PGpE,PGpD,PGpe", "snnnnnnnn", "F00000000"}, \
     { LOG_CNFR_3_MSG, sizeof(log_confirmation_3), \
-      "CNF3", "Qffffffffff", "TimeUS,CAN,CAE,CAD,CAe,NAN,NAE,NAD,NAe,m10,m00", "snnnnnnnn--", "F00000000--"}, \
+      "CNF3", "Qfffffffffff", "TimeUS,CAN,CAE,CAD,CAe,NAN,NAE,NAD,NAe,m10,m00,Gye", "snnnnnnnn---", "F00000000---"}, \
     { LOG_ACCOF_1_MSG, sizeof(log_accof_1), \
       "ACO1", "Qffffffffffff", "TimeUS,COFN,COFE,COFD,CNe,CEe,CDe,POFN,POFE,POFD,PNe,PEe,PDe", "snnnnnnnnnnnn", "F000000000000"}, \
     { LOG_ACCOF_2_MSG, sizeof(log_accof_2), \

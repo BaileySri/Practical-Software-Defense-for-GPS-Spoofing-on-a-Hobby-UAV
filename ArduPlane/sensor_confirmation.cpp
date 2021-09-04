@@ -2,7 +2,7 @@
 //Sensor Confirmation source code
 //7/12/2021
 
-#include "Rover.h"
+#include "Plane.h"
 #include <cmath>
 #include <math.h>
 #include <vector>
@@ -22,7 +22,7 @@ static const uint32_t GPS_RATE = 200;    // us, GPS Update rate
 
 //----Function delcarations----//
 void initialize();
-void update(float Rangems, float Range);
+void update();
 bool run();
 void recover();
 //----   Helper Functions  ----//
@@ -283,14 +283,18 @@ struct RF
 {
     float Range;     //meters, Rangefinder reading after being LPF
     float Timestamp; //ms, Timestamp of last healthy RF reading
+    float RF_Vel;    //m/s, Velocity from rangefinder measurements
+    float RF_Vel_Err; //m/s, Possible error in velocity
     float RangeErr;  //meters, Error in RF reading
 
-    void update(float Rangems, float newRange)
+    void update()
     {
-        uint32_t dT = Rangems - Timestamp;
+        float dT = plane.getRangems() - Timestamp;
         if (dT > 0)
         {
-            Range = newRange / 100;
+            RF_Vel = (Range - (plane.getRange() / 100)) / (dT/1000);
+            RF_Vel_Err = ((Range >= 5 ? GT5_RF_ERR : LT5_RF_ERR) + RangeErr) / (dT / 1000);
+            Range = plane.getRange() / 100;
             RangeErr = Range >= 5 ? GT5_RF_ERR : LT5_RF_ERR;
             Timestamp += dT;
         }
@@ -311,9 +315,6 @@ struct OF
     Vector2f BodyRate;  // rad/s, in SITL this is the same as the gyroscope. Pitch Roll
     uint32_t Timestamp; // ms, Timestamp of last OF Update
     float RateErr;      // rad/s, Error in angular rate. Depends on sensor but HereFlow has a separate Gyroscope
-    float Range;        // cm, Rangefinder reading at update time
-    //I'm letting the OF store the velocity data as the Rangefinder has a typical operating
-    //rate of 270Hz meaning it should have more relevant information on OF update
     BF VelBF;   //cm/s, Velocity in Body Frame (OF, RF, Barometer)
     NED VelNED; //cm/s, velocity in NED frame (Mag, OF, RF)
     NED Err;    //cm/s. Error in velocity in NED frame
@@ -329,14 +330,13 @@ struct OF
             Timestamp += dT;
             VelBF = Vector3f{tan(FlowRate[1] - BodyRate[1]) * (currRF.Range),            //m/s, Front
                              tan(FlowRate[0] - BodyRate[0]) * (currRF.Range),            //m/s, Right
-                             ((currRF.Range - Range) / (dT / 1000.0F))};                 //m/s, Down
+                             currRF.RF_Vel};                 //m/s, Down
             VelNED = (AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned() * VelBF); //Rotated BF to NED
 
             BF ErrBF = Vector3f{tan((FlowRate[1] - BodyRate[1]) + RateErr + FLOW_ERR) * ((currRF.Range) + currRF.RangeErr),
                                 tan((FlowRate[0] - BodyRate[0]) + RateErr + FLOW_ERR) * ((currRF.Range) + currRF.RangeErr),
-                                ((currRF.Range + currRF.RangeErr - Range) / (dT / 1000.0F))};
+                                currRF.RF_Vel + currRF.RF_Vel_Err};
             Err = (AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned() * abs(ErrBF - VelBF));
-            Range = currRF.Range;
             return true;
         }
         return false;
@@ -349,8 +349,6 @@ struct OF
         //Important note, after every reset if time matters assign the old timestamp to the reset sensor
         Timestamp = 0;
         RateErr = 0;
-        //Important Note, Optical Flow needs to caarry over previous Range for proper velocity calculations
-        Range = 0;
         VelBF.zero();
         VelNED.zero();
     }
@@ -361,7 +359,6 @@ struct OF
         BodyRate = rhs.BodyRate;
         Timestamp = rhs.Timestamp;
         RateErr = rhs.RateErr;
-        Range = rhs.Range;
         VelBF = rhs.VelBF;
         VelNED = rhs.VelNED;
         Err = rhs.Err;
@@ -408,7 +405,7 @@ static struct
     NED AccBias;         //Bias for NED acceleration
 } bias;
 
-void Rover::sensor_confirmation(float Rangems, float range)
+void Plane::sensor_confirmation()
 {
     const uint32_t time = AP_HAL::micros64();
     //Initialize struct data
@@ -440,7 +437,7 @@ void Rover::sensor_confirmation(float Rangems, float range)
         else
         {
             //Update sensor values
-            update(Rangems, range);
+            update();
 
             //If run returns False, Recover
             //If run returns True, Nothing
@@ -476,7 +473,7 @@ void initialize()
     bias.Timestamp = AP_HAL::micros64();
 }
 
-void update(float Rangems, float Range)
+void update()
 {
     const AP_InertialSensor *IMU = AP_InertialSensor::get_singleton();
     const OpticalFlow *OF = AP::opticalflow();
@@ -484,7 +481,7 @@ void update(float Rangems, float Range)
     //---OF---//
     // OF specific confirmation for accelerometer
     //RF
-    sensors.rangefinder.update(Rangems, Range);
+    sensors.rangefinder.update();
 
     //Update the ACCOF sensors
     framework.ofAvail = sensors.cOF.update(OF, sensors.rangefinder);
@@ -539,22 +536,26 @@ bool run()
                                                sensors.currOF.VelNED,
                                                sensors.currOF.Err,
                                                sensors.prevGps.Airspeed,
-                                               sensors.prevGps.Sacc,
+                                               sensors.prevGps.Hacc,
                                                sensors.currGps.Airspeed,
-                                               sensors.currGps.Sacc,
+                                               sensors.currGps.Hacc,
                                                sensors.currAccel.Velocity,
                                                sensors.currAccel.Error,
                                                sensors.nextAccel.Velocity,
                                                sensors.nextAccel.Error,
                                                ToDeg(sensors.currGyro.Error * (sensors.currGyro.TimeContained / (float)1000000)));
-        /*
-        if (false && !AccGPS())
+
+        // if (!AccGPS())
+        // {
+        //     gcs().send_text(MAV_SEVERITY_WARNING, "AccGPS Failed.");
+        // }
+        // if (!GpsMagGC())
+        // {
+        //     gcs().send_text(MAV_SEVERITY_WARNING, "GpsMag Failed.");
+        // }
+        if(!GpsOF())
         {
-            gcs().send_text(MAV_SEVERITY_WARNING, "AccGPS Failed.");
-        }
-        if (false && !GpsMagGC())
-        {
-            gcs().send_text(MAV_SEVERITY_WARNING, "GpsMag Failed.");
+            gcs().send_text(MAV_SEVERITY_WARNING, "GpsOF Failed.");
         }
         if (!GpsOFGC())
         {
@@ -564,7 +565,6 @@ bool run()
         // {
         //     gcs().send_text(MAV_SEVERITY_WARNING, "Altitude outside of error ranges.");
         // }
-        */
 
         //Switch to next IMU data
         sensors.currAccel = sensors.nextAccel;
@@ -579,7 +579,6 @@ bool run()
         sensors.currOF = sensors.nextOF;
         sensors.nextOF.reset();
         sensors.nextOF.Timestamp = sensors.currOF.Timestamp;
-        sensors.nextOF.Range = sensors.currOF.Range;
 
         framework.gpsAvail = false;
     }
@@ -604,7 +603,6 @@ bool run()
         sensors.pOF = sensors.cOF;
         sensors.cOF.reset();
         sensors.cOF.Timestamp = sensors.pOF.Timestamp;
-        sensors.cOF.Range = sensors.pOF.Range;
 
         framework.ofAvail = false;
     }
@@ -701,7 +699,8 @@ bool GpsOFGC()
     std::vector<float> gps{sensors.currGps.Airspeed[0], sensors.currGps.Airspeed[1]};
     float dot = gps[0];  // N * 1 + E * 0
     float det = -gps[1]; // N * 0 - E * 1
-    float GpsGC = atan2(det, dot);
+    float GpsGC = ToDeg(atan2(det, dot));
+    GpsGC = (GpsGC > 0) ? 360 - GpsGC : abs(GpsGC);
     std::vector<float> ErrGps{abs(sensors.currGps.Airspeed[0]) - abs(sensors.currGps.Hacc / (GPS_RATE / (float)1000)),
                               abs(sensors.currGps.Airspeed[1]) + abs(sensors.currGps.Hacc / (GPS_RATE / (float)1000))};
     gps[0] = abs(gps[0]);
@@ -714,12 +713,13 @@ bool GpsOFGC()
     std::vector<float> OF{sensors.currOF.VelNED[0], sensors.currOF.VelNED[1]};
     dot = OF[0];
     det = -OF[1];
-    float OFGC = atan2(det, dot);
+    float OFGC = ToDeg(atan2(det, dot));
+    OFGC = (GpsGC > 0) ? 360 - OFGC : abs(OFGC);
     OF[0] = abs(OF[0]);
     OF[1] = abs(OF[1]);
     dot = OF[0] * abs(sensors.currOF.Err[0]) + OF[1] * abs(sensors.currOF.Err[1]); // N * N + E * E
     det = OF[0] * abs(sensors.currOF.Err[1]) - OF[1] * abs(sensors.currOF.Err[0]); // N * E - E * N
-    float ErrOFGC = ToDeg(atan2(det, dot));
+    float ErrOFGC = abs(ToDeg(atan2(det, dot)));
 
     return (confirm(GpsGC, ErrGpsGC, OFGC, ErrOFGC, true));
 }
