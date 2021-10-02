@@ -139,6 +139,27 @@ class AutoTestPlane(AutoTest):
         if not num_wp:
             raise NotAchievedException("load pdlk_auto_square.txt failed")
         
+        self.progress("Setting sensor parameters")  
+        # Set sensor parameters
+        #self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
+        self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
+        self.set_parameter("SIM_PDLK_GPS_SPD", 50) #mm/s
+        self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
+        self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
+
+        #Set Optical Flow
+        self.set_parameter("SIM_FLOW_ENABLE", 1)
+        self.set_parameter("FLOW_TYPE", 10)
+        self.set_analog_rangefinder_parameters()
+        self.reboot_sitl()
+
+        #Enable Sensor Confirmation for CNF Logging
+        self.set_parameter("PDLK_SNSR_CONF", 1)
+        #Set speed in cm/s
+        self.set_parameter("TRIM_ARSPD_CM", 2900)
+        #Delay for bias
+        self.delay_sim_time(135)
+
         self.progress("test: Fly a mission from 1 to %u" % num_wp)
         self.mavproxy.send('wp set 1\n')
         self.progress("# Beginning Takeoff")
@@ -158,34 +179,14 @@ class AutoTestPlane(AutoTest):
         self.progress("Auto mission completed: passed!")
         
     #PADLOCK
-    # Fly a circle for benign data, Im using the RTL circling to fly in a circle
-    def fly_auto_circle(self, timeout=360):
-        self.progress("# Beginning Takeoff")
-        loc = self.mav.location()
-        self.takeoff()
-        # Wait takeoff to finish
-        self.set_parameter("RTL_RADIUS", 300) #meters
-        self.wait_altitude(loc.alt+200, loc.alt+210,timeout=120)
-        self.change_mode("RTL")
-        
-        #Allow circling for 120 seconds
-        self.delay_sim_time(120)
-    	
-        # Disarming drone
-        self.disarm_vehicle()
-        self.wait_altitude(loc.alt, loc.alt+5, timeout=120)
-        self.progress("Landed, Mission Complete.")
-
-        self.progress("Auto mission completed: passed!")
-
-    #PADLOCK
-    # Flies North and then attacks before final waypoint
-    def fly_auto_attack(self, timeout=360):
-        self.progress("# Load PDLK Attack Waypoints")
+    # Fly a straight line with varying altitude
+    def fly_auto_wave(self, timeout=360):
+        # Fly mission the data gathering mission
+        self.progress("# Load PDLK AutoWave Waypoints")
         # load the waypoint count
-        num_wp = self.load_mission("pdlk_auto_attack.txt")
+        num_wp = self.load_mission("pdlk_auto_wave.txt")
         if not num_wp:
-            raise NotAchievedException("load pdlk_auto_attack.txt failed")
+            raise NotAchievedException("load pdlk_auto_wave.txt failed")
 
         self.progress("Setting sensor parameters")        
         # Set sensor parameters
@@ -194,10 +195,122 @@ class AutoTestPlane(AutoTest):
         self.set_parameter("SIM_PDLK_GPS_SPD", 50) #mm/s
         self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
         self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
+
+        #Set Optical Flow
+        self.set_parameter("SIM_FLOW_ENABLE", 1)
+        self.set_parameter("FLOW_TYPE", 10)
+        self.set_analog_rangefinder_parameters()
+        self.reboot_sitl()
+
+        #Enable Sensor Confirmation for CNF Logging
+        self.set_parameter("PDLK_SNSR_CONF", 1)
+        # Set flight speed, cm/s
+        self.set_parameter("TRIM_ARSPD_CM", 2900)
+        #Delay for bias
+        self.delay_sim_time(135)
+
+        self.progress("test: Fly a mission from 1 to %u" % num_wp)
+        self.mavproxy.send('wp set 1\n')
+        self.progress("# Beginning Takeoff")
+        loc = self.mav.location()
+        self.change_mode("AUTO")
+        self.wait_ready_to_arm()
+        self.arm_vehicle()
+    	
+    	# fly the mission
+        self.progress("# Beginning Mission")
+        self.wait_mode("RTL", timeout=300)  	
+        # Disarming drone
+        self.disarm_vehicle()
+        self.wait_altitude(loc.alt, loc.alt+5, timeout=120)
+        self.progress("Returned to Takeoff point, Mission Complete.")
+
+        self.progress("Auto mission completed: passed!")    
+    
+    #PADLOCK
+    # Fly a circle for benign data, Im using the RTL circling to fly in a circle
+    def fly_auto_circle(self, timeout=360):
+        # load the waypoint count
+        num_wp = self.load_mission("pdlk_auto_circle.txt")
+        if not num_wp:
+            raise NotAchievedException("load pdlk_auto_circle.txt failed")
+        
+        self.progress("Setting sensor parameters")  
+        # Set sensor parameters
+        #self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
+        self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
+        self.set_parameter("SIM_PDLK_GPS_SPD", 50) #mm/s
+        self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
+        self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
+
+        #Set Optical Flow
+        self.set_parameter("SIM_FLOW_ENABLE", 1)
+        self.set_parameter("FLOW_TYPE", 10)
+        self.set_analog_rangefinder_parameters()
+        self.reboot_sitl()
+
+        #Enable Sensor Confirmation for CNF Logging
+        self.set_parameter("PDLK_SNSR_CONF", 1)
+        #Set speed in cm/s
+        self.set_parameter("TRIM_ARSPD_CM", 2900)
+        #Delay for bias
+        self.delay_sim_time(135)
+
+        self.progress("test: Fly a mission from 1 to %u" % num_wp)
+        self.mavproxy.send('wp set 1\n')
+        self.progress("# Beginning Takeoff")
+        loc = self.mav.location()
+        self.change_mode("AUTO")
+        self.wait_ready_to_arm()
+        self.arm_vehicle()
+        # Wait takeoff to finish
+        self.set_parameter("RTL_RADIUS", 300) #meters
+        self.set_parameter("ALT_HOLD_RTL", 3000)
+    	
+    	# fly the mission
+        self.progress("# Beginning Mission")
+        self.delay_sim_time(240)
+        # Disarming drone
+        self.disarm_vehicle()
+        self.progress("Returned to Takeoff point, Mission Complete.")
+
+        self.progress("Auto mission completed: passed!")
+
+        self.progress("Auto mission completed: passed!")
+
+    #PADLOCK
+    # Flies North and then attacks before final waypoint
+    def fly_auto_attack(self, timeout=360):
+        #Set Optical Flow
+        self.set_parameter("SIM_FLOW_ENABLE", 1)
+        self.set_parameter("FLOW_TYPE", 10)
+        self.set_analog_rangefinder_parameters()
+        self.reboot_sitl()
+
+        self.progress("# Load PDLK Attack Waypoints")
+        # load the waypoint count
+        num_wp = self.load_mission("pdlk_auto_attack.txt")
+        if not num_wp:
+            raise NotAchievedException("load pdlk_auto_attack.txt failed")
+
+        self.progress("Setting sensor parameters")        
+        # Set sensor parameters
+        self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
+        #self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
+        self.set_parameter("SIM_PDLK_GPS_SPD", 50) #mm/s
+        self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
+        self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
         self.progress("test: Fly a mission from 1 to %u" % num_wp)
         self.mavproxy.send('wp set 1\n')
 
-	# Setting Location
+        #Enable Sensor Confirmation for CNF Logging
+        self.set_parameter("PDLK_SNSR_CONF", 1)
+        # Set flight speed, cm/s
+        self.set_parameter("TRIM_ARSPD_CM", 2900)
+        #Delay for bias
+        self.delay_sim_time(135)
+
+	    # Setting Location
         loc = self.mav.location()
         self.change_mode("AUTO")
         self.wait_ready_to_arm()
@@ -212,8 +325,9 @@ class AutoTestPlane(AutoTest):
                 self.show_gps_and_sim_positions(False)
             raise e
 
-	# Adjust the below parameter to change attack strength in autotest
-        self.set_parameter("GPS_PDLK_E", 1000)
+        
+	    # Adjust the below parameter to change attack strength in autotest
+        self.set_parameter("GPS_PDLK_E", 1)
         self.set_parameter("GPS_PDLK_ATK", 1)
 
         # Allow the attack time to deviate the planes path
@@ -3300,6 +3414,10 @@ class AutoTestPlane(AutoTest):
             ("AutoSquare",
              "A square mission for benign data",
               self.fly_auto_square),
+
+            ("AutoWave",
+            "A varied altitude mission for benign data",
+             self.fly_auto_wave),
               
             ("AutoCircle",
              "A circle mission for benign data",

@@ -553,14 +553,14 @@ bool run()
         // {
         //     gcs().send_text(MAV_SEVERITY_WARNING, "GpsMag Failed.");
         // }
-        if(!GpsOF())
-        {
-            gcs().send_text(MAV_SEVERITY_WARNING, "GpsOF Failed.");
-        }
-        if (!GpsOFGC())
-        {
-            gcs().send_text(MAV_SEVERITY_WARNING, "GpsOFGC Failed.");
-        }
+        // if(!GpsOF())
+        // {
+        //     gcs().send_text(MAV_SEVERITY_WARNING, "GpsOF Failed.");
+        // }
+        // if (!GpsOFGC())
+        // {
+        //     gcs().send_text(MAV_SEVERITY_WARNING, "GpsOFGC Failed.");
+        // }
         // if (!confirmAlt())
         // {
         //     gcs().send_text(MAV_SEVERITY_WARNING, "Altitude outside of error ranges.");

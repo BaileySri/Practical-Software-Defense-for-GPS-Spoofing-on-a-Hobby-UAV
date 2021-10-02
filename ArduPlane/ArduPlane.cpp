@@ -181,7 +181,9 @@ void Plane::ahrs_update()
     if(arming.is_armed())
         logger.Write_SNSR(AP_Baro::get_singleton()->get_altitude());
     #endif
-    sensor_confirmation();
+    if(g.confirmation == 1){
+        sensor_confirmation();
+    }
 }
 
 /*

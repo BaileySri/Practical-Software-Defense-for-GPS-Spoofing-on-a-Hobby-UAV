@@ -331,11 +331,13 @@ class AutoTestCopter(AutoTest):
     # collects benign data for square mission
     def fly_auto_square(self, timeout=360):
         # Fly mission the data gathering mission
-        self.progress("# Load PDLK Data Gathering Waypoints")
+        self.progress("# Load PDLK Square Waypoints")
         # load the waypoint count
         num_wp = self.load_mission("pdlk_auto_square.txt")
         if not num_wp:
             raise NotAchievedException("load pdlk_auto_square.txt failed")
+        
+
 
         self.progress("Setting sensor parameters")        
         # Set sensor parameters
@@ -354,6 +356,8 @@ class AutoTestCopter(AutoTest):
 
         #Enable Sensor Confirmation for CNF Logging
         self.set_parameter("PDLK_SNSR_CONF", 1)
+        # Set flight speed, cm/s
+        self.set_parameter("WPNAV_SPEED", 1000)
         #Delay for bias
         self.delay_sim_time(135)
 
@@ -402,6 +406,8 @@ class AutoTestCopter(AutoTest):
 
         #Enable Sensor Confirmation for CNF Logging
         self.set_parameter("PDLK_SNSR_CONF", 1)
+        # Set flight speed, cm/s
+        self.set_parameter("WPNAV_SPEED", 1000)
         #Delay for bias
         self.delay_sim_time(135)
 
@@ -426,7 +432,6 @@ class AutoTestCopter(AutoTest):
     # The initial layout was provided from the fly_auto_test function down below
     # collects benign data for flying a circle
     def fly_auto_circle(self, timeout=360):
-
         self.progress("Setting sensor parameters")        
         # Set sensor parameters
         # No Noise
@@ -434,8 +439,8 @@ class AutoTestCopter(AutoTest):
         #self.set_parameter("SIM_PDLK_GPS_SPD", 0)
         #self.set_parameter("SIM_PDLK_ACC", 0)
         #self.set_parameter("SIM_PDLK_GYRO", 0)
-        #self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
-        self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
+        self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
+        #self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
         self.set_parameter("SIM_PDLK_GPS_SPD", 50) #mm/s
         self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
         self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
@@ -456,6 +461,8 @@ class AutoTestCopter(AutoTest):
         self.progress("Taking off")
         self.takeoff(10)
         self.set_rc(3, 1500)
+        self.set_parameter("WPNAV_ACCEL",340)
+        self.set_parameter("CIRCLE_RATE", 19)
         self.set_parameter("CIRCLE_RADIUS", 3000)
         self.change_mode("CIRCLE")
 
@@ -475,10 +482,11 @@ class AutoTestCopter(AutoTest):
     #PADLOCK
     # This acts as the subtle attack as well as the attack during flight
     def fly_auto_idle(self, timeout=360):
+
         self.progress("Setting sensor parameters")        
         # Set sensor parameters
-        #self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
-        self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
+        self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
+        #self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
         self.set_parameter("SIM_PDLK_GPS_SPD", 50) #mm/s
         self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
         self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
@@ -492,6 +500,8 @@ class AutoTestCopter(AutoTest):
 
         #Enable Sensor Confirmation for CNF Logging
         self.set_parameter("PDLK_SNSR_CONF", 1)
+        # Set flight speed, cm/s
+        self.set_parameter("WPNAV_SPEED", 1000)
         #Delay for bias
         self.delay_sim_time(135)
 
@@ -500,24 +510,11 @@ class AutoTestCopter(AutoTest):
         self.delay_sim_time(5)
 
 	    # Adjust the below parameter to change attack strength in autotest
-        # Attack value is in cm
-        Attack_Offset = 250
-        Attack_Delay = 10
-        self.set_parameter("GPS_PDLK_E", Attack_Offset)
+        # Attack value is in cm, delay is in seconds
+        Attack_Delay = 60
+        self.set_parameter("GPS_PDLK_E", 250)
         self.set_parameter("GPS_PDLK_N", 0)
         self.set_parameter("GPS_PDLK_ATK", 1)
-        self.delay_sim_time(Attack_Delay)
-        
-        self.set_parameter("GPS_PDLK_E", 0)
-        self.set_parameter("GPS_PDLK_N", Attack_Offset)
-        self.delay_sim_time(Attack_Delay)
-
-        self.set_parameter("GPS_PDLK_E", -Attack_Offset)
-        self.set_parameter("GPS_PDLK_N", 0)
-        self.delay_sim_time(Attack_Delay)
-
-        self.set_parameter("GPS_PDLK_E", 0)
-        self.set_parameter("GPS_PDLK_N", -Attack_Offset)
         self.delay_sim_time(Attack_Delay)
 
         # Disable and land
@@ -538,7 +535,7 @@ class AutoTestCopter(AutoTest):
         num_wp = self.load_mission("pdlk_auto_attack.txt")
         if not num_wp:
             raise NotAchievedException("load pdlk_auto_attack.txt failed")
-
+        
         self.progress("Setting sensor parameters")        
         # Set sensor parameters
         #self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
@@ -556,6 +553,8 @@ class AutoTestCopter(AutoTest):
 
         #Enable Sensor Confirmation for CNF Logging
         self.set_parameter("PDLK_SNSR_CONF", 1)
+        # Set flight speed, cm/s
+        self.set_parameter("WPNAV_SPEED", 1000)
         #Delay for bias
         self.delay_sim_time(135)
 

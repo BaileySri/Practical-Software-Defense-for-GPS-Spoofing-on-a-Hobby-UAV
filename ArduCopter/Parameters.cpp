@@ -742,8 +742,8 @@ const AP_Param::Info Copter::var_info[] = {
     // @User: Standard
     GSCALAR(rtl_alt_type, "RTL_ALT_TYPE", 0),
 
-//PADLOCK
-//var_info declarations
+    //PADLOCK
+    //var_info declarations
     // @Param: PDLK_CHOI_CI
     // @DisplayName: Control Invariant monitor by Choi et al
     // @Description: Enables or Disables the Control Invariant monitor as defined by Choi et al
