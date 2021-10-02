@@ -347,7 +347,15 @@ public:
         // 254,255: reserved
 
         k_param_vehicle = 257, // vehicle common block of parameters
+
+        //PADLOCK
+        //Parameter Identities
+        k_param_confirmation = 258,
     };
+
+    //PADLOCK
+    //Defined parameters
+    AP_Int8         confirmation;
 
     AP_Int16 format_version;
 
