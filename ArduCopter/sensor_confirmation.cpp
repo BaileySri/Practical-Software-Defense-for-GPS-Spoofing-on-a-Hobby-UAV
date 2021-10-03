@@ -18,7 +18,7 @@ static const float OF_GYRO_ERR = 0.0007; // (rad/s) Gyro Noise (ICM-20602) Assum
 static const float LT5_RF_ERR = 0.01;    // meters, Error in rangefinder when less than 5 meters distance
 static const float GT5_RF_ERR = 0.025;   // meters, Error in rangefinder when greater than or equal to 5 meters distance
 static const float RMS = 1.73;           // RMS constant useful for tri-axis errors
-static const uint32_t GPS_RATE = 200;    // us, GPS Update rate
+static const float GPS_RATE = 200;    // us, GPS Update rate
 
 //----Function delcarations----//
 void initialize();
@@ -503,7 +503,7 @@ void update()
     //IMU Sensors
     //Updating Current and Previous based on GPS Update rate
 
-    if (((IMU->get_last_update_usec() / 1000) - sensors.currGps.Timestamp) >= GPS_RATE)
+    if (((IMU->get_last_update_usec() / (float)1000) - sensors.currGps.Timestamp) >= GPS_RATE)
     {
         sensors.nextAccel.update(IMU, bias.AccBias);
         sensors.nextGyro.update(IMU);
