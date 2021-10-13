@@ -528,13 +528,13 @@ class AutoTestCopter(AutoTest):
 
     #PADLOCK
     # The initial layout was provided from the fly_auto_test function down below
-    def fly_auto_attack(self, timeout=360):
+    def fly_auto_motion(self, timeout=360):
         # Fly mission the data gathering mission
         self.progress("# Load PDLK Attack Waypoints")
         # load the waypoint count
-        num_wp = self.load_mission("pdlk_auto_attack.txt")
+        num_wp = self.load_mission("pdlk_auto_motion.txt")
         if not num_wp:
-            raise NotAchievedException("load pdlk_auto_attack.txt failed")
+            raise NotAchievedException("load pdlk_auto_motion.txt failed")
         
         self.progress("Setting sensor parameters")        
         # Set sensor parameters
@@ -7962,9 +7962,9 @@ class AutoTestCopter(AutoTest):
              self.fly_auto_wave),
              
              #PADLOCK
-             ("AutoAttack",
+             ("AutoMotion",
              "Fly in auto then perform an attack",
-             self.fly_auto_attack),
+             self.fly_auto_motion),
              
              #PADLOCK
              ("AutoIdle",
