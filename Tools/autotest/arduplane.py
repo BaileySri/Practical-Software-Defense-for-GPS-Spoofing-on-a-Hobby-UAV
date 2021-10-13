@@ -266,7 +266,7 @@ class AutoTestPlane(AutoTest):
 
     #PADLOCK
     # Flies North and then attacks before final waypoint
-    def fly_auto_attack(self, timeout=360):
+    def fly_auto_motion(self, timeout=360):
         #Set Optical Flow
         self.set_parameter("SIM_FLOW_ENABLE", 1)
         self.set_parameter("FLOW_TYPE", 10)
@@ -275,9 +275,9 @@ class AutoTestPlane(AutoTest):
 
         self.progress("# Load PDLK Attack Waypoints")
         # load the waypoint count
-        num_wp = self.load_mission("pdlk_auto_attack.txt")
+        num_wp = self.load_mission("pdlk_auto_motion.txt")
         if not num_wp:
-            raise NotAchievedException("load pdlk_auto_attack.txt failed")
+            raise NotAchievedException("load pdlk_auto_motion.txt failed")
 
         self.progress("Setting sensor parameters")        
         # Set sensor parameters
@@ -2221,9 +2221,9 @@ class AutoTestPlane(AutoTest):
         ret = super(AutoTestPlane, self).tests()
         ret.extend([
             #PADLOCK
-            ("AutoAttack",
-             "Run the auto mission with a heavy offset attack",
-              self.fly_auto_attack),
+            ("AutoMotion",
+             "Run the auto mission with an offset attack",
+              self.fly_auto_motion),
               
             ("AutoSquare",
              "A square mission for benign data",
