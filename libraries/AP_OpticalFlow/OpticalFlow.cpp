@@ -88,6 +88,30 @@ const AP_Param::GroupInfo OpticalFlow::var_info[] = {
     // @User: Advanced
     AP_GROUPINFO("_ADDR", 5,  OpticalFlow, _address,   0),
 
+    //PADLOCK
+    // @Param: _PDLK_X
+    // @DisplayName: Replace rotation about x axis
+    // @Description: Value to replace actual flow rate X reading with. Indicates front/back tilt and compensates for body rate.
+    // @Units: rad/s
+    // @Range: -3.14 3.14
+    // @User: Advanced
+    AP_GROUPINFO("_PDLK_X", 6,  OpticalFlow, _pdlk_attack_x,   0),
+
+    // @Param: _PDLK_Y
+    // @DisplayName: Replace rotation about x axis
+    // @Description: Value to replace actual flow rate X reading with. Indicates front/back tilt and compensates for body rate.
+    // #Units: rad/s
+    // @Range: -3.14 3.14
+    // @User: Advanced
+    AP_GROUPINFO("_PDLK_Y", 7,  OpticalFlow, _pdlk_attack_y,   0),
+
+    // @Param: _PDLK_ENABLE
+    // @DisplayName: Enable OF spoofing
+    // @Description: Enables or Disables optical flow spoofing.
+    // @Values: 0:Disabled 1:Enabled Other:Disabled
+    // @User: Advanced
+    AP_GROUPINFO("_PDLK_ATK", 8,  OpticalFlow, _pdlk_attack_enable,   0),
+
     AP_GROUPEND
 };
 

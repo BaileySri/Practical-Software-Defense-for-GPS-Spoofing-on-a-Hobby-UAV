@@ -61,6 +61,10 @@ protected:
 
     // get ADDR parameter value
     uint8_t get_address(void) const { return frontend._address; }
+
+    //PADLOCK
+    float get_flow_x(void) const { return frontend._pdlk_attack_x;}
+    float get_flow_y(void) const { return frontend._pdlk_attack_y;}
     
     // semaphore for access to shared frontend data
     HAL_Semaphore _sem;
