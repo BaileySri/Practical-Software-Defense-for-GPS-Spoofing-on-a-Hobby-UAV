@@ -32,7 +32,7 @@ void OpticalFlow_backend::_update_frontend(const struct OpticalFlow::OpticalFlow
     if(frontend._pdlk_attack_enable == 1){
         Vector2f attack{frontend._pdlk_attack_x + state.bodyRate.x,
                         frontend._pdlk_attack_y + state.bodyRate.y};
-        OpticalFlow::OpticalFlow_state pdlkState{state.surface_quality,
+        pdlkState = OpticalFlow::OpticalFlow_state{state.surface_quality,
                                                 attack,
                                                 state.bodyRate};
         frontend.update_state(pdlkState);

@@ -25,6 +25,8 @@ class OpticalFlow_backend
     friend class OpticalFlow;
 
 public:
+    OpticalFlow::OpticalFlow_state pdlkState;
+
     // constructor
     OpticalFlow_backend(OpticalFlow &_frontend);
     virtual ~OpticalFlow_backend(void);

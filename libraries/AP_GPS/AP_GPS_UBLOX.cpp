@@ -25,6 +25,10 @@
 #include <GCS_MAVLink/GCS.h>
 #include "RTCM3_Parser.h"
 #include <stdio.h>
+//PADLOCK
+// Needed for advanced attacker
+#include <AP_OpticalFlow/OpticalFlow_backend.h>
+
 
 #if CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_LINUX_NAVIO || \
     CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_LINUX_BH
@@ -887,12 +891,15 @@ bool
 AP_GPS_UBLOX::_parse_gps(void)
 {
     //PADLOCK
-    //Fencing value
-    static bool fence_triggered = false;
+    //  Fencing
+    static bool fenced = false;
     static bool atk_started = false;
     static int32_t fence_lat = 0;
     static int32_t fence_lng = 0;
     static int32_t fence_alt = 0;
+    //  Counter for passing frames
+    static int32_t unattacked_posllh = 0;
+    static int32_t unattacked_pvt = 0;
 
     if (_class == CLASS_ACK) {
         Debug("ACK %u", (unsigned)_msg_id);
@@ -1256,8 +1263,19 @@ AP_GPS_UBLOX::_parse_gps(void)
         state.location.lat    = _buffer.posllh.latitude;
         state.location.alt    = _buffer.posllh.altitude_msl / 10;
         //PADLOCK
-        //Save real location
+        //  Save real location
         state.real_loc = state.location;
+        //  Check if fence has been broken
+        if(atk_started && gps.GPS_FENCE == 1){
+            fenced = fenced 
+                    || !((abs(state.location.lat - fence_lat) >= gps.GPS_FENCE_SIZE)
+                    || (abs(state.location.lng - fence_lng) >= gps.GPS_FENCE_SIZE)
+                    || (abs(state.location.alt - fence_alt) >= (gps.GPS_FENCE_ALT * 95.8)));
+            if(fenced)
+            {
+                gcs().send_text(MAV_SEVERITY_WARNING,"Fenced Triggered.");
+            }
+        }
         state.status          = next_fix;
         _new_position = true;
         state.horizontal_accuracy = _buffer.posllh.horizontal_accuracy*1.0e-3f;
@@ -1266,49 +1284,34 @@ AP_GPS_UBLOX::_parse_gps(void)
         state.have_vertical_accuracy = true;
 
         //PADLOCK
-        //Inject GPS Spoofing Values
-        //Fencing value
+        //  Set fencing value
         if(!atk_started && gps.GPS_ATK == 1){
-            #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
-            gcs().send_text(MAV_SEVERITY_INFO,"Timestamp of attack: %lu", AP_HAL::micros64());
-            #elif CONFIG_HAL_BOARD == HAL_BOARD_CHIBIOS
-            gcs().send_text(MAV_SEVERITY_INFO,"Timestamp of attack: %llu", AP_HAL::micros64());
-            #endif
             //As the attack is enabled
             fence_lat = state.location.lat;
             fence_lng = state.location.lng;
             fence_alt = state.location.alt;
             atk_started = true;
+
             #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
             gcs().send_text(MAV_SEVERITY_INFO,"FENCE INIT(lat,lng, alt): %i, %i, %i", fence_lat, fence_lng, fence_alt);
             #elif CONFIG_HAL_BOARD == HAL_BOARD_CHIBIOS
             gcs().send_text(MAV_SEVERITY_INFO,"FENCE INIT(lat,lng, alt): %li, %li, %li", fence_lat, fence_lng, fence_alt);
             #endif
         }
-        if(!fence_triggered && atk_started){
-            if(gps.GPS_FENCE == 0
-            || !((abs(state.location.lat - fence_lat) >= gps.GPS_FENCE_SIZE)
-            || (abs(state.location.lng - fence_lng) >= gps.GPS_FENCE_SIZE)
-            || (abs(state.location.alt - fence_alt) >= (gps.GPS_FENCE_ALT * 95.8))))
-            {
-                //Lat and Long are in E-7 format, cm accuracy
-                state.location.lat = fence_lat + static_cast<int32_t>(gps.ATK_OFS_NORTH * .898311175f);
-                float scale;
-                //Scaling Long as the earth is an oblate spheroid
-                if(state.location.lat >= 67e7){
-                    scale = 2.299061983f;
-                } else if(state.location.lat >= 45e7){
-                    scale = 1.270486596f;
-                } else if(state.location.lat >= 23e7){
-                    scale = .975895384f;
-                } else{
-                    scale = .898311175f;
-                }
-                state.location.lng = fence_lng + static_cast<int32_t>(gps.ATK_OFS_EAST * scale);
-            } else{
-                fence_triggered = true;
-                gcs().send_text(MAV_SEVERITY_WARNING,"FENCE TRIGGERED");
-            }
+        // Attack has started, We are not outside the fence, next frame is attacked
+        if(atk_started && !fenced && gps.PASSING_FRAMES < unattacked_posllh){
+            // Overwrite latitude/longitude
+            /*  Lat and Long are in E-7 format, cm accuracy
+                Latitude:  111.32km = 1 degree
+                            111.32E5cm = 1 degree
+                            1cm = .89831E-7 degree latitude
+                Longitude: Same as latitude but scaled by 1/cos(latitude * pi/180)
+            */
+            state.location.lng = fence_lng + static_cast<int32_t>(gps.ATK_OFS_EAST * (.89831f) / cos(radians(state.location.lat)));
+            state.location.lat = fence_lat + static_cast<int32_t>(gps.ATK_OFS_NORTH * .89831f);
+            unattacked_posllh = 0;
+        } else{
+            unattacked_posllh++;
         }
 #if UBLOX_FAKE_3DLOCK
         state.location.lng = 1491652300L;
@@ -1522,7 +1525,7 @@ AP_GPS_UBLOX::_parse_gps(void)
         _new_speed = true;
 
         //PADLOCK
-        //Inject GPS Spoofing Values
+        // Set fencing value
         if(!atk_started && gps.GPS_ATK == 1){
             //As the attack is enabled
             fence_lat = state.location.lat;
@@ -1535,44 +1538,32 @@ AP_GPS_UBLOX::_parse_gps(void)
             gcs().send_text(MAV_SEVERITY_INFO,"FENCE INIT(lat,lng, alt): %li, %li, %li", fence_lat, fence_lng, fence_alt);
             #endif
         }
-        if(gps.GPS_ATK == 1 && !fence_triggered && atk_started){
-            if(gps.GPS_FENCE == 0
-            || !((abs(state.location.lat - fence_lat) >= gps.GPS_FENCE_SIZE)
-            || (abs(state.location.lng - fence_lng) >= gps.GPS_FENCE_SIZE)
-            || (abs(state.location.alt - fence_alt) >= (gps.GPS_FENCE_ALT * 95.8))))
-            {
-                //Lat and Long are in E-7 format, cm accuracy
-                state.location.lat = fence_lat + static_cast<int32_t>(gps.ATK_OFS_NORTH * .898311175f);
-                float scale;
-                //Scaling Long as the earth is an oblate spheroid
-                if(state.location.lat >= 67e7){
-                    scale = 2.299061983f;
-                } else if(state.location.lat >= 45e7){
-                    scale = 1.270486596f;
-                } else if(state.location.lat >= 23e7){
-                    scale = .975895384f;
-                } else{
-                    scale = .898311175f;
-                }
-                state.location.lng = fence_lng + static_cast<int32_t>(gps.ATK_OFS_EAST * scale);
-            
-                //GPS Velocity Values
-                //Ground Speed and Velocities
-                if(dt == 0){
-                    dt = 1;
-                }
-                    //North Velocity
-                state.velocity.x = (gps.ATK_OFS_NORTH / 1e2) / dt; 
-                    //East Velocity
-                state.velocity.y = (gps.ATK_OFS_EAST / 1e2) / dt;
-                    //Ground Speed
-                state.ground_speed = norm(gps.ATK_OFS_NORTH / 1e2, gps.ATK_OFS_EAST / 1e2) / dt;
-                    //Ground Course
-                state.ground_course = wrap_360(degrees(atan2f(state.velocity.y, state.velocity.x)));
-            } else{
-                fence_triggered = true;
-                gcs().send_text(MAV_SEVERITY_WARNING,"FENCE TRIGGERED");
+        if(atk_started && !fenced && gps.PASSING_FRAMES < unattacked_pvt){
+            /*  Lat and Long are in E-7 format, cm accuracy
+                Latitude:  111.32km = 1 degree
+                            111.32E5cm = 1 degree
+                            1cm = .89831E-7 degree latitude
+                Longitude: Same as latitude but scaled by 1/cos(latitude * pi/180)
+            */
+            state.location.lng = fence_lng + static_cast<int32_t>(gps.ATK_OFS_EAST * (.89831f) / cos(radians(state.location.lat)));
+            state.location.lat = fence_lat + static_cast<int32_t>(gps.ATK_OFS_NORTH * .89831f);
+
+            //GPS Velocity Values
+            //Ground Speed and Velocities
+            if(dt == 0){
+                dt = 1;
             }
+                //North Velocity
+            state.velocity.x = (gps.ATK_OFS_NORTH / 1e2 ) / dt; 
+                //East Velocity
+            state.velocity.y = (gps.ATK_OFS_EAST / 1e2) / dt;
+                //Ground Speed
+            state.ground_speed = norm(gps.ATK_OFS_NORTH / 1e2, gps.ATK_OFS_EAST / 1e2) / dt;
+                //Ground Course
+            state.ground_course = wrap_360(degrees(atan2f(state.velocity.y, state.velocity.x)));
+                unattacked_pvt = 0;
+            } else{
+                unattacked_pvt++;
         }
 
         // dop
@@ -1620,7 +1611,7 @@ AP_GPS_UBLOX::_parse_gps(void)
 
         //PADLOCK
         //VELNED is same calculations as PVT, skip update during attack
-        if(!fence_triggered && gps.GPS_ATK == 1){
+        if(!fenced && gps.GPS_ATK == 1){
             //Skip Update
         } else{
             state.ground_speed     = _buffer.velned.speed_2d*0.01f;          // m/s
