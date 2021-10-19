@@ -347,14 +347,45 @@ const AP_Param::GroupInfo AP_GPS::var_info[] = {
     AP_GROUPINFO("_PRIMARY", 27, AP_GPS, _primary, 0),
 #endif
 
-//PADLOCK
-//var_info declarations for GPS
+#if HAL_ENABLE_LIBUAVCAN_DRIVERS
+    // @Param: _CAN_NODEID1
+    // @DisplayName: GPS Node ID 1
+    // @Description: GPS Node id for discovered first.
+    // @ReadOnly: True
+    // @User: Advanced
+    AP_GROUPINFO("_CAN_NODEID1", 28, AP_GPS, _node_id[0], 0),
+
+#if GPS_MAX_RECEIVERS > 1
+    // @Param: _CAN_NODEID2
+    // @DisplayName: GPS Node ID 2
+    // @Description: GPS Node id for discovered second.
+    // @ReadOnly: True
+    // @User: Advanced
+    AP_GROUPINFO("_CAN_NODEID2", 29, AP_GPS, _node_id[1], 0),
+#endif // GPS_MAX_RECEIVERS > 1
+    // @Param: 1_CAN_OVRIDE
+    // @DisplayName: First UAVCAN GPS NODE ID
+    // @Description: GPS Node id for first GPS. If 0 the gps will be automatically selected on first come basis.
+    // @User: Advanced
+    AP_GROUPINFO("1_CAN_OVRIDE", 30, AP_GPS, _override_node_id[0], 0),
+
+#if GPS_MAX_RECEIVERS > 1
+    // @Param: 2_CAN_OVRIDE
+    // @DisplayName: Second UAVCAN GPS NODE ID
+    // @Description: GPS Node id for second GPS. If 0 the gps will be automatically selected on first come basis.
+    // @User: Advanced
+    AP_GROUPINFO("2_CAN_OVRIDE", 31, AP_GPS, _override_node_id[1], 0),
+#endif // GPS_MAX_RECEIVERS > 1
+#endif // HAL_ENABLE_LIBUAVCAN_DRIVERS
+
+    //PADLOCK
+    //var_info declarations for GPS
     // @Param: PDLK_ATK
     // @DisplayName: GPS Sensor Attack
     // @Description: Enable/Disable the GPS Sensor Attack
     // @Values: 0:Disable, 1:Enable
     // @User: Advanced
-    AP_GROUPINFO("PDLK_ATK", 25, AP_GPS, GPS_ATK, 0),
+    AP_GROUPINFO("_PDLK_ATK", 32, AP_GPS, GPS_ATK, 0),
 
     // @Param: PDLK_N
     // @DisplayName: North/South spoofed value
@@ -363,7 +394,7 @@ const AP_Param::GroupInfo AP_GPS::var_info[] = {
     // @Range: ITN32_MIN INT32_MAX
     // @Increment: 1
     // @User: Advanced
-    AP_GROUPINFO("PDLK_N", 26, AP_GPS, ATK_OFS_NORTH, 0),
+    AP_GROUPINFO("_PDLK_N", 33, AP_GPS, ATK_OFS_NORTH, 0),
 
     // @Param: PDLK_E
     // @DisplayName: East/West spoofed value
@@ -372,14 +403,14 @@ const AP_Param::GroupInfo AP_GPS::var_info[] = {
     // @Range: INT32_MIN INT32_MAX
     // @Increment: 1
     // @User: Advanced
-    AP_GROUPINFO("PDLK_E", 27, AP_GPS, ATK_OFS_EAST, 0),
+    AP_GROUPINFO("_PDLK_E", 34, AP_GPS, ATK_OFS_EAST, 0),
     
     // @Param: GPS_FEN
     // @DisplayName: Disable/Enable the fence around GPS Spoofing
     // @Description: Turns on or off the fencing around gps spoofing for safety.
     // @Values: 0:Disabled, 1:Enabled
     // @User: Advanced
-    AP_GROUPINFO("PDLK_FEN", 28, AP_GPS, GPS_FENCE, 0),
+    AP_GROUPINFO("_PDLK_FEN", 35, AP_GPS, GPS_FENCE, 0),
 
     // @Param: PDLK_FEN_SIZ
     // @DisplayName: Box size of GPS Fence
@@ -388,7 +419,7 @@ const AP_Param::GroupInfo AP_GPS::var_info[] = {
     // @Range: INT8_MIN INT8_MAX
     // @Increment: 1
     // @User: Advanced
-    AP_GROUPINFO("PDLK_FEN_SIZ", 29, AP_GPS, GPS_FENCE_SIZE, 5),
+    AP_GROUPINFO("_PDLK_FEN_SIZ", 36, AP_GPS, GPS_FENCE_SIZE, 5),
 
     // @Param: PDLK_FEN_ALT
     // @DisplayName: Fence height above and below
@@ -397,7 +428,16 @@ const AP_Param::GroupInfo AP_GPS::var_info[] = {
     // @Range: INT8_MIN INT8_MAX
     // @Increment: 1
     // @User: Advanced
-    AP_GROUPINFO("PDLK_FEN_ALT", 30, AP_GPS, GPS_FENCE_ALT, 5),
+    AP_GROUPINFO("_PDLK_FEN_ALT", 37, AP_GPS, GPS_FENCE_ALT, 5),
+
+    // @Param: PDLK_FAIL
+    // @DisplayName: The number of frames allowed to fail
+    // @Description: Adjustable number of attacked frames so the attacker can avoid threshold
+    // @Units: Frames
+    // @Range: INT8_MIN INT8_MAX
+    // @Increment: 1
+    // @User: Advanced
+    AP_GROUPINFO("_PDLK_FAIL", 38, AP_GPS, FAILED_FRAMES, 0),
 
     AP_GROUPEND
 };

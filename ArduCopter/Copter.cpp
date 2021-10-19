@@ -671,12 +671,6 @@ void Copter::update_super_simple_bearing(bool force_update)
 
 void Copter::read_AHRS(void)
 {
-    // Perform IMU calculations and get attitude info
-    //-----------------------------------------------
-#if HIL_MODE != HIL_MODE_DISABLED
-    // update hil before ahrs update
-    gcs().update();
-#endif
     if(g.choi_ci == 1) {
         if(!invariant_enabled){
             gcs().send_text(MAV_SEVERITY_INFO, "Choi CI Enabled");
@@ -688,19 +682,17 @@ void Copter::read_AHRS(void)
         }
         invariant_enabled = false;
     }
-
-
     //@@INVARIANT trojan code
     //sensor attack : 1
     //actuator attack : 2
     //param attack : 3
     if(g.choi_attack == 1) {
-        ahrs.sensor_attack = 1;
+        AP::ahrs().set_sensor_attack(1);
     } else if(g.choi_attack == 2) {
         motors->motor_attack = 1;
     } else {
         //no attack
-        ahrs.sensor_attack = 0;
+        AP::ahrs().set_sensor_attack(0);
         motors->motor_attack = 0;
     }
 

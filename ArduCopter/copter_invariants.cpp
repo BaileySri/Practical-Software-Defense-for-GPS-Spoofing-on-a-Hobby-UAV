@@ -46,13 +46,13 @@ void Copter::copter_invariants_check(float target, int measured)
     inv_x[2] = x2;
 
     // update invariants (for logs)
-    ahrs.invariant = (int32_t)inv_y; 
+    AP::ahrs().set_invariant((int32_t)inv_y); 
 
     // error calculation
     float error = inv_y - measured;     // error at each time point
     err_sum += error*error;            // accumulated squared-error
     float mse = err_sum / (w_index + 1);        // mse in the current window
-    ahrs.ierror = mse;
+    AP::ahrs().set_ierror(mse);
 
     if(mse > max_mse) {     // maximum mse (for analysis)
         max_mse = mse;

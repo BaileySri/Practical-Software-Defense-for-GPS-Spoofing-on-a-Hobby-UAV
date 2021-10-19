@@ -215,6 +215,10 @@ public:
     AP_Float pdlk_gps_spd; //m/s, Speed Accuracy provided by datasheets
     AP_Float pdlk_acc_noise; //m/s/s, Noise in simulated accelerometer
     AP_Float pdlk_gyro_noise; //rad/s, Noise in simulated gyroscope
+    // initial offset on GPS lat/lon, used to shift origin
+    AP_Float gps_init_lat_ofs;
+    AP_Float gps_init_lon_ofs;
+    AP_Float gps_init_alt_ofs;
 
     AP_Float batt_voltage; // battery voltage base
     AP_Float batt_capacity_ah; // battery capacity in Ah

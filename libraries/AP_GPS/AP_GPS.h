@@ -614,8 +614,8 @@ protected:
     //GPS Parameters
     // Boolean to enable attack
     AP_Int8 GPS_ATK;
-    // How many frames should pass before attack
-    AP_Int8 PASSING_FRAMES;
+    // How many frames should be attacked in a streak
+    AP_Int8 FAILED_FRAMES;
     // cm resolution of offsets
     AP_Int32 ATK_OFS_NORTH;
     // cm resolution of offsets

@@ -291,3 +291,8 @@
 #ifndef SNSR_CONF_DEFAULT
   #define SNSR_CONF_DEFAULT   0
 #endif
+/////////////////////////////////////////////////////////////////////////////
+//  Landing Throttle Control Trigger Threshold
+#ifndef THR_CTRL_LAND_THRESH
+ #define THR_CTRL_LAND_THRESH 0.7
+#endif

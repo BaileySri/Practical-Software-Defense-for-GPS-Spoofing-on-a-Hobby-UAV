@@ -898,8 +898,8 @@ AP_GPS_UBLOX::_parse_gps(void)
     static int32_t fence_lng = 0;
     static int32_t fence_alt = 0;
     //  Counter for passing frames
-    static int32_t unattacked_posllh = 0;
-    static int32_t unattacked_pvt = 0;
+    static int32_t attacked_posllh = 0;
+    static int32_t attacked_pvt = 0;
 
     if (_class == CLASS_ACK) {
         Debug("ACK %u", (unsigned)_msg_id);
@@ -1299,7 +1299,7 @@ AP_GPS_UBLOX::_parse_gps(void)
             #endif
         }
         // Attack has started, We are not outside the fence, next frame is attacked
-        if(atk_started && !fenced && gps.PASSING_FRAMES < unattacked_posllh){
+        if(gps.GPS_ATK == 1 && atk_started && !fenced && gps.FAILED_FRAMES != attacked_posllh){
             // Overwrite latitude/longitude
             /*  Lat and Long are in E-7 format, cm accuracy
                 Latitude:  111.32km = 1 degree
@@ -1307,11 +1307,11 @@ AP_GPS_UBLOX::_parse_gps(void)
                             1cm = .89831E-7 degree latitude
                 Longitude: Same as latitude but scaled by 1/cos(latitude * pi/180)
             */
-            state.location.lng = fence_lng + static_cast<int32_t>(gps.ATK_OFS_EAST * (.89831f) / cos(radians(state.location.lat)));
+            state.location.lng = fence_lng + static_cast<int32_t>(gps.ATK_OFS_EAST * (.89831f) / cos(radians(state.location.lat / 1E7)));
             state.location.lat = fence_lat + static_cast<int32_t>(gps.ATK_OFS_NORTH * .89831f);
-            unattacked_posllh = 0;
+            attacked_posllh++;
         } else{
-            unattacked_posllh++;
+            attacked_posllh = 0;
         }
 #if UBLOX_FAKE_3DLOCK
         state.location.lng = 1491652300L;
@@ -1448,6 +1448,8 @@ AP_GPS_UBLOX::_parse_gps(void)
             }
         }
         break;
+#endif // GPS_MOVING_BASELINE
+
     case MSG_PVT: {
         Debug("MSG_PVT");
 
@@ -1538,14 +1540,14 @@ AP_GPS_UBLOX::_parse_gps(void)
             gcs().send_text(MAV_SEVERITY_INFO,"FENCE INIT(lat,lng, alt): %li, %li, %li", fence_lat, fence_lng, fence_alt);
             #endif
         }
-        if(atk_started && !fenced && gps.PASSING_FRAMES < unattacked_pvt){
+        if(gps.GPS_ATK == 1 && atk_started && !fenced && gps.FAILED_FRAMES != attacked_pvt){
             /*  Lat and Long are in E-7 format, cm accuracy
                 Latitude:  111.32km = 1 degree
                             111.32E5cm = 1 degree
                             1cm = .89831E-7 degree latitude
                 Longitude: Same as latitude but scaled by 1/cos(latitude * pi/180)
             */
-            state.location.lng = fence_lng + static_cast<int32_t>(gps.ATK_OFS_EAST * (.89831f) / cos(radians(state.location.lat)));
+            state.location.lng = fence_lng + static_cast<int32_t>(gps.ATK_OFS_EAST * (.89831f) / cos(radians(state.location.lat / 1E7)));
             state.location.lat = fence_lat + static_cast<int32_t>(gps.ATK_OFS_NORTH * .89831f);
 
             //GPS Velocity Values
@@ -1561,9 +1563,9 @@ AP_GPS_UBLOX::_parse_gps(void)
             state.ground_speed = norm(gps.ATK_OFS_NORTH / 1e2, gps.ATK_OFS_EAST / 1e2) / dt;
                 //Ground Course
             state.ground_course = wrap_360(degrees(atan2f(state.velocity.y, state.velocity.x)));
-                unattacked_pvt = 0;
+                attacked_pvt++;
             } else{
-                unattacked_pvt++;
+                attacked_pvt = 0;
         }
 
         // dop
@@ -1617,15 +1619,13 @@ AP_GPS_UBLOX::_parse_gps(void)
             state.ground_speed     = _buffer.velned.speed_2d*0.01f;          // m/s
             state.velocity.x = _buffer.velned.ned_north * 0.01f;
             state.velocity.y = _buffer.velned.ned_east * 0.01f;
-            state.ground_speed = norm(state.velocity.y, state.velocity.x);
-            state.ground_course    = wrap_360(_buffer.velned.heading_2d * 1.0e-5f);       // Heading 2D deg * 100000
             state.ground_course = wrap_360(degrees(atan2f(state.velocity.y, state.velocity.x)));
+            state.ground_speed = state.velocity.xy().length();
         }
 
 
         state.have_vertical_velocity = true;
-        state.velocity.z = _buffer.velned.ned_down * 0.01f;
-        
+        state.velocity.z = _buffer.velned.ned_down * 0.01f;    
         state.have_speed_accuracy = true;
         state.speed_accuracy = _buffer.velned.speed_accuracy*0.01f;
 

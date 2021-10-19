@@ -74,7 +74,6 @@ private:
 
     AP_Logger::PID_Info _pid_info {};
 
-	AP_AHRS &_ahrs;
     //@@INVARIANT
     /*
     float    A[3][3] = {{ 0.0184f, -6.1930f, -0.3636f}, {0.0061f, 0.9083f, -0.0052f}, {0.0001f, 0.0192f, 1.0f}};

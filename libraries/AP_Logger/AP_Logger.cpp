@@ -914,6 +914,7 @@ void AP_Logger::Write_Rally()
 {
     FOR_EACH_BACKEND(Write_Rally());
 }
+#endif
 
 //PADLOCK
 //Logging function

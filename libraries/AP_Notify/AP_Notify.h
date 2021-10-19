@@ -116,6 +116,7 @@ public:
     
         //@@INVARIANT
         uint16_t attack_detected        : 1;    
+        bool temp_cal_running;    // true if a temperature calibration is running
     };
 
     /// notify_events_type - bitmask of active events.

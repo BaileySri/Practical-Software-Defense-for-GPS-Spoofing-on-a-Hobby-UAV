@@ -27,6 +27,8 @@ void AP_AHRS::Write_AHRS2() const
         q2    : quat.q2,
         q3    : quat.q3,
         q4    : quat.q4,
+        invariant       : (int16_t)AP::ahrs().get_invariant(),
+        invariant_error : AP::ahrs().get_ierror()
     };
     AP::logger().WriteBlock(&pkt, sizeof(pkt));
 }

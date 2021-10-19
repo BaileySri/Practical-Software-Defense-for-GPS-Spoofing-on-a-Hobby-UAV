@@ -217,6 +217,7 @@ struct GPS
     float Vacc;   //m GPS 3D RMS Vertical Position Accuracy
     float Yaw;    //Degrees, North is considered 0 degrees moving Clock-Wise
     float Yaw_Error;
+    uint32_t Yaw_TimeMs;
     uint32_t Timestamp;     //ms
     uint32_t lastTimestamp; //ms
 
@@ -238,7 +239,7 @@ struct GPS
             //Location, Velocity, Heading
             update_location(frontend->location());
             Airspeed = frontend->velocity();
-            if (!frontend->gps_yaw_deg(Yaw, Yaw_Error))
+            if (!frontend->gps_yaw_deg(Yaw, Yaw_Error, Yaw_TimeMs))
             {
                 Yaw = 1000;
                 Yaw_Error = -1;
@@ -274,6 +275,7 @@ struct GPS
         Airspeed.zero();
         Yaw = -1;
         Yaw_Error = -1;
+        Yaw_TimeMs = -1;
         //Important note, after every reset if time matters assign the old timestamp to the reset sensor
         Timestamp = 0;
     }

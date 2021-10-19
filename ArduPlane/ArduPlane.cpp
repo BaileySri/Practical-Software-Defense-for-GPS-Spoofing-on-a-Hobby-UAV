@@ -171,6 +171,7 @@ void Plane::ahrs_update()
 
     // update inertial_nav for quadplane
     quadplane.inertial_nav.update();
+#endif
 
     //PADLOCK
     //Logging sensors, two calls for OPTFLOW enabled or Disabled

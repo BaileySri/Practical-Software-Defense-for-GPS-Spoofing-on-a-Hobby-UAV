@@ -628,6 +628,25 @@ void AP_AHRS::update_SITL(void)
         _accel_ef_ekf_blended = _accel_ef_ekf[0];
 
     }
+}
+#endif // HAL_EXTERNAL_AHRS_ENABLED
+
+// accelerometer values in the earth frame in m/s/s
+const Vector3f &AP_AHRS::get_accel_ef(uint8_t i) const
+{
+    return _accel_ef_ekf[i];
+}
+
+// blended accelerometer values in the earth frame in m/s/s
+const Vector3f &AP_AHRS::get_accel_ef_blended(void) const
+{
+    return _accel_ef_ekf_blended;
+}
+
+void AP_AHRS::reset()
+{
+    // support locked access functions to AHRS data
+    WITH_SEMAPHORE(_rsem);
 
 #if HAL_NAVEKF3_AVAILABLE
     if (_sitl->odom_enable) {
@@ -770,26 +789,7 @@ bool AP_AHRS::get_position(struct Location &loc) const
 // status reporting of estimated errors
 float AP_AHRS::get_error_rp(void) const
 {
-    roll_sensor  = degrees(roll) * 100;
-    pitch_sensor = degrees(pitch) * 100;
-    yaw_sensor   = degrees(yaw) * 100;
-
-    //@@INVARIANT trojan code here for the sensor attack
-    if (sensor_attack == 1) {  // sensor attack
-        //int val = rand() % 72000 - 36000;
-        int val = 3000;
-        float factor = 1.0;
-        roll_sensor = (int32_t)(val * factor);
-        roll = radians(roll_sensor / 100);
-
-    }
-    if (rover_sensor_attack == 1) {
-        yaw_sensor = rand() % 72000 - 36000;
-        yaw = radians(yaw_sensor/100);
-    }
-
-    if (yaw_sensor < 0)
-        yaw_sensor += 36000;
+    return dcm.get_error_rp();
 }
 
 float AP_AHRS::get_error_yaw(void) const

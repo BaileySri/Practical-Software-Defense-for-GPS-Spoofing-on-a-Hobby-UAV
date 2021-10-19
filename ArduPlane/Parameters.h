@@ -348,9 +348,15 @@ public:
 
         k_param_vehicle = 257, // vehicle common block of parameters
 
+        
+        k_param_gcs4,          // stream rates
+        k_param_gcs5,          // stream rates
+        k_param_gcs6,          // stream rates
+        k_param_fence,         // vehicle fence
+
         //PADLOCK
         //Parameter Identities
-        k_param_confirmation = 258,
+        k_param_confirmation = 262,
     };
 
     //PADLOCK

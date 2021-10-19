@@ -33,6 +33,8 @@ struct PACKED log_AHRS {
     int32_t lat;
     int32_t lng;
     float q1, q2, q3, q4;
+    int16_t invariant;
+    float invariant_error;
 };
 
 // @LoggerMessage: AOA
@@ -142,7 +144,7 @@ struct PACKED log_Rate {
 
 #define LOG_STRUCTURE_FROM_AHRS \
     { LOG_AHR2_MSG, sizeof(log_AHRS), \
-        "AHR2","QccCfLLffff","TimeUS,Roll,Pitch,Yaw,Alt,Lat,Lng,Q1,Q2,Q3,Q4","sddhmDU????", "FBBB0GG????" , true }, \
+        "AHR2","QccCfLLffffcf","TimeUS,Roll,Pitch,Yaw,Alt,Lat,Lng,Q1,Q2,Q3,Q4,I,Ie","sddhmDU????dd", "FBBB0GG????00" , true }, \
     { LOG_AOA_SSA_MSG, sizeof(log_AOA_SSA), \
         "AOA", "Qff", "TimeUS,AOA,SSA", "sdd", "F00" , true }, \
     { LOG_ATTITUDE_MSG, sizeof(log_Attitude),\

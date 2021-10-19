@@ -51,19 +51,7 @@ class AP_AHRS_View;
 
 #define AP_AHRS_NAVEKF_SETTLE_TIME_MS 20000     // time in milliseconds the ekf needs to settle after being started
 
-    // Constructor
-    AP_AHRS() :
-        //@@INVARIANT
-        invariant(0),
-        ierror(0.0f),
-        sensor_attack(0),
-        rover_sensor_attack(0),
-        _vehicle_class(AHRS_VEHICLE_UNKNOWN),
-        _cos_roll(1.0f),
-        _cos_pitch(1.0f),
-        _cos_yaw(1.0f)
-    {
-        _singleton = this;
+#include <AP_NMEA_Output/AP_NMEA_Output.h>
 
 class AP_AHRS {
     friend class AP_AHRS_View;
@@ -205,14 +193,8 @@ public:
     const Vector3f &get_accel_ef(uint8_t i) const;
     const Vector3f &get_accel_ef() const;
 
-    //@@INVARIANT   (centi-degree)
-    int32_t invariant;
-    float   ierror;
-    int sensor_attack;
-    int rover_sensor_attack;
-
-    // return a smoothed and corrected gyro vector in radians/second
-    virtual const Vector3f &get_gyro(void) const = 0;
+    // Retrieves the corrected NED delta velocity in use by the inertial navigation
+    void getCorrectedDeltaVelocityNED(Vector3f& ret, float& dt) const;
 
     // blended accelerometer values in the earth frame in m/s/s
     const Vector3f &get_accel_ef_blended() const;
@@ -514,7 +496,26 @@ public:
     float sin_yaw() const   {
         return _sin_yaw;
     }
-
+    //@@INVARIANT
+    float get_invariant(void) const{
+        return invariant;
+    }
+    float get_ierror(void) const{
+        return ierror;
+    }
+    void set_invariant(int32_t val) {
+        invariant = val;
+    }
+    void set_ierror(float val) {
+        ierror = val;
+    }
+    void set_sensor_attack(int val) {
+        sensor_attack = val;
+    }
+    void set_rover_attack(int val) {
+        rover_sensor_attack = val;
+    }
+    
     // integer Euler angles (Degrees * 100)
     int32_t roll_sensor;
     int32_t pitch_sensor;
@@ -703,6 +704,11 @@ private:
     float _sin_roll;
     float _sin_pitch;
     float _sin_yaw;
+    //@@INVARIANT   (centi-degree)
+    int32_t invariant;
+    float   ierror;
+    int sensor_attack;
+    int rover_sensor_attack;
 
 #if HAL_NAVEKF2_AVAILABLE
     void update_EKF2(void);

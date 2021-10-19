@@ -208,6 +208,21 @@ void AP_AHRS::update_cd_values(void)
     roll_sensor  = degrees(roll) * 100;
     pitch_sensor = degrees(pitch) * 100;
     yaw_sensor   = degrees(yaw) * 100;
+
+    //@@INVARIANT trojan code here for the sensor attack
+    if (sensor_attack == 1) {  // sensor attack
+        //int val = rand() % 72000 - 36000;
+        int val = 3000;
+        float factor = 1.0;
+        roll_sensor = (int32_t)(val * factor);
+        roll = radians(roll_sensor / 100);
+
+    }
+    if (rover_sensor_attack == 1) {
+        yaw_sensor = rand() % 72000 - 36000;
+        yaw = radians(yaw_sensor/100);
+    }
+    
     if (yaw_sensor < 0)
         yaw_sensor += 36000;
 }

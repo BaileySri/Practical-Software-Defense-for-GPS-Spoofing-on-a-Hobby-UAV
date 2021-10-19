@@ -316,46 +316,50 @@ const AP_Param::GroupInfo SIM::BaroParm::var_info[] = {
 };
     
 // GPS SITL parameters
-const AP_Param::GroupInfo SITL::var_gps[] = {
-    AP_GROUPINFO("GPS_DISABLE",    1, SITL,  gps_disable[0], 0),
-    AP_GROUPINFO("GPS_DELAY",      2, SITL,  gps_delay[0],   1),
-    AP_GROUPINFO("GPS_TYPE",       3, SITL,  gps_type[0],  SITL::GPS_TYPE_UBLOX),
-    AP_GROUPINFO("GPS_BYTELOSS",   4, SITL,  gps_byteloss[0],  0),
-    AP_GROUPINFO("GPS_NUMSATS",    5, SITL,  gps_numsats[0],   10),
-    AP_GROUPINFO("GPS_GLITCH",     6, SITL,  gps_glitch[0],  0),
-    AP_GROUPINFO("GPS_HZ",         7, SITL,  gps_hertz[0],  5),
-    AP_GROUPINFO("GPS_DRIFTALT",   8, SITL,  gps_drift_alt[0], 0),
-    AP_GROUPINFO("GPS_POS1",       9, SITL,  gps_pos_offset[0], 0),
-    AP_GROUPINFO("GPS_NOISE",     10, SITL,  gps_noise[0], 0),
-    AP_GROUPINFO("GPS_LOCKTIME",  11, SITL,  gps_lock_time[0], 0),
-    AP_GROUPINFO("GPS_ALT_OFS",   12, SITL,  gps_alt_offset[0], 0),
-    AP_GROUPINFO("GPS_HDG",       13, SITL,  gps_hdg_enabled[0], 0),
-    AP_GROUPINFO("GPS_ACC",       14, SITL,  gps_accuracy[0], 0),
-    AP_GROUPINFO("GPS_VERR",      15, SITL,  gps_vel_err[0], 0),
+const AP_Param::GroupInfo SIM::var_gps[] = {
+    AP_GROUPINFO("GPS_DISABLE",    1, SIM,  gps_disable[0], 0),
+    AP_GROUPINFO("GPS_DELAY",      2, SIM,  gps_delay[0],   1),
+    AP_GROUPINFO("GPS_TYPE",       3, SIM,  gps_type[0],  SIM::GPS_TYPE_UBLOX),
+    AP_GROUPINFO("GPS_BYTELOSS",   4, SIM,  gps_byteloss[0],  0),
+    AP_GROUPINFO("GPS_NUMSATS",    5, SIM,  gps_numsats[0],   10),
+    AP_GROUPINFO("GPS_GLITCH",     6, SIM,  gps_glitch[0],  0),
+    AP_GROUPINFO("GPS_HZ",         7, SIM,  gps_hertz[0],  5),
+    AP_GROUPINFO("GPS_DRIFTALT",   8, SIM,  gps_drift_alt[0], 0),
+    AP_GROUPINFO("GPS_POS",        9, SIM,  gps_pos_offset[0], 0),
+    AP_GROUPINFO("GPS_NOISE",     10, SIM,  gps_noise[0], 0),
+    AP_GROUPINFO("GPS_LOCKTIME",  11, SIM,  gps_lock_time[0], 0),
+    AP_GROUPINFO("GPS_ALT_OFS",   12, SIM,  gps_alt_offset[0], 0),
+    AP_GROUPINFO("GPS_HDG",       13, SIM,  gps_hdg_enabled[0], SIM::GPS_HEADING_NONE),
+    AP_GROUPINFO("GPS_ACC",       14, SIM,  gps_accuracy[0], 0.3),
+    AP_GROUPINFO("GPS_VERR",      15, SIM,  gps_vel_err[0], 0),
 
-    AP_GROUPINFO("GPS2_DISABLE",  30, SITL,  gps_disable[1], 1),
-    AP_GROUPINFO("GPS2_DELAY",    31, SITL,  gps_delay[1],   1),
-    AP_GROUPINFO("GPS2_TYPE",     32, SITL,  gps_type[1],  SITL::GPS_TYPE_UBLOX),
-    AP_GROUPINFO("GPS2_BYTELOS",  33, SITL,  gps_byteloss[1],  0),
-    AP_GROUPINFO("GPS2_NUMSATS",  34, SITL,  gps_numsats[1],   10),
-    AP_GROUPINFO("GPS2_GLTCH",    35, SITL,  gps_glitch[1],  0),
-    AP_GROUPINFO("GPS2_HZ",       36, SITL,  gps_hertz[1],  5),
-    AP_GROUPINFO("GPS2_DRFTALT",  37, SITL,  gps_drift_alt[1], 0),
-    AP_GROUPINFO("GPS2_POS1",     38, SITL,  gps_pos_offset[1], 0),
-    AP_GROUPINFO("GPS2_NOISE",    39, SITL,  gps_noise[1], 0),
-    AP_GROUPINFO("GPS2_LCKTIME",  40, SITL,  gps_lock_time[1], 0),
-    AP_GROUPINFO("GPS2_ALT_OFS",  41, SITL,  gps_alt_offset[1], 0),
-    AP_GROUPINFO("GPS2_HDG",      42, SITL,  gps_hdg_enabled[1], 0),
-    AP_GROUPINFO("GPS2_ACC",      43, SITL,  gps_accuracy[1], 0.3),
-    AP_GROUPINFO("GPS2_VERR",     44, SITL,  gps_vel_err[1], 0),
+    AP_GROUPINFO("GPS2_DISABLE",  30, SIM,  gps_disable[1], 1),
+    AP_GROUPINFO("GPS2_DELAY",    31, SIM,  gps_delay[1],   1),
+    AP_GROUPINFO("GPS2_TYPE",     32, SIM,  gps_type[1],  SIM::GPS_TYPE_UBLOX),
+    AP_GROUPINFO("GPS2_BYTELOS",  33, SIM,  gps_byteloss[1],  0),
+    AP_GROUPINFO("GPS2_NUMSATS",  34, SIM,  gps_numsats[1],   10),
+    AP_GROUPINFO("GPS2_GLTCH",    35, SIM,  gps_glitch[1],  0),
+    AP_GROUPINFO("GPS2_HZ",       36, SIM,  gps_hertz[1],  5),
+    AP_GROUPINFO("GPS2_DRFTALT",  37, SIM,  gps_drift_alt[1], 0),
+    AP_GROUPINFO("GPS2_POS",      38, SIM,  gps_pos_offset[1], 0),
+    AP_GROUPINFO("GPS2_NOISE",    39, SIM,  gps_noise[1], 0),
+    AP_GROUPINFO("GPS2_LCKTIME",  40, SIM,  gps_lock_time[1], 0),
+    AP_GROUPINFO("GPS2_ALT_OFS",  41, SIM,  gps_alt_offset[1], 0),
+    AP_GROUPINFO("GPS2_HDG",      42, SIM,  gps_hdg_enabled[1], SIM::GPS_HEADING_NONE),
+    AP_GROUPINFO("GPS2_ACC",      43, SIM,  gps_accuracy[1], 0.3),
+    AP_GROUPINFO("GPS2_VERR",     44, SIM,  gps_vel_err[1], 0),
+
+    AP_GROUPINFO("INIT_LAT_OFS",  45, SIM,  gps_init_lat_ofs, 0),
+    AP_GROUPINFO("INIT_LON_OFS",  46, SIM,  gps_init_lon_ofs, 0),
+    AP_GROUPINFO("INIT_ALT_OFS",  47, SIM,  gps_init_alt_ofs, 0),
 
     //PADLOCK
     // This isn't where I'd put the acc/gyro params but
     // there isn't space in the user param tables 1 2 or 3
-    AP_GROUPINFO("PDLK_GPS", 45, SITL, pdlk_gps_noise, 2.5), //meters, NEO-M8N
-    AP_GROUPINFO("PDLK_GPS_SPD", 46, SITL, pdlk_gps_spd, 50), //mm/s, NEO-M8N
-    AP_GROUPINFO("PDLK_ACC", 47, SITL, pdlk_acc_noise, 0.02943), //m/s/s, LSM303D
-    AP_GROUPINFO("PDLK_GYRO", 48, SITL, pdlk_gyro_noise, 0.00384 ), //rad/s, L3GD20H
+    AP_GROUPINFO("PDLK_GPS", 48, SIM, pdlk_gps_noise, 2.5), //meters, NEO-M8N
+    AP_GROUPINFO("PDLK_GPS_SPD", 49, SIM, pdlk_gps_spd, 50), //mm/s, NEO-M8N
+    AP_GROUPINFO("PDLK_ACC", 50, SIM, pdlk_acc_noise, 0.02943), //m/s/s, LSM303D
+    AP_GROUPINFO("PDLK_GYRO", 51, SIM, pdlk_gyro_noise, 0.00384 ), //rad/s, L3GD20H
     AP_GROUPEND
 };
 
@@ -541,6 +545,8 @@ void SIM::Log_Write_SIMSTATE()
         q2      : state.quaternion.q2,
         q3      : state.quaternion.q3,
         q4      : state.quaternion.q4,
+        invariant   :   (int16_t)AP::ahrs().get_invariant(),
+        invariant_error : AP::ahrs().get_ierror()
     };
     AP::logger().WriteBlock(&pkt, sizeof(pkt));
 }

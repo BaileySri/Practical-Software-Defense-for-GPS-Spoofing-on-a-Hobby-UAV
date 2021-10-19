@@ -735,13 +735,6 @@ const AP_Param::Info Copter::var_info[] = {
     GSCALAR(throw_motor_start, "THROW_MOT_START", (float)ModeThrow::PreThrowMotorState::STOPPED),
 #endif
 
-    // @Param: RTL_ALT_TYPE
-    // @DisplayName: RTL mode altitude type
-    // @Description: RTL altitude type.  Set to 1 for Terrain following during RTL and then set WPNAV_RFND_USE=1 to use rangefinder or WPNAV_RFND_USE=0 to use Terrain database
-    // @Values: 0:Relative to Home, 1:Terrain
-    // @User: Standard
-    GSCALAR(rtl_alt_type, "RTL_ALT_TYPE", 0),
-
     //PADLOCK
     //var_info declarations
     // @Param: PDLK_CHOI_CI
@@ -765,7 +758,7 @@ const AP_Param::Info Copter::var_info[] = {
     // @User: Advanced
     GSCALAR(confirmation, "PDLK_SNSR_CONF", SNSR_CONF_DEFAULT),
 
-#if OSD_ENABLED == ENABLED
+#if OSD_ENABLED || OSD_PARAM_ENABLED
     // @Group: OSD
     // @Path: ../libraries/AP_OSD/AP_OSD.cpp
     GOBJECT(osd, "OSD", AP_OSD),

@@ -528,7 +528,7 @@ AP_AHRS_DCM::drift_correction_yaw(void)
             // don't suddenly change yaw with a reset
             _gps_last_update = _gps.last_fix_time_ms();
         }
-    } else if (false && _flags.fly_forward && have_gps()) {
+    } else if (AP::ahrs().get_fly_forward() && have_gps()) {
         /*
           we are using GPS for yaw
          */
