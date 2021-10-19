@@ -628,25 +628,6 @@ void AP_AHRS::update_SITL(void)
         _accel_ef_ekf_blended = _accel_ef_ekf[0];
 
     }
-}
-#endif // HAL_EXTERNAL_AHRS_ENABLED
-
-// accelerometer values in the earth frame in m/s/s
-const Vector3f &AP_AHRS::get_accel_ef(uint8_t i) const
-{
-    return _accel_ef_ekf[i];
-}
-
-// blended accelerometer values in the earth frame in m/s/s
-const Vector3f &AP_AHRS::get_accel_ef_blended(void) const
-{
-    return _accel_ef_ekf_blended;
-}
-
-void AP_AHRS::reset()
-{
-    // support locked access functions to AHRS data
-    WITH_SEMAPHORE(_rsem);
 
 #if HAL_NAVEKF3_AVAILABLE
     if (_sitl->odom_enable) {
