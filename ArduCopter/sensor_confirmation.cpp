@@ -625,7 +625,7 @@ void debug()
                     sensors.nextAccel.Timestamp,
                     sensors.gps.Timestamp);
 #elif CONFIG_HAL_BOARD == HAL_BOARD_SITL
-    gcs().send_text(MAV_SEVERITY_INFO, "CURRENT [%lu] currAcc: %u | nextAcc: %u | GPS: %u",
+    gcs().send_text(MAV_SEVERITY_INFO, "CURRENT [%llu] currAcc: %u | nextAcc: %u | GPS: %u",
                     AP_HAL::micros64(),
                     sensors.currAccel.Timestamp,
                     sensors.nextAccel.Timestamp,
