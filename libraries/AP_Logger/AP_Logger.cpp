@@ -928,8 +928,8 @@ void AP_Logger::Write_SNSR(const float &BAlt, const float &rf_dist,
     const Vector3f &gyro = ins.get_gyro();
     const Vector3f &accel = ins.get_accel();
     const AP_GPS *gps = AP::gps().get_singleton();
-    int32_t gps_alt;
-    int32_t gps_alt_real;
+    int32_t gps_alt = 0;
+    int32_t gps_alt_real = 0;
     if (!gps->location().get_alt_cm(Location::AltFrame::ABOVE_HOME, gps_alt))
     {
         gps_alt = -1;
@@ -1113,7 +1113,7 @@ void AP_Logger::Write_SNSR(const float &BAlt)
         m_2_1 : rot.c.y,
         m_2_2 : rot.c.z,
     };
-    int32_t gps_alt_real;
+    int32_t gps_alt_real = 0;
     if (!gps->real_loc().get_alt_cm(Location::AltFrame::ABOVE_HOME, gps_alt))
     {
         gps_alt_real = -1;
