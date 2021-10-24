@@ -27,80 +27,8 @@ bool run();
 void recover();
 //----   Helper Functions  ----//
 void debug();
-bool confirm(const float a, const float a_err, const float b, const float b_err, bool wrap = false)
-{
-    if (!wrap)
-    {
-        if (a >= b)
-        {
-            return (((b + b_err) - (a - a_err)) >= 0);
-        }
-        else
-        {
-            return (((a + a_err) - (b - b_err)) >= 0);
-        }
-    }
-    else
-    {
-        float lower = 0;
-        float upper = 0;
-        if (a < b)
-        {
-            lower = a + a_err;
-            upper = b - b_err;
-        }
-        else
-        {
-            lower = b + b_err;
-            upper = a - a_err;
-        }
-        if ((lower >= 360) || (upper <= 0))
-        {
-            // If wrapping occurs then confirm
-            return true;
-        }
-        else if (lower - upper >= 0)
-        {
-            // This implies the lower + error is greater than upper - error
-            return true;
-        }
-        //Swapping directions to see if moving away from each other causes wrapping
-        if (a >= b)
-        {
-            upper = a + a_err;
-            lower = b - b_err;
-        }
-        else
-        {
-            upper = b + b_err;
-            lower = a - a_err;
-        }
-        if ((lower <= 0) && (upper >= 360))
-        {
-            // If both wrap its an easy confirmation
-            return true;
-        }
-        else if (lower <= 0)
-        {
-            // If the lower value wraps around, confirm if it becomes less than the upper
-            lower = fmod(lower, 360);
-            if (upper - lower >= 0)
-                return true;
-        }
-        else if (upper >= 360)
-        {
-            // If the upper value wraps around, confirm if it becomes greater than the lower
-            upper = fmod(upper, 360);
-            if (upper - lower >= 0)
-                return true;
-        }
-        return false;
-    }
-}
-Vector3f abs(const Vector3f &x)
-{
-    return Vector3f{abs(x.x), abs(x.y), abs(x.z)};
-}
+bool confirm(float, float, float, float, bool);
+Vector3f abs(const Vector3f &x);
 
 //----Specific Confirmations----//
 bool AccGPS();
@@ -623,7 +551,7 @@ void debug()
                     AP_HAL::micros64(),
                     sensors.currAccel.Timestamp,
                     sensors.nextAccel.Timestamp,
-                    sensors.gps.Timestamp);
+                    sensors.currGps.Timestamp);
 #elif CONFIG_HAL_BOARD == HAL_BOARD_SITL
     gcs().send_text(MAV_SEVERITY_INFO, "CURRENT [%lu] currAcc: %u | nextAcc: %u | GPS: %u",
                     AP_HAL::micros64(),
@@ -631,6 +559,82 @@ void debug()
                     sensors.nextAccel.Timestamp,
                     sensors.currGps.Timestamp);
 #endif
+}
+
+bool confirm(const float a, const float a_err, const float b, const float b_err, bool wrap = false)
+{
+    if (!wrap)
+    {
+        if (a >= b)
+        {
+            return (((b + b_err) - (a - a_err)) >= 0);
+        }
+        else
+        {
+            return (((a + a_err) - (b - b_err)) >= 0);
+        }
+    }
+    else
+    {
+        float lower = 0;
+        float upper = 0;
+        if (a < b)
+        {
+            lower = a + a_err;
+            upper = b - b_err;
+        }
+        else
+        {
+            lower = b + b_err;
+            upper = a - a_err;
+        }
+        if ((lower >= 360) || (upper <= 0))
+        {
+            // If wrapping occurs then confirm
+            return true;
+        }
+        else if (lower - upper >= 0)
+        {
+            // This implies the lower + error is greater than upper - error
+            return true;
+        }
+        //Swapping directions to see if moving away from each other causes wrapping
+        if (a >= b)
+        {
+            upper = a + a_err;
+            lower = b - b_err;
+        }
+        else
+        {
+            upper = b + b_err;
+            lower = a - a_err;
+        }
+        if ((lower <= 0) && (upper >= 360))
+        {
+            // If both wrap its an easy confirmation
+            return true;
+        }
+        else if (lower <= 0)
+        {
+            // If the lower value wraps around, confirm if it becomes less than the upper
+            lower = fmod(lower, 360);
+            if (upper - lower >= 0)
+                return true;
+        }
+        else if (upper >= 360)
+        {
+            // If the upper value wraps around, confirm if it becomes greater than the lower
+            upper = fmod(upper, 360);
+            if (upper - lower >= 0)
+                return true;
+        }
+        return false;
+    }
+}
+
+Vector3f abs(const Vector3f &x)
+{
+    return Vector3f{abs(x.x), abs(x.y), abs(x.z)};
 }
 
 // Confirm change in velocity of GPS and Accelerometer
@@ -766,7 +770,7 @@ bool AccGpsGC()
 // Confirm ground course based on Accelerometer and Optical Flow movement with Magnetometer for rotation
 bool AccOFGC()
 {
-    if (abs(sensors.currAccel.Velocity[0] < sensors.currAccel.Error && abs(sensors.currAccel.Velocity[1]) < sensors.currAccel.Error))
+    if ((abs(sensors.currAccel.Velocity[0]) < sensors.currAccel.Error) && (abs(sensors.currAccel.Velocity[1]) < sensors.currAccel.Error))
     {
         // Speed is below potential error, GpsAcc is unusable
         return true;
