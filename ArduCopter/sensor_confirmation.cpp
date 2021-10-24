@@ -18,7 +18,7 @@ static const float OF_GYRO_ERR = 0.0007; // (rad/s) Gyro Noise (ICM-20602) Assum
 static const float LT5_RF_ERR = 0.01;    // meters, Error in rangefinder when less than 5 meters distance
 static const float GT5_RF_ERR = 0.025;   // meters, Error in rangefinder when greater than or equal to 5 meters distance
 static const float RMS = 1.73;           // RMS constant useful for tri-axis errors
-static const float GPS_RATE = 200;    // us, GPS Update rate
+static const float GPS_RATE = 200;       // ms, GPS Update rate
 
 //----Function delcarations----//
 void initialize();
@@ -128,7 +128,7 @@ struct Accel
         {
             NED newReading = (AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned() * frontend->get_accel()) - bias;
             //Trapezoidal Integration
-            Velocity += (((newReading + Readings) / 2.0F) * dT) / 1000000;
+            Velocity += (((newReading + Readings) / 2.0F) * dT) / 1000000.0f;
             Readings = newReading;
             Error += (ACC_ERR * RMS * dT) / 1000000; // Error in acceleration, dT is in us and multiply by time for velocity error
             Timestamp += dT;
@@ -294,10 +294,10 @@ struct RF
         float dT = copter.getRangems() - Timestamp;
         if (dT > 0)
         {
-            RF_Vel = (Range - (copter.getRangeFilt() / 100)) / (dT/1000);
-            RF_Vel_Err = ((Range >= 5 ? GT5_RF_ERR : LT5_RF_ERR) + RangeErr) / (dT / 1000);
-            Range = copter.getRangeFilt() / 100;
-            RangeErr = Range >= 5 ? GT5_RF_ERR : LT5_RF_ERR;
+            RF_Vel = (Range - (copter.getRangeFilt() / 100.0f)) / (dT/1000.0f);
+            RF_Vel_Err = ((Range >= 5.0f ? GT5_RF_ERR : LT5_RF_ERR) + RangeErr) / (dT / 1000.0f);
+            Range = copter.getRangeFilt() / 100.0f;
+            RangeErr = Range >= 5.0f ? GT5_RF_ERR : LT5_RF_ERR;
             Timestamp += dT;
         }
     }
@@ -505,7 +505,7 @@ void update()
     //IMU Sensors
     //Updating Current and Previous based on GPS Update rate
 
-    if (((IMU->get_last_update_usec() / (float)1000) - sensors.currGps.Timestamp) >= GPS_RATE)
+    if (((IMU->get_last_update_usec() / 1000.0f) - sensors.currGps.Timestamp) >= GPS_RATE)
     {
         sensors.nextAccel.update(IMU, bias.AccBias);
         sensors.nextGyro.update(IMU);
@@ -516,7 +516,7 @@ void update()
         sensors.currGyro.update(IMU);
     }
 
-    if ((sensors.currOF.Timestamp - sensors.currGps.Timestamp) >= (GPS_RATE / 1000))
+    if ((sensors.currOF.Timestamp - sensors.currGps.Timestamp) >= GPS_RATE)
     {
         sensors.nextOF.update(OF, sensors.rangefinder);
     }
@@ -625,7 +625,7 @@ void debug()
                     sensors.nextAccel.Timestamp,
                     sensors.gps.Timestamp);
 #elif CONFIG_HAL_BOARD == HAL_BOARD_SITL
-    gcs().send_text(MAV_SEVERITY_INFO, "CURRENT [%llu] currAcc: %u | nextAcc: %u | GPS: %u",
+    gcs().send_text(MAV_SEVERITY_INFO, "CURRENT [%lu] currAcc: %u | nextAcc: %u | GPS: %u",
                     AP_HAL::micros64(),
                     sensors.currAccel.Timestamp,
                     sensors.nextAccel.Timestamp,
@@ -670,8 +670,8 @@ bool GpsMagGC()
     float dot = gps[0];  // N * 1 + E * 0
     float det = -gps[1]; // N * 0 - E * 1
     float GpsGC = atan2f(det, dot);
-    std::vector<float> ErrGps{abs(sensors.currGps.Airspeed[0]) - abs(sensors.currGps.Hacc / (GPS_RATE / (float)1000)),
-                              abs(sensors.currGps.Airspeed[1]) + abs(sensors.currGps.Hacc / (GPS_RATE / (float)1000))};
+    std::vector<float> ErrGps{abs(sensors.currGps.Airspeed[0]) - abs(sensors.currGps.Hacc / (GPS_RATE / 1000.0f)),
+                              abs(sensors.currGps.Airspeed[1]) + abs(sensors.currGps.Hacc / (GPS_RATE / 1000.0f))};
     gps[0] = abs(gps[0]);
     gps[1] = abs(gps[1]);
     dot = gps[0] * ErrGps[0] + gps[1] * ErrGps[1]; // N * N + E * E
@@ -703,8 +703,8 @@ bool GpsOFGC()
     float det = -gps[1]; // N * 0 - E * 1
     float GpsGC = ToDeg(atan2f(det, dot));
     GpsGC = (GpsGC > 0) ? 360 - GpsGC : abs(GpsGC);
-    std::vector<float> ErrGps{abs(sensors.currGps.Airspeed[0]) - abs(sensors.currGps.Hacc / (GPS_RATE / (float)1000)),
-                              abs(sensors.currGps.Airspeed[1]) + abs(sensors.currGps.Hacc / (GPS_RATE / (float)1000))};
+    std::vector<float> ErrGps{abs(sensors.currGps.Airspeed[0]) - abs(sensors.currGps.Hacc / (GPS_RATE / 1000.0f)),
+                              abs(sensors.currGps.Airspeed[1]) + abs(sensors.currGps.Hacc / (GPS_RATE / 1000.0f))};
     gps[0] = abs(gps[0]);
     gps[1] = abs(gps[1]);
     dot = gps[0] * ErrGps[0] + gps[1] * ErrGps[1]; // N * N + E * E
@@ -741,8 +741,8 @@ bool AccGpsGC()
     float dot = gps[0];  // N * 1 + E * 0
     float det = -gps[1]; // N * 0 - E * 1
     float GpsGC = atan2f(det, dot);
-    std::vector<float> ErrGps{abs(sensors.currGps.Airspeed[0]) - abs(sensors.currGps.Hacc / (GPS_RATE / (float)1000)),
-                              abs(sensors.currGps.Airspeed[1]) + abs(sensors.currGps.Hacc / (GPS_RATE / (float)1000))};
+    std::vector<float> ErrGps{abs(sensors.currGps.Airspeed[0]) - abs(sensors.currGps.Hacc / (GPS_RATE / 1000.0f)),
+                              abs(sensors.currGps.Airspeed[1]) + abs(sensors.currGps.Hacc / (GPS_RATE / 1000.0f))};
     gps[0] = abs(gps[0]);
     gps[1] = abs(gps[1]);
     dot = gps[0] * ErrGps[0] + gps[1] * ErrGps[1]; // N * N + E * E

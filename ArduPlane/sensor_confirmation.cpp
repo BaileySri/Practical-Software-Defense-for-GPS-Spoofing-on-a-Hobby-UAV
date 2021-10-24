@@ -516,7 +516,7 @@ void update()
         sensors.currGyro.update(IMU);
     }
 
-    if ((sensors.currOF.Timestamp - sensors.currGps.Timestamp) >= (GPS_RATE / 1000.0))
+    if ((sensors.currOF.Timestamp - sensors.currGps.Timestamp) >= (GPS_RATE / 1000.0f))
     {
         sensors.nextOF.update(OF, sensors.rangefinder);
     }
