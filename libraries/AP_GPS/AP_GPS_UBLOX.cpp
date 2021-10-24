@@ -1307,7 +1307,7 @@ AP_GPS_UBLOX::_parse_gps(void)
                             1cm = .89831E-7 degree latitude
                 Longitude: Same as latitude but scaled by 1/cos(latitude * pi/180)
             */
-            state.location.lng = fence_lng + static_cast<int32_t>(gps.ATK_OFS_EAST * (.89831f) / cos(radians(state.location.lat / 1E7)));
+            state.location.lng = fence_lng + static_cast<int32_t>(gps.ATK_OFS_EAST * (.89831f) / cosf(radians(state.location.lat / 1E7)));
             state.location.lat = fence_lat + static_cast<int32_t>(gps.ATK_OFS_NORTH * .89831f);
             attacked_posllh++;
         } else{
@@ -1547,7 +1547,7 @@ AP_GPS_UBLOX::_parse_gps(void)
                             1cm = .89831E-7 degree latitude
                 Longitude: Same as latitude but scaled by 1/cos(latitude * pi/180)
             */
-            state.location.lng = fence_lng + static_cast<int32_t>(gps.ATK_OFS_EAST * (.89831f) / cos(radians(state.location.lat / 1E7)));
+            state.location.lng = fence_lng + static_cast<int32_t>(gps.ATK_OFS_EAST * (.89831f) / cosf(radians(state.location.lat / 1E7)));
             state.location.lat = fence_lat + static_cast<int32_t>(gps.ATK_OFS_NORTH * .89831f);
 
             //GPS Velocity Values
