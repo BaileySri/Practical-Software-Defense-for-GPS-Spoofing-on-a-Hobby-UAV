@@ -224,21 +224,6 @@ public:
     friend class ModeTurtle;
 
     Copter(void);
-    //PADLOCK
-    // cm, last rangefinder reading from LowPassFilter
-    float getRangeFilt(void){
-        return rangefinder_state.alt_cm_filt.get();
-    };
-
-    // ms, Timestamp of last healthy rangefinder update
-    uint32_t getRangems(void){
-        return rangefinder_state.last_healthy_ms;
-    }
-
-    // cm, Altitude above home in cm from barometer
-    int32_t getBaroAlt(void){
-        return baro_alt;
-    }
 private:
 
     // key aircraft parameters passed to multiple libraries

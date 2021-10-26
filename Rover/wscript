@@ -28,6 +28,7 @@ def build(bld):
             'AR_Motors',
             'AP_Torqeedo',
             'AP_AIS',
+            'SensorConfirmation',
         ],
     )
 

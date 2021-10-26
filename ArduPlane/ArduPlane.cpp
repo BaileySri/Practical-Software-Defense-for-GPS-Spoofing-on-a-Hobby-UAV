@@ -183,7 +183,7 @@ void Plane::ahrs_update()
         logger.Write_SNSR(AP_Baro::get_singleton()->get_altitude());
     #endif
     if(g.confirmation == 1){
-        sensor_confirmation();
+        PDLK.confirmation();
     }
 }
 
