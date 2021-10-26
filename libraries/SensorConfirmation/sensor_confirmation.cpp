@@ -440,7 +440,7 @@ bool SensorConfirmation::AccGpsGC()
 // Confirm ground course based on Accelerometer and Optical Flow movement with Magnetometer for rotation
 bool SensorConfirmation::AccOFGC()
 {
-    if (std::abs(sensors.currAccel.Velocity[0] < sensors.currAccel.Error && std::abs(sensors.currAccel.Velocity[1]) < sensors.currAccel.Error))
+    if (std::abs(sensors.currAccel.Velocity[0]) < sensors.currAccel.Error && std::abs(sensors.currAccel.Velocity[1]) < sensors.currAccel.Error)
     {
         // Speed is below potential error, GpsAcc is unusable
         return true;
