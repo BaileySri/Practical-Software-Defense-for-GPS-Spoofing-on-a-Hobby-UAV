@@ -214,7 +214,7 @@ class SensorConfirmation{
             float RF_Vel;     //m/s, Velocity from rangefinder measurements
             float RF_Vel_Err; //m/s, Possible error in velocity
             float RangeErr;   //meters, Error in RF reading
-            LowPassFilterFloat alt_cm_filt;
+            LowPassFilterFloat rf_filt;
 
             void update()
             {
@@ -225,13 +225,13 @@ class SensorConfirmation{
                 {
                     // Assuming we want to use tilt compensation on rangefinder
                     const float tilt_correction = MAX(0.707f, AP_AHRS::get_singleton()->get_rotation_body_to_ned().c.z);
-                    float prevReading = alt_cm_filt.get();
+                    float prevReading = rf_filt.get();
                     tcReading = tilt_correction * newReading;
-                    alt_cm_filt.apply(tcReading, 0.05f);
-                    float curReading = alt_cm_filt.get();
+                    rf_filt.apply(tcReading, 0.05f);
+                    float curReading = rf_filt.get();
                     RF_Vel = (curReading - prevReading) / (dT / 1000);
-                    RF_Vel_Err = ((curReading >= 5 ? GT5_RF_ERR : LT5_RF_ERR) + RangeErr) / (dT / 1000);
-                    RangeErr = curReading >= 5 ? GT5_RF_ERR : LT5_RF_ERR;
+                    RF_Vel_Err = ((curReading >= 500 ? GT5_RF_ERR : LT5_RF_ERR) + RangeErr) / (dT / 1000);
+                    RangeErr = curReading >= 500 ? GT5_RF_ERR : LT5_RF_ERR;
                     Timestamp += dT;
                 }
             }
@@ -244,12 +244,13 @@ class SensorConfirmation{
                 //Important note, after every reset if time matters assign the old timestamp to the reset sensor
                 Timestamp = 0;
                 RangeErr = 0;
-                alt_cm_filt.reset();
-                alt_cm_filt.set_cutoff_frequency(0.5f);
+                rf_filt.reset();
+                rf_filt.set_cutoff_frequency(0.5f);
             }
         };
         struct OF
         {
+            LowPassFilterVector2f flow_filter; // LowPassFilter for flowrate
             Vector2f FlowRate;  // rad/s, this is the angular rate calculated by the camera, i.e., HereFlow
             Vector2f BodyRate;  // rad/s, in SITL this is the same as the gyroscope. Pitch Roll
             uint32_t Timestamp; // ms, Timestamp of last OF Update
@@ -265,15 +266,16 @@ class SensorConfirmation{
                 {
                     FlowRate = frontend->flowRate();
                     BodyRate = frontend->bodyRate();
+                    flow_filter.apply(FlowRate - BodyRate);
                     RateErr += OF_GYRO_ERR;
                     Timestamp += dT;
-                    VelBF = Vector3f{tanf(FlowRate[1] - BodyRate[1]) * (currRF.alt_cm_filt.get()), //m/s, Front
-                                    tanf(FlowRate[0] - BodyRate[0]) * (currRF.alt_cm_filt.get()), //m/s, Right
+                    VelBF = Vector3f{tanf(flow_filter.get()[1]) * (currRF.rf_filt.get()), //m/s, Front
+                                    tanf(flow_filter.get()[0]) * (currRF.rf_filt.get()), //m/s, Right
                                     currRF.RF_Vel};                                               //m/s, Down
                     VelNED = (AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned() * VelBF);   //Rotated BF to NED
 
-                    BF ErrBF = Vector3f{tanf((FlowRate[1] - BodyRate[1]) + RateErr + FLOW_ERR) * ((currRF.alt_cm_filt.get()) + currRF.RangeErr),
-                                        tanf((FlowRate[0] - BodyRate[0]) + RateErr + FLOW_ERR) * ((currRF.alt_cm_filt.get()) + currRF.RangeErr),
+                    BF ErrBF = Vector3f{tanf((flow_filter.get()[1]) + RateErr + FLOW_ERR) * ((currRF.rf_filt.get()) + currRF.RangeErr),
+                                        tanf((flow_filter.get()[0]) + RateErr + FLOW_ERR) * ((currRF.rf_filt.get()) + currRF.RangeErr),
                                         currRF.RF_Vel + currRF.RF_Vel_Err};
                     Err = (AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned() * abs(ErrBF - VelBF));
                     return true;
@@ -283,6 +285,10 @@ class SensorConfirmation{
 
             void reset(void)
             {
+                flow_filter.reset();
+                // Copter and Plane mainloop operate at 400Hz, assume that is standard here
+                // Refer to mode_flowhold.cpp for further information
+                flow_filter.set_cutoff_frequency(400, 5);
                 FlowRate.zero();
                 BodyRate.zero();
                 //Important note, after every reset if time matters assign the old timestamp to the reset sensor
@@ -295,6 +301,8 @@ class SensorConfirmation{
 
             OF &operator=(const OF &rhs)
             {
+                flow_filter.reset(rhs.flow_filter.get());
+                flow_filter.set_cutoff_frequency(rhs.flow_filter.get_cutoff_freq());
                 FlowRate = rhs.FlowRate;
                 BodyRate = rhs.BodyRate;
                 Timestamp = rhs.Timestamp;
