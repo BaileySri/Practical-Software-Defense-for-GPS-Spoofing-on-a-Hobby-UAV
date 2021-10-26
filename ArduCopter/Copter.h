@@ -1016,8 +1016,6 @@ public:
     //@@INVARIANTS
     int invariant_enabled = true;
     void copter_invariants_check(float, int);
-    //PADLOCK
-    void sensor_confirmation();
 };
 
 extern Copter copter;

@@ -280,7 +280,7 @@ void Copter::fast_loop()
 
     //PADLOCK
     if(g.confirmation == 1){
-        sensor_confirmation();
+        copter.PDLK.confirmation();
     }
     
     AP_Vehicle::fast_loop();

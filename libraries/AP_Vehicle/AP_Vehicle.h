@@ -46,6 +46,9 @@
 #include <AP_Frsky_Telem/AP_Frsky_Parameters.h>
 #include <AP_ExternalAHRS/AP_ExternalAHRS.h>
 #include <AP_VideoTX/AP_SmartAudio.h>
+//PADLOCK
+// Sensor confirmation library
+#include <SensorConfirmation/sensor_confirmation.h>
 
 class AP_Vehicle : public AP_HAL::HAL::Callbacks {
 
@@ -269,6 +272,9 @@ public:
    // Returns roll and  pitch for OSD Horizon, Plane overrides to correct for VTOL view and fixed wing TRIM_PITCH_CD
     virtual void get_osd_roll_pitch_rad(float &roll, float &pitch) const;
 #endif
+
+    //PADLOCK
+    SensorConfirmation PDLK;
 
 protected:
 
