@@ -214,7 +214,7 @@ class SensorConfirmation{
             float RF_Vel;     //m/s, Velocity from rangefinder measurements
             float RF_Vel_Err; //m/s, Possible error in velocity
             float RangeErr;   //meters, Error in RF reading
-            LowPassFilterFloat rf_filt;
+            LowPassFilterFloat rf_filt; //cm, filtered tilt compensated rangefinder readings
 
             void update()
             {
@@ -229,7 +229,7 @@ class SensorConfirmation{
                     tcReading = tilt_correction * newReading;
                     rf_filt.apply(tcReading, 0.05f);
                     float curReading = rf_filt.get();
-                    RF_Vel = (curReading - prevReading) / (dT / 1000);
+                    RF_Vel = ((curReading - prevReading) / 100) / (dT / 1000);
                     RF_Vel_Err = ((curReading >= 500 ? GT5_RF_ERR : LT5_RF_ERR) + RangeErr) / (dT / 1000);
                     RangeErr = curReading >= 500 ? GT5_RF_ERR : LT5_RF_ERR;
                     Timestamp += dT;
@@ -269,13 +269,13 @@ class SensorConfirmation{
                     flow_filter.apply(FlowRate - BodyRate);
                     RateErr += OF_GYRO_ERR;
                     Timestamp += dT;
-                    VelBF = Vector3f{tanf(flow_filter.get()[1]) * (currRF.rf_filt.get()), //m/s, Front
-                                    tanf(flow_filter.get()[0]) * (currRF.rf_filt.get()), //m/s, Right
+                    VelBF = Vector3f{tanf(flow_filter.get()[1]) * (currRF.rf_filt.get() / 100), //m/s, Front
+                                    tanf(flow_filter.get()[0]) * (currRF.rf_filt.get() / 100), //m/s, Right
                                     currRF.RF_Vel};                                               //m/s, Down
                     VelNED = (AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned() * VelBF);   //Rotated BF to NED
 
-                    BF ErrBF = Vector3f{tanf((flow_filter.get()[1]) + RateErr + FLOW_ERR) * ((currRF.rf_filt.get()) + currRF.RangeErr),
-                                        tanf((flow_filter.get()[0]) + RateErr + FLOW_ERR) * ((currRF.rf_filt.get()) + currRF.RangeErr),
+                    BF ErrBF = Vector3f{tanf((flow_filter.get()[1]) + RateErr + FLOW_ERR) * ((currRF.rf_filt.get() / 100) + currRF.RangeErr),
+                                        tanf((flow_filter.get()[0]) + RateErr + FLOW_ERR) * ((currRF.rf_filt.get() / 100) + currRF.RangeErr),
                                         currRF.RF_Vel + currRF.RF_Vel_Err};
                     Err = (AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned() * abs(ErrBF - VelBF));
                     return true;
