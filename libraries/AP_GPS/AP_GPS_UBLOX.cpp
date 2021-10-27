@@ -27,7 +27,8 @@
 #include <stdio.h>
 //PADLOCK
 // Needed for advanced attacker
-#include <AP_OpticalFlow/OpticalFlow_backend.h>
+#include <SensorConfirmation/sensor_confirmation.h>
+#include <AP_Vehicle/AP_Vehicle.h>
 
 
 #if CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_LINUX_NAVIO || \
@@ -900,6 +901,11 @@ AP_GPS_UBLOX::_parse_gps(void)
     //  Counter for passing frames
     static int32_t attacked_posllh = 0;
     static int32_t attacked_pvt = 0;
+    // Subtle Attack variables
+    const SensorConfirmation &PDLK = AP_Vehicle::get_singleton()->PDLK;
+    const float attack_limit = PDLK.calculate_limit() - 0.01; // Net difference in m/s
+    static const uint32_t attack_limit_delay = 5000000U; //5 seconds between notification
+    static uint32_t last_attack_msg = AP_HAL::micros64();
 
     if (_class == CLASS_ACK) {
         Debug("ACK %u", (unsigned)_msg_id);
@@ -1258,11 +1264,13 @@ AP_GPS_UBLOX::_parse_gps(void)
             break;
         }
         _check_new_itow(_buffer.posllh.itow);
+        //PADLOCK
+        // Need time for reverse attack_limit to meters
+        uint32_t dt = _buffer.posllh.itow - _last_pos_time;
         _last_pos_time        = _buffer.posllh.itow;
         state.location.lng    = _buffer.posllh.longitude;
         state.location.lat    = _buffer.posllh.latitude;
         state.location.alt    = _buffer.posllh.altitude_msl / 10;
-        //PADLOCK
         //  Save real location
         state.real_loc = state.location;
         //  Check if fence has been broken
@@ -1307,10 +1315,27 @@ AP_GPS_UBLOX::_parse_gps(void)
                             1cm = .89831E-7 degree latitude
                 Longitude: Same as latitude but scaled by 1/cos(latitude * pi/180)
             */
-            state.location.lng = fence_lng + static_cast<int32_t>(gps.ATK_OFS_EAST * (.89831f) / cosf(radians(state.location.lat / 1E7)));
-            state.location.lat = fence_lat + static_cast<int32_t>(gps.ATK_OFS_NORTH * .89831f);
+            uint32_t curTime = AP_HAL::micros64(); 
+            if(gps.ADV_ATK == 1 && attack_limit <= 0 && ((curTime - last_attack_msg) > attack_limit_delay)){
+                last_attack_msg = curTime;
+                gcs().send_text(MAV_SEVERITY_INFO, "PDLK: Attack Limit is 0");
+            }
+            if(gps.ADV_ATK == 1 && (attack_limit > 0)){
+                state.location.lng = fence_lng + static_cast<int32_t>((attack_limit * dt) * (.89831f) / cosf(radians(state.location.lat / 1E7)));
+                state.location.lat = fence_lat + static_cast<int32_t>(0 * .89831f);
+            } else if(gps.ADV_ATK == 0){
+                state.location.lng = fence_lng + static_cast<int32_t>(gps.ATK_OFS_EAST * (.89831f) / cosf(radians(state.location.lat / 1E7)));
+                state.location.lat = fence_lat + static_cast<int32_t>(gps.ATK_OFS_NORTH * .89831f);
+            }
             attacked_posllh++;
         } else{
+            if(gps.GPS_ATK == 1 && gps.ADV_ATK == 1){
+                if(attack_limit > 0){
+                    // During advanced attack we force confirmation to avoid streaks
+                    state.location.lng = fence_lng + static_cast<int32_t>((attack_limit * dt) * (.89831f) / cosf(radians(state.location.lat / 1E7)));
+                    state.location.lat = fence_lat + static_cast<int32_t>(0 * .89831f);
+                }
+            }
             attacked_posllh = 0;
         }
 #if UBLOX_FAKE_3DLOCK
@@ -1541,31 +1566,54 @@ AP_GPS_UBLOX::_parse_gps(void)
             #endif
         }
         if(gps.GPS_ATK == 1 && atk_started && !fenced && gps.FAILED_FRAMES != attacked_pvt){
+            if(dt == 0){
+                dt = 1;
+            }
+            // Overwrite latitude/longitude
             /*  Lat and Long are in E-7 format, cm accuracy
                 Latitude:  111.32km = 1 degree
                             111.32E5cm = 1 degree
                             1cm = .89831E-7 degree latitude
                 Longitude: Same as latitude but scaled by 1/cos(latitude * pi/180)
             */
-            state.location.lng = fence_lng + static_cast<int32_t>(gps.ATK_OFS_EAST * (.89831f) / cosf(radians(state.location.lat / 1E7)));
-            state.location.lat = fence_lat + static_cast<int32_t>(gps.ATK_OFS_NORTH * .89831f);
-
-            //GPS Velocity Values
-            //Ground Speed and Velocities
-            if(dt == 0){
-                dt = 1;
+            uint32_t curTime = AP_HAL::micros64(); 
+            if(gps.ADV_ATK == 1 && attack_limit <= 0 && ((curTime - last_attack_msg) > attack_limit_delay)){
+                last_attack_msg = curTime;
+                gcs().send_text(MAV_SEVERITY_INFO, "PDLK: Attack Limit is 0");
             }
+            if(gps.ADV_ATK == 1 && (attack_limit > 0)){
+                state.location.lng = fence_lng + static_cast<int32_t>((attack_limit * dt) * (.89831f) / cosf(radians(state.location.lat / 1E7)));
+                state.location.lat = fence_lat + static_cast<int32_t>(0 * .89831f);
                 //North Velocity
-            state.velocity.x = (gps.ATK_OFS_NORTH / 1e2 ) / dt; 
+                state.velocity.x = 0; 
                 //East Velocity
-            state.velocity.y = (gps.ATK_OFS_EAST / 1e2) / dt;
+                state.velocity.y = attack_limit;
                 //Ground Speed
-            state.ground_speed = norm(gps.ATK_OFS_NORTH / 1e2, gps.ATK_OFS_EAST / 1e2) / dt;
+                state.ground_speed = attack_limit;
                 //Ground Course
-            state.ground_course = wrap_360(degrees(atan2f(state.velocity.y, state.velocity.x)));
-                attacked_pvt++;
-            } else{
-                attacked_pvt = 0;
+                state.ground_course = wrap_360(degrees(atan2f(state.velocity.y, state.velocity.x)));
+            } else if(gps.ADV_ATK == 0){
+                state.location.lng = fence_lng + static_cast<int32_t>(gps.ATK_OFS_EAST * (.89831f) / cosf(radians(state.location.lat / 1E7)));
+                state.location.lat = fence_lat + static_cast<int32_t>(gps.ATK_OFS_NORTH * .89831f);
+                //North Velocity
+                state.velocity.x = (gps.ATK_OFS_NORTH / 1e2 ) / dt; 
+                //East Velocity
+                state.velocity.y = (gps.ATK_OFS_EAST / 1e2) / dt;
+                //Ground Speed
+                state.ground_speed = norm(gps.ATK_OFS_NORTH / 1e2, gps.ATK_OFS_EAST / 1e2) / dt;
+                //Ground Course
+                state.ground_course = wrap_360(degrees(atan2f(state.velocity.y, state.velocity.x)));
+            }
+            attacked_pvt++;
+        } else{
+            if(gps.GPS_ATK == 1 && gps.ADV_ATK == 1){
+                if(attack_limit > 0){
+                    // During advanced attack we force confirmation to avoid streaks
+                    state.location.lng = fence_lng + static_cast<int32_t>((attack_limit * dt) * (.89831f) / cosf(radians(state.location.lat / 1E7)));
+                    state.location.lat = fence_lat + static_cast<int32_t>(0 * .89831f);
+                }
+            }
+            attacked_pvt = 0;
         }
 
         // dop

@@ -439,6 +439,14 @@ const AP_Param::GroupInfo AP_GPS::var_info[] = {
     // @User: Advanced
     AP_GROUPINFO("_PDLK_FAIL", 38, AP_GPS, FAILED_FRAMES, 0),
 
+    //var_info declarations for GPS
+    // @Param: PDLK_ADV_ATK
+    // @DisplayName: GPS Advanced Sensor Attack
+    // @Description: Enable/Disable the advanced attacker mode of sensor spoofing, requires PDLK_ATK == 1
+    // @Values: 0:Disable, 1:Enable
+    // @User: Advanced
+    AP_GROUPINFO("_PDLK_ADV_ATK", 39, AP_GPS, ADV_ATK, 0),
+
     AP_GROUPEND
 };
 

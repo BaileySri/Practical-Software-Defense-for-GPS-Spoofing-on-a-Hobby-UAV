@@ -31,10 +31,11 @@ class SensorConfirmation{
         {}
         ~SensorConfirmation()
         {}
+        
         //Setup delays
         uint32_t DELAY = 45000000U;       // Start-Up delay to allow sensors to settle
         uint32_t BIAS_DELAY = 30000000U;  // Delay after Start-Up to allow biasing (30 seconds)
-        
+
         //----typedef----//
         typedef Vector3f NED;
         typedef Vector3f BF;
@@ -360,6 +361,7 @@ class SensorConfirmation{
         void alert();
         void debug();
         void confirmation();
+        float calculate_limit() const;
 
         //----Confirmation Functions----//
         // Confirm change in velocity of GPS and Accelerometer

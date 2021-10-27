@@ -175,27 +175,12 @@ bool SensorConfirmation::run()
                                                 sensors.nextAccel.Error,
                                                 ToDeg(sensors.currGyro.Error * (sensors.currGyro.TimeContained / (float)1000000)));
 
-        // if (!AccGPS())
-        // {
-        //     gcs().send_text(MAV_SEVERITY_WARNING, "AccGPS Failed.");
-        // }
-        // if (!GpsMagGC())
-        // {
-        //     gcs().send_text(MAV_SEVERITY_WARNING, "GpsMag Failed.");
-        // }
-        // if(!GpsOF())
-        // {
-        //     gcs().send_text(MAV_SEVERITY_WARNING, "GpsOF Failed.");
-        // }
-        // if (!GpsOFGC())
-        // {
-        //     gcs().send_text(MAV_SEVERITY_WARNING, "GpsOFGC Failed.");
-        // }
-        // if (!confirmAlt())
-        // {
-        //     gcs().send_text(MAV_SEVERITY_WARNING, "Altitude outside of error ranges.");
-        // }
-
+        // GPS Confirmations
+        AccGPS();
+        //GpsMagGC();
+        GpsOF();
+        //GpsOFGC();
+        
         //Switch to next IMU data
         sensors.currAccel = sensors.nextAccel;
         sensors.nextAccel.reset();
@@ -305,6 +290,23 @@ void SensorConfirmation::confirmation()
     }
 }
 
+float SensorConfirmation::calculate_limit() const
+{
+    float ret = 0;
+    float currGps = sensors.currGps.Airspeed.length();
+    float currAccel = sensors.currAccel.Velocity.length();
+    float currOF = sensors.currOF.VelBF.length();
+    //AccGPS limit, currGps is still technically the previous update
+    ret = MAX(0.0F, 2*(sensors.currGps.Hacc / 0.2F) + sensors.currAccel.Error - std::abs(currAccel - currGps));
+
+    //GpsOF limit
+    ret = MIN(ret, (sensors.currGps.Hacc / 0.2F) + sensors.currOF.Err.length() - std::abs(currOF - currGps));
+
+    //Disallow returning a negative
+    ret = MAX(0.0F, ret);
+
+    return ret;
+}
 //----Confirmation Functions----//
 
 // Confirm change in velocity of GPS and Accelerometer
@@ -312,7 +314,7 @@ bool SensorConfirmation::AccGPS()
 {
     float dAccVel = sensors.currAccel.Velocity.length();
     Vector3f dGpsVel = sensors.currGps.Airspeed - sensors.prevGps.Airspeed;
-    return (confirm(dAccVel, sensors.currAccel.Error, dGpsVel.length(), sensors.currGps.Sacc + sensors.prevGps.Sacc, false));
+    return (confirm(dAccVel, sensors.currAccel.Error, dGpsVel.length(), (sensors.currGps.Hacc + sensors.prevGps.Hacc)/0.2F, false));
 }
 
 // Confirm change in velocity of Accelerometer and OF
@@ -326,7 +328,7 @@ bool SensorConfirmation::AccOF()
 // Confirm velocity of GPS and Optical Flow Sensor
 bool SensorConfirmation::GpsOF()
 {
-    return (confirm(sensors.currOF.VelNED.length(), sensors.currOF.Err.length(), sensors.currGps.Airspeed.length(), sensors.currGps.Sacc, false));
+    return (confirm(sensors.currOF.VelNED.length(), sensors.currOF.Err.length(), sensors.currGps.Airspeed.length(), sensors.currGps.Hacc/0.2F, false));
 }
 
 // Confirm ground course based on GPS movement and Magnetometer heading
