@@ -480,7 +480,7 @@ class AutoTestCopter(AutoTest):
         self.progress("Auto mission completed: passed!")
         
     #PADLOCK
-    # This acts as the subtle attack as well as the attack during flight
+    # This is our attack during idling, an aspect of Copters only
     def fly_auto_idle(self, timeout=360):
 
         self.progress("Setting sensor parameters")        
@@ -514,6 +514,53 @@ class AutoTestCopter(AutoTest):
         Attack_Delay = 60
         self.set_parameter("GPS_PDLK_E", 250)
         self.set_parameter("GPS_PDLK_N", 0)
+        self.set_parameter("GPS_PDLK_ATK", 1)
+        self.delay_sim_time(Attack_Delay)
+
+        # Disable and land
+        self.set_parameter("GPS_PDLK_ATK", 0)
+        self.change_mode("LAND")
+        # wait for disarm
+        self.wait_disarmed()
+        self.progress("Landed and Disarmed")
+
+        self.progress("Auto mission completed: passed!")
+
+    #PADLOCK
+    # Stealthy attack utilizing our advanced attacker parameter
+    def fly_auto_stealth(self, timeout=360):
+
+        self.progress("Setting sensor parameters")        
+        # Set sensor parameters
+        #self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
+        self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
+        self.set_parameter("SIM_PDLK_GPS_SPD", 50) #mm/s
+        self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
+        self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
+        self.set_parameter("PDLK_CHOI_CI", 0)
+
+        #Set Optical Flow
+        self.set_parameter("SIM_FLOW_ENABLE", 1)
+        self.set_parameter("FLOW_TYPE", 10)
+        self.set_analog_rangefinder_parameters()
+        self.reboot_sitl()
+
+        #Enable Sensor Confirmation for CNF Logging
+        self.set_parameter("PDLK_SNSR_CONF", 1)
+        # Set flight speed, cm/s
+        self.set_parameter("WPNAV_SPEED", 1000)
+        #Delay for bias
+        self.delay_sim_time(135)
+
+        self.takeoff(25)
+        self.change_mode("GUIDED")
+        self.delay_sim_time(5)
+
+	    # Using advanced attack parameters so attack strength doesn't matter
+        Attack_Delay = 60
+        self.set_parameter("GPS_PDLK_ADV_ATK", 1)
+        # No alternating frames, always attack
+        self.set_parameter("GPS_PDLK_FAIL", -1)
         self.set_parameter("GPS_PDLK_ATK", 1)
         self.delay_sim_time(Attack_Delay)
 
@@ -7951,25 +7998,30 @@ class AutoTestCopter(AutoTest):
              "Fly a square mission to collect data",
              self.fly_auto_square),
              
-             #PADLOCK
-             ("AutoCircle",
-             "Fly a circle mission for data",
-             self.fly_auto_circle),
-             
-             #PADLOCK
-             ("AutoWave",
-             "Fly a straight path with varied altitude for data",
-             self.fly_auto_wave),
-             
-             #PADLOCK
-             ("AutoMotion",
-             "Fly in auto then perform an attack",
-             self.fly_auto_motion),
-             
-             #PADLOCK
-             ("AutoIdle",
-             "Raise altitude in guided mode, then attack",
-             self.fly_auto_idle),
+            #PADLOCK
+            ("AutoCircle",
+            "Fly a circle mission for data",
+            self.fly_auto_circle),
+            
+            #PADLOCK
+            ("AutoWave",
+            "Fly a straight path with varied altitude for data",
+            self.fly_auto_wave),
+            
+            #PADLOCK
+            ("AutoMotion",
+            "Fly in auto then perform an attack",
+            self.fly_auto_motion),
+            
+            #PADLOCK
+            ("AutoIdle",
+            "Raise altitude in guided mode, then attack",
+            self.fly_auto_idle),
+
+            #PADLOCK
+            ("AutoStealth",
+            "Always attack under threshold",
+            self.fly_auto_stealth),
 
             ("SplineLastWaypoint",
              "Test Spline as last waypoint",
