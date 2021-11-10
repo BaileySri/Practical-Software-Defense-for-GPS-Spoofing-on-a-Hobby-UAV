@@ -1,4 +1,4 @@
-#include "./sensor_confirmation.h"
+#include <SensorConfirmation/sensor_confirmation.h>
 
 //----   Helper Functions  ----//
 bool SensorConfirmation::confirm(const float a, const float a_err, const float b, const float b_err, bool wrap)
@@ -289,8 +289,8 @@ void SensorConfirmation::confirmation()
         }
     }
 }
-
-float SensorConfirmation::calculate_limit() const
+//----Reactive Attacker----//
+float SensorConfirmation::NetGpsLimit() const
 {
     float ret = 0;
     float currGps = sensors.currGps.Airspeed.length();
@@ -306,6 +306,168 @@ float SensorConfirmation::calculate_limit() const
     ret = MAX(0.0F, ret);
 
     return ret;
+}
+
+float SensorConfirmation::NetOFLimit() const
+{
+    float ret = 0;
+    float currGps = sensors.currGps.Airspeed.length();
+    float currAccel = sensors.currAccel.Velocity.length();
+    float currOF = sensors.currOF.VelBF.length();
+    //AccOF limit, Assuming that OF and Acc error is generally constant
+    ret = MAX(0.0F, sensors.currOF.Err.length() + sensors.currAccel.Error - std::abs(currAccel - currOF));
+
+    //GpsOF limit
+    ret = MIN(ret, (sensors.currGps.Hacc / 0.2F) + sensors.currOF.Err.length() - std::abs(currGps - currOF));
+
+    //Disallow returning a negative
+    ret = MAX(0.0F, ret);
+
+    //Convert ret velocity into flow rate
+    ret = atanf(ret / (sensors.rangefinder.rf_filt.get() / 100)) ;
+    return ret;   
+}
+
+float SensorConfirmation::GCGpsLimit(const int mode) const
+{
+    // Allowed Ground Course
+    float GC = 0;
+
+    switch(mode){
+        case 1: //Acc
+        {
+            //Accelerometer and Accelerometer Error
+            std::vector<float> Acc{sensors.currAccel.Velocity[0], sensors.currAccel.Velocity[1]};
+            float dot = Acc[0];
+            float det = -Acc[1];
+            float AccGC = atan2f(det, dot);
+            Acc[0] = std::abs(Acc[0]);
+            Acc[1] = std::abs(Acc[1]);
+            dot = Acc[0] * std::abs(sensors.currAccel.Error) + Acc[1] * std::abs(sensors.currAccel.Error); // N * N + E * E
+            det = Acc[0] * std::abs(sensors.currAccel.Error) - Acc[1] * std::abs(sensors.currAccel.Error); // N * E - E * N
+            float ErrAccGC = ToDeg(atan2f(det, dot));
+
+            GC = AccGC - ErrAccGC;
+            break;
+        }
+        case 2: //OF
+        {
+            //Optical Flow and Optical Flow Error
+            std::vector<float> mOF{sensors.currOF.VelNED[0], sensors.currOF.VelNED[1]};
+            float dot = mOF[0];
+            float det = -mOF[1];
+            float OFGC = ToDeg(atan2f(det, dot));
+            OFGC = (OFGC > 0) ? 360 - OFGC : std::abs(OFGC);
+            mOF[0] = std::abs(mOF[0]);
+            mOF[1] = std::abs(mOF[1]);
+            dot = mOF[0] * std::abs(sensors.currOF.Err[0]) + mOF[1] * std::abs(sensors.currOF.Err[1]); // N * N + E * E
+            det = mOF[0] * std::abs(sensors.currOF.Err[1]) - mOF[1] * std::abs(sensors.currOF.Err[0]); // N * E - E * N
+            float ErrOFGC = std::abs(ToDeg(atan2f(det, dot)));
+
+            GC = OFGC - ErrOFGC;
+            break;
+        }
+        case 3: //Mag
+        {
+            //Magnetometer with Gyro Error
+            const Matrix3f dcm = AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned();
+            float MagGC = ToDeg(atan2f(dcm.b[0], dcm.a[0]));
+            if (MagGC < 0)
+                MagGC += 360;
+            float ErrMagGC = ToDeg(sensors.currGyro.Error * (sensors.currGyro.TimeContained / (float)1000000));
+
+            GC = MagGC - ErrMagGC;
+            break;
+        }
+        /*
+        case 4: //Acc/OF
+        {
+            //Accelerometer and Accelerometer Error
+            std::vector<float> Acc{sensors.currAccel.Velocity[0], sensors.currAccel.Velocity[1]};
+            float dot = Acc[0];
+            float det = -Acc[1];
+            float AccGC = atan2f(det, dot);
+            Acc[0] = std::abs(Acc[0]);
+            Acc[1] = std::abs(Acc[1]);
+            dot = Acc[0] * std::abs(sensors.currAccel.Error) + Acc[1] * std::abs(sensors.currAccel.Error); // N * N + E * E
+            det = Acc[0] * std::abs(sensors.currAccel.Error) - Acc[1] * std::abs(sensors.currAccel.Error); // N * E - E * N
+            float ErrAccGC = ToDeg(atan2f(det, dot));
+
+            //Optical Flow and Optical Flow Error
+            std::vector<float> mOF{sensors.currOF.VelNED[0], sensors.currOF.VelNED[1]};
+            dot = mOF[0];
+            det = -mOF[1];
+            float OFGC = ToDeg(atan2f(det, dot));
+            OFGC = (OFGC > 0) ? 360 - OFGC : std::abs(OFGC);
+            mOF[0] = std::abs(mOF[0]);
+            mOF[1] = std::abs(mOF[1]);
+            dot = mOF[0] * std::abs(sensors.currOF.Err[0]) + mOF[1] * std::abs(sensors.currOF.Err[1]); // N * N + E * E
+            det = mOF[0] * std::abs(sensors.currOF.Err[1]) - mOF[1] * std::abs(sensors.currOF.Err[0]); // N * E - E * N
+            float ErrOFGC = std::abs(ToDeg(atan2f(det, dot)));
+
+            //TODO
+        }
+        case 5: //Acc/Mag
+        {
+            //Accelerometer and Accelerometer Error
+            std::vector<float> Acc{sensors.currAccel.Velocity[0], sensors.currAccel.Velocity[1]};
+            float dot = Acc[0];
+            float det = -Acc[1];
+            float AccGC = atan2f(det, dot);
+            Acc[0] = std::abs(Acc[0]);
+            Acc[1] = std::abs(Acc[1]);
+            dot = Acc[0] * std::abs(sensors.currAccel.Error) + Acc[1] * std::abs(sensors.currAccel.Error); // N * N + E * E
+            det = Acc[0] * std::abs(sensors.currAccel.Error) - Acc[1] * std::abs(sensors.currAccel.Error); // N * E - E * N
+            float ErrAccGC = ToDeg(atan2f(det, dot));
+
+            //Magnetometer with Gyro Error
+            const Matrix3f dcm = AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned();
+            float MagGC = ToDeg(atan2f(dcm.b[0], dcm.a[0]));
+            if (MagGC < 0)
+                MagGC += 360;
+            float ErrMagGC = ToDeg(sensors.currGyro.Error * (sensors.currGyro.TimeContained / (float)1000000));
+        
+            //TODO
+        }
+        case 6: //OF/Mag
+        {
+            //Optical Flow and Optical Flow Error
+            std::vector<float> mOF{sensors.currOF.VelNED[0], sensors.currOF.VelNED[1]};
+            float dot = mOF[0];
+            float det = -mOF[1];
+            float OFGC = ToDeg(atan2f(det, dot));
+            OFGC = (OFGC > 0) ? 360 - OFGC : std::abs(OFGC);
+            mOF[0] = std::abs(mOF[0]);
+            mOF[1] = std::abs(mOF[1]);
+            dot = mOF[0] * std::abs(sensors.currOF.Err[0]) + mOF[1] * std::abs(sensors.currOF.Err[1]); // N * N + E * E
+            det = mOF[0] * std::abs(sensors.currOF.Err[1]) - mOF[1] * std::abs(sensors.currOF.Err[0]); // N * E - E * N
+            float ErrOFGC = std::abs(ToDeg(atan2f(det, dot)));
+
+            //Magnetometer with Gyro Error
+            const Matrix3f dcm = AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned();
+            float MagGC = ToDeg(atan2f(dcm.b[0], dcm.a[0]));
+            if (MagGC < 0)
+                MagGC += 360;
+            float ErrMagGC = ToDeg(sensors.currGyro.Error * (sensors.currGyro.TimeContained / (float)1000000));
+        
+            //TODO
+        }
+        */
+        default:
+            // Just return -1 if no mode is provided
+            return(-1);
+    }
+
+    //GPS and GPS Error
+    std::vector<float> gps{sensors.currGps.Airspeed[0], sensors.currGps.Airspeed[1]};
+    float dot = gps[0];  // N * 1 + E * 0
+    float det = -gps[1]; // N * 0 - E * 1
+    float GpsGC = ToDeg(atan2f(det, dot));
+    GpsGC = (GpsGC > 0) ? 360 - GpsGC : std::abs(GpsGC);
+    float ret = tanf(GC);
+
+    //TODO
+    return(ret);
 }
 //----Confirmation Functions----//
 
@@ -392,7 +554,7 @@ bool SensorConfirmation::GpsOFGC()
     dot = mOF[0];
     det = -mOF[1];
     float OFGC = ToDeg(atan2f(det, dot));
-    OFGC = (GpsGC > 0) ? 360 - OFGC : std::abs(OFGC);
+    OFGC = (OFGC > 0) ? 360 - OFGC : std::abs(OFGC);
     mOF[0] = std::abs(mOF[0]);
     mOF[1] = std::abs(mOF[1]);
     dot = mOF[0] * std::abs(sensors.currOF.Err[0]) + mOF[1] * std::abs(sensors.currOF.Err[1]); // N * N + E * E

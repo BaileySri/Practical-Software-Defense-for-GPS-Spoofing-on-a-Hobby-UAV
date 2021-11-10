@@ -903,7 +903,7 @@ AP_GPS_UBLOX::_parse_gps(void)
     static int32_t attacked_pvt = 0;
     // Subtle Attack variables
     const SensorConfirmation &PDLK = AP_Vehicle::get_singleton()->PDLK;
-    const float attack_limit = PDLK.calculate_limit() - 0.01; // Net difference in m/s
+    const float attack_limit = PDLK.NetGpsLimit() - 0.01; // Net difference in m/s
     static const uint32_t attack_limit_delay = 5000000U; //5 seconds between notification
     static uint32_t last_attack_msg = AP_HAL::micros64();
 

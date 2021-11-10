@@ -461,6 +461,7 @@ class AutoTestCopter(AutoTest):
         self.progress("Taking off")
         self.takeoff(10)
         self.set_rc(3, 1500)
+        # Calculated from Rotational Velocity -> Centripetal Acceleration
         self.set_parameter("WPNAV_ACCEL",340)
         self.set_parameter("CIRCLE_RATE", 19)
         self.set_parameter("CIRCLE_RADIUS", 3000)

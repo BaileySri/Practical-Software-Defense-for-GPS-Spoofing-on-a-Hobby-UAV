@@ -113,6 +113,13 @@ const AP_Param::GroupInfo OpticalFlow::var_info[] = {
     // @User: Advanced
     AP_GROUPINFO("_PDLK_ATK", 8,  OpticalFlow, _pdlk_attack_enable,   0),
 
+    // @Param: _PDLK_ADV_ATK
+    // @DisplayName: Enable Reactive Attacker for OF
+    // @Description: Enable or Disable Reactive Attacker for OF.
+    // @Values: 0:Disabled 1:Enabled Other:Disabled
+    // @User: Advanced
+    AP_GROUPINFO("_PDLK_ADV_ATK", 9,  OpticalFlow, _pdlk_adv_atk,   0),
+    
     AP_GROUPEND
 };
 

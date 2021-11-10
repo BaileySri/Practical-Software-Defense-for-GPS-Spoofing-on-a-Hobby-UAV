@@ -49,7 +49,7 @@ class SensorConfirmation{
         {
             NED Readings;       //m/s/s, Accelerometer readings rotated to NED
             NED Velocity;       //m/s
-            float Error;        //m/s
+            float Error;        //m/s, RMS
             uint32_t Timestamp; //us
 
             bool update(const AP_InertialSensor *frontend, NED bias)
@@ -361,7 +361,18 @@ class SensorConfirmation{
         void alert();
         void debug();
         void confirmation();
-        float calculate_limit() const;
+        // The max velocity allowed before confirmation fails
+        float NetGpsLimit() const;
+        // The max flowrate with bodyrate allowed before confirmation fails
+        float NetOFLimit() const;
+        // Depending on selected mode return the limited GPS value
+        //  1: Acc
+        //  2: OF
+        //  3: Mag 
+        //  4: Acc/OF
+        //  5: Acc/Mag
+        //  6: OF/Mag
+        float GCGpsLimit(const int mode) const;
 
         //----Confirmation Functions----//
         // Confirm change in velocity of GPS and Accelerometer
