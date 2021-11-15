@@ -75,6 +75,10 @@ Vector3f SensorConfirmation::abs(const Vector3f &x)
 {
     return Vector3f{std::abs(x.x), std::abs(x.y), std::abs(x.z)};
 };
+Vector2f SensorConfirmation::abs(const Vector2f &x)
+{
+    return Vector2f{std::abs(x.x), std::abs(x.y)};
+};
 
 //----General Functions----//
 
@@ -94,12 +98,6 @@ void SensorConfirmation::initialize()
     //Zero framework readings
     framework.gpsAvail = false;
     framework.init = true;
-
-    //Set bias
-    bias.AccBias.zero();
-    bias.biased = false;
-    bias.count = 0;
-    bias.Timestamp = AP_HAL::micros64();
 }
 
 void SensorConfirmation::update()
@@ -117,11 +115,11 @@ void SensorConfirmation::update()
     if (framework.ofAvail)
     {
         sensors.nOFAccel.Timestamp = sensors.cOFAccel.Timestamp;
-        sensors.nOFAccel.update(IMU, bias.AccBias);
+        sensors.nOFAccel.update(IMU);
     }
     else
     {
-        sensors.cOFAccel.update(IMU, bias.AccBias);
+        sensors.cOFAccel.update(IMU);
     }
 
     //---GPS---//
@@ -135,12 +133,12 @@ void SensorConfirmation::update()
 
     if ((signed)((IMU->get_last_update_usec() / (float)1000) - sensors.currGps.Timestamp) >= GPS_RATE)
     {
-        sensors.nextAccel.update(IMU, bias.AccBias);
+        sensors.nextAccel.update(IMU);
         sensors.nextGyro.update(IMU);
     }
     else
     {
-        sensors.currAccel.update(IMU, bias.AccBias);
+        sensors.currAccel.update(IMU);
         sensors.currGyro.update(IMU);
     }
 
@@ -161,9 +159,9 @@ bool SensorConfirmation::run()
     #if CONFIG_HAL_BOARD == HAL_BOARD_SITL && 0
         debug();
     #endif
-        AP_Logger::get_singleton()->Write_CNFR(sensors.prevOF.VelNED,
+        AP_Logger::get_singleton()->Write_CNFR(sensors.prevOF.VelNE,
                                                 sensors.prevOF.Err,
-                                                sensors.currOF.VelNED,
+                                                sensors.currOF.VelNE,
                                                 sensors.currOF.Err,
                                                 sensors.prevGps.Airspeed,
                                                 sensors.prevGps.Hacc,
@@ -199,9 +197,9 @@ bool SensorConfirmation::run()
     }
     if (framework.ofAvail)
     {
-        AP_Logger::get_singleton()->Write_ACO(sensors.pOF.VelNED,
+        AP_Logger::get_singleton()->Write_ACO(sensors.pOF.VelNE,
                                                 sensors.pOF.Err,
-                                                sensors.cOF.VelNED,
+                                                sensors.cOF.VelNE,
                                                 sensors.cOF.Err,
                                                 sensors.cOFAccel.Velocity,
                                                 sensors.cOFAccel.Error);
@@ -248,45 +246,20 @@ void SensorConfirmation::debug()
 
 void SensorConfirmation::confirmation()
 {
-    const uint32_t time = AP_HAL::micros64();
     //Initialize struct data
     if (!framework.init)
     {
-        gcs().send_text(MAV_SEVERITY_INFO, "PDLK: Initializing...");
         initialize();
-        BIAS_DELAY += time + DELAY;
-        DELAY += time;
     }
-    if (time >= DELAY)
-    {
-        if (!bias.biased && time < BIAS_DELAY)
-        {
-            //Can't bias rangefinder on the ground, nonlinearity when below 1m reading
-            gcs().send_text(MAV_SEVERITY_INFO, "PDLK: Biasing...");
-            const AP_InertialSensor *IMU = AP_InertialSensor::get_singleton();
-            bias.AccBias += IMU->get_accel() * AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned();
-            bias.count++;
-        }
-        else if (!bias.biased)
-        {
-            bias.AccBias /= bias.count;
-            bias.biased = true;
-            gcs().send_text(MAV_SEVERITY_INFO, "Sensors have been biased.");
-            gcs().send_text(MAV_SEVERITY_INFO, "Acc (F/R/D): (%f/%f/%f)", bias.AccBias[0], bias.AccBias[1], bias.AccBias[2]);
-            sensors.currAccel.Timestamp = AP_HAL::micros64();
-        }
-        else
-        {
-            //Update sensor values
-            update();
 
-            //If run returns False, Recover
-            //If run returns True, Nothing
-            if (!run())
-            {
-                alert();
-            }
-        }
+    //Update sensor values
+    update();
+
+    //If run returns False, Recover
+    //If run returns True, Nothing
+    if (!run())
+    {
+        alert();
     }
 }
 //----Reactive Attacker----//
@@ -294,13 +267,15 @@ float SensorConfirmation::NetGpsLimit() const
 {
     float ret = 0;
     float currGps = sensors.currGps.Airspeed.length();
+    float currGpsNE = Vector2f{sensors.currGps.Airspeed.x,
+                               sensors.currGps.Airspeed.y}.length();
     float currAccel = sensors.currAccel.Velocity.length();
-    float currOF = sensors.currOF.VelBF.length();
+    float currOF = sensors.currOF.VelNE.length();
     //AccGPS limit, currGps is still technically the previous update
     ret = MAX(0.0F, 2*(sensors.currGps.Hacc / 0.2F) + sensors.currAccel.Error - std::abs(currAccel - currGps));
 
     //GpsOF limit
-    ret = MIN(ret, (sensors.currGps.Hacc / 0.2F) + sensors.currOF.Err.length() - std::abs(currOF - currGps));
+    ret = MIN(ret, (sensors.currGps.Hacc / 0.2F) + sensors.currOF.Err.length() - std::abs(currOF - currGpsNE));
 
     //Disallow returning a negative
     ret = MAX(0.0F, ret);
@@ -311,14 +286,17 @@ float SensorConfirmation::NetGpsLimit() const
 float SensorConfirmation::NetOFLimit() const
 {
     float ret = 0;
-    float currGps = sensors.currGps.Airspeed.length();
-    float currAccel = sensors.currAccel.Velocity.length();
-    float currOF = sensors.currOF.VelBF.length();
+    float currGpsNE = Vector2f{sensors.currGps.Airspeed.x,
+                               sensors.currGps.Airspeed.y}.length();
+    float currAccelNE = Vector2f{sensors.cOFAccel.Velocity.x,
+                                 sensors.cOFAccel.Velocity.y}.length();
+    float cOF = sensors.cOF.VelNE.length();
+    float currOF = sensors.currOF.VelNE.length();
     //AccOF limit, Assuming that OF and Acc error is generally constant
-    ret = MAX(0.0F, sensors.currOF.Err.length() + sensors.currAccel.Error - std::abs(currAccel - currOF));
+    ret = MAX(0.0F, sensors.cOF.Err.length() + (sensors.cOFAccel.Error * 1.414/1.73) - std::abs(currAccelNE - cOF));
 
     //GpsOF limit
-    ret = MIN(ret, (sensors.currGps.Hacc / 0.2F) + sensors.currOF.Err.length() - std::abs(currGps - currOF));
+    ret = MIN(ret, (sensors.currGps.Hacc / 0.2F) + sensors.cOF.Err.length() - std::abs(currGpsNE - currOF));
 
     //Disallow returning a negative
     ret = MAX(0.0F, ret);
@@ -328,169 +306,29 @@ float SensorConfirmation::NetOFLimit() const
     return ret;   
 }
 
-float SensorConfirmation::GCGpsLimit(const int mode) const
-{
-    // Allowed Ground Course
-    float GC = 0;
-
-    switch(mode){
-        case 1: //Acc
-        {
-            //Accelerometer and Accelerometer Error
-            std::vector<float> Acc{sensors.currAccel.Velocity[0], sensors.currAccel.Velocity[1]};
-            float dot = Acc[0];
-            float det = -Acc[1];
-            float AccGC = atan2f(det, dot);
-            Acc[0] = std::abs(Acc[0]);
-            Acc[1] = std::abs(Acc[1]);
-            dot = Acc[0] * std::abs(sensors.currAccel.Error) + Acc[1] * std::abs(sensors.currAccel.Error); // N * N + E * E
-            det = Acc[0] * std::abs(sensors.currAccel.Error) - Acc[1] * std::abs(sensors.currAccel.Error); // N * E - E * N
-            float ErrAccGC = ToDeg(atan2f(det, dot));
-
-            GC = AccGC - ErrAccGC;
-            break;
-        }
-        case 2: //OF
-        {
-            //Optical Flow and Optical Flow Error
-            std::vector<float> mOF{sensors.currOF.VelNED[0], sensors.currOF.VelNED[1]};
-            float dot = mOF[0];
-            float det = -mOF[1];
-            float OFGC = ToDeg(atan2f(det, dot));
-            OFGC = (OFGC > 0) ? 360 - OFGC : std::abs(OFGC);
-            mOF[0] = std::abs(mOF[0]);
-            mOF[1] = std::abs(mOF[1]);
-            dot = mOF[0] * std::abs(sensors.currOF.Err[0]) + mOF[1] * std::abs(sensors.currOF.Err[1]); // N * N + E * E
-            det = mOF[0] * std::abs(sensors.currOF.Err[1]) - mOF[1] * std::abs(sensors.currOF.Err[0]); // N * E - E * N
-            float ErrOFGC = std::abs(ToDeg(atan2f(det, dot)));
-
-            GC = OFGC - ErrOFGC;
-            break;
-        }
-        case 3: //Mag
-        {
-            //Magnetometer with Gyro Error
-            const Matrix3f dcm = AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned();
-            float MagGC = ToDeg(atan2f(dcm.b[0], dcm.a[0]));
-            if (MagGC < 0)
-                MagGC += 360;
-            float ErrMagGC = ToDeg(sensors.currGyro.Error * (sensors.currGyro.TimeContained / (float)1000000));
-
-            GC = MagGC - ErrMagGC;
-            break;
-        }
-        /*
-        case 4: //Acc/OF
-        {
-            //Accelerometer and Accelerometer Error
-            std::vector<float> Acc{sensors.currAccel.Velocity[0], sensors.currAccel.Velocity[1]};
-            float dot = Acc[0];
-            float det = -Acc[1];
-            float AccGC = atan2f(det, dot);
-            Acc[0] = std::abs(Acc[0]);
-            Acc[1] = std::abs(Acc[1]);
-            dot = Acc[0] * std::abs(sensors.currAccel.Error) + Acc[1] * std::abs(sensors.currAccel.Error); // N * N + E * E
-            det = Acc[0] * std::abs(sensors.currAccel.Error) - Acc[1] * std::abs(sensors.currAccel.Error); // N * E - E * N
-            float ErrAccGC = ToDeg(atan2f(det, dot));
-
-            //Optical Flow and Optical Flow Error
-            std::vector<float> mOF{sensors.currOF.VelNED[0], sensors.currOF.VelNED[1]};
-            dot = mOF[0];
-            det = -mOF[1];
-            float OFGC = ToDeg(atan2f(det, dot));
-            OFGC = (OFGC > 0) ? 360 - OFGC : std::abs(OFGC);
-            mOF[0] = std::abs(mOF[0]);
-            mOF[1] = std::abs(mOF[1]);
-            dot = mOF[0] * std::abs(sensors.currOF.Err[0]) + mOF[1] * std::abs(sensors.currOF.Err[1]); // N * N + E * E
-            det = mOF[0] * std::abs(sensors.currOF.Err[1]) - mOF[1] * std::abs(sensors.currOF.Err[0]); // N * E - E * N
-            float ErrOFGC = std::abs(ToDeg(atan2f(det, dot)));
-
-            //TODO
-        }
-        case 5: //Acc/Mag
-        {
-            //Accelerometer and Accelerometer Error
-            std::vector<float> Acc{sensors.currAccel.Velocity[0], sensors.currAccel.Velocity[1]};
-            float dot = Acc[0];
-            float det = -Acc[1];
-            float AccGC = atan2f(det, dot);
-            Acc[0] = std::abs(Acc[0]);
-            Acc[1] = std::abs(Acc[1]);
-            dot = Acc[0] * std::abs(sensors.currAccel.Error) + Acc[1] * std::abs(sensors.currAccel.Error); // N * N + E * E
-            det = Acc[0] * std::abs(sensors.currAccel.Error) - Acc[1] * std::abs(sensors.currAccel.Error); // N * E - E * N
-            float ErrAccGC = ToDeg(atan2f(det, dot));
-
-            //Magnetometer with Gyro Error
-            const Matrix3f dcm = AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned();
-            float MagGC = ToDeg(atan2f(dcm.b[0], dcm.a[0]));
-            if (MagGC < 0)
-                MagGC += 360;
-            float ErrMagGC = ToDeg(sensors.currGyro.Error * (sensors.currGyro.TimeContained / (float)1000000));
-        
-            //TODO
-        }
-        case 6: //OF/Mag
-        {
-            //Optical Flow and Optical Flow Error
-            std::vector<float> mOF{sensors.currOF.VelNED[0], sensors.currOF.VelNED[1]};
-            float dot = mOF[0];
-            float det = -mOF[1];
-            float OFGC = ToDeg(atan2f(det, dot));
-            OFGC = (OFGC > 0) ? 360 - OFGC : std::abs(OFGC);
-            mOF[0] = std::abs(mOF[0]);
-            mOF[1] = std::abs(mOF[1]);
-            dot = mOF[0] * std::abs(sensors.currOF.Err[0]) + mOF[1] * std::abs(sensors.currOF.Err[1]); // N * N + E * E
-            det = mOF[0] * std::abs(sensors.currOF.Err[1]) - mOF[1] * std::abs(sensors.currOF.Err[0]); // N * E - E * N
-            float ErrOFGC = std::abs(ToDeg(atan2f(det, dot)));
-
-            //Magnetometer with Gyro Error
-            const Matrix3f dcm = AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned();
-            float MagGC = ToDeg(atan2f(dcm.b[0], dcm.a[0]));
-            if (MagGC < 0)
-                MagGC += 360;
-            float ErrMagGC = ToDeg(sensors.currGyro.Error * (sensors.currGyro.TimeContained / (float)1000000));
-        
-            //TODO
-        }
-        */
-        default:
-            // Just return -1 if no mode is provided
-            return(-1);
-    }
-
-    //GPS and GPS Error
-    std::vector<float> gps{sensors.currGps.Airspeed[0], sensors.currGps.Airspeed[1]};
-    float dot = gps[0];  // N * 1 + E * 0
-    float det = -gps[1]; // N * 0 - E * 1
-    float GpsGC = ToDeg(atan2f(det, dot));
-    GpsGC = (GpsGC > 0) ? 360 - GpsGC : std::abs(GpsGC);
-    float ret = tanf(GC);
-
-    //TODO
-    return(ret);
-}
 //----Confirmation Functions----//
 
-// Confirm change in velocity of GPS and Accelerometer
+// AccGPS Net
 bool SensorConfirmation::AccGPS()
 {
     float dAccVel = sensors.currAccel.Velocity.length();
     Vector3f dGpsVel = sensors.currGps.Airspeed - sensors.prevGps.Airspeed;
-    return (confirm(dAccVel, sensors.currAccel.Error, dGpsVel.length(), (sensors.currGps.Hacc + sensors.prevGps.Hacc)/0.2F, false));
+    return (confirm(dAccVel, sensors.currAccel.Error * sqrtf(3.0F), dGpsVel.length(), (sensors.currGps.Hacc + sensors.prevGps.Hacc)/0.2F, false));
 }
 
-// Confirm change in velocity of Accelerometer and OF
+// AccOF Net
 bool SensorConfirmation::AccOF()
 {
-    float dAccVel = sensors.cOFAccel.Velocity.length();
-    Vector3f dOFVel = sensors.cOF.VelNED - sensors.pOF.VelNED;
-    return (confirm(dAccVel, sensors.currAccel.Error, dOFVel.length(), sensors.cOF.Err.length() + sensors.pOF.Err.length(), false));
+    float dAccVel = Vector2f{sensors.cOFAccel.Velocity.x, sensors.cOFAccel.Velocity.y}.length();
+    Vector2f dOFVel = sensors.cOF.VelNE - sensors.pOF.VelNE;
+    return (confirm(dAccVel, sensors.cOFAccel.Error * sqrtf(2.0F), dOFVel.length(), sensors.cOF.Err.length() + sensors.pOF.Err.length(), false));
 }
 
-// Confirm velocity of GPS and Optical Flow Sensor
+// GPSOF Net
 bool SensorConfirmation::GpsOF()
 {
-    return (confirm(sensors.currOF.VelNED.length(), sensors.currOF.Err.length(), sensors.currGps.Airspeed.length(), sensors.currGps.Hacc/0.2F, false));
+    Vector2f GpsNE = Vector2f{sensors.currGps.Airspeed.x, sensors.currGps.Airspeed.y};
+    return (confirm(sensors.currOF.VelNE.length(), sensors.currOF.Err.length(), GpsNE.length(), sqrtf(2.0F)*sensors.currGps.Hacc/0.2F, false));
 }
 
 // Confirm ground course based on GPS movement and Magnetometer heading
@@ -550,7 +388,7 @@ bool SensorConfirmation::GpsOFGC()
     float ErrGpsGC = ToDeg(atan2f(det, dot));
 
     //Optical Flow and Optical Flow Error
-    std::vector<float> mOF{sensors.currOF.VelNED[0], sensors.currOF.VelNED[1]};
+    std::vector<float> mOF{sensors.currOF.VelNE[0], sensors.currOF.VelNE[1]};
     dot = mOF[0];
     det = -mOF[1];
     float OFGC = ToDeg(atan2f(det, dot));
@@ -604,7 +442,7 @@ bool SensorConfirmation::AccGpsGC()
 // Confirm ground course based on Accelerometer and Optical Flow movement with Magnetometer for rotation
 bool SensorConfirmation::AccOFGC()
 {
-    if (std::abs(sensors.currAccel.Velocity[0]) < sensors.currAccel.Error && std::abs(sensors.currAccel.Velocity[1]) < sensors.currAccel.Error)
+    if (std::abs(sensors.cOFAccel.Velocity[0]) < sensors.cOFAccel.Error && std::abs(sensors.cOFAccel.Velocity[1]) < sensors.cOFAccel.Error)
     {
         // Speed is below potential error, GpsAcc is unusable
         return true;
@@ -612,23 +450,23 @@ bool SensorConfirmation::AccOFGC()
     std::vector<float> north{1, 0};
 
     //Accelerometer and Accelerometer Error
-    std::vector<float> Acc{sensors.currAccel.Velocity[0], sensors.currAccel.Velocity[1]};
+    std::vector<float> Acc{sensors.cOFAccel.Velocity[0], sensors.cOFAccel.Velocity[1]};
     float dot = Acc[0];  // N * 1 + E * 0
     float det = -Acc[1]; // N * 0 - E * 1
     float AccGC = atan2f(det, dot);
     Acc[0] = std::abs(Acc[0]);
     Acc[1] = std::abs(Acc[1]);
-    dot = Acc[0] * std::abs(sensors.currAccel.Error) + Acc[1] * std::abs(sensors.currAccel.Error); // N * N + E * E
-    det = Acc[0] * std::abs(sensors.currAccel.Error) - Acc[1] * std::abs(sensors.currAccel.Error); // N * E - E * N
+    dot = Acc[0] * std::abs(sensors.cOFAccel.Error) + Acc[1] * std::abs(sensors.cOFAccel.Error); // N * N + E * E
+    det = Acc[0] * std::abs(sensors.cOFAccel.Error) - Acc[1] * std::abs(sensors.cOFAccel.Error); // N * E - E * N
     float ErrAccGC = ToDeg(atan2f(det, dot));
 
     //Optical Flow and Optical Flow Error
-    std::vector<float> mOF{sensors.currOF.VelNED[0], sensors.currOF.VelNED[1]};
+    std::vector<float> mOF{sensors.cOF.VelNE[0], sensors.cOF.VelNE[1]};
     dot = mOF[0];
     det = -mOF[1];
     float OFGC = atan2f(det, dot);
-    std::vector<float> ErrOF{std::abs(sensors.currOF.VelNED[0]) - std::abs(sensors.currOF.Err[0]),
-                                std::abs(sensors.currOF.VelNED[1]) + std::abs(sensors.currOF.Err[1])};
+    std::vector<float> ErrOF{std::abs(sensors.cOF.VelNE[0]) - std::abs(sensors.cOF.Err[0]),
+                                std::abs(sensors.cOF.VelNE[1]) + std::abs(sensors.cOF.Err[1])};
     mOF[0] = std::abs(mOF[0]);
     mOF[1] = std::abs(mOF[1]);
     dot = mOF[0] * ErrOF[0] + mOF[1] * ErrOF[1]; // N * N + E * E

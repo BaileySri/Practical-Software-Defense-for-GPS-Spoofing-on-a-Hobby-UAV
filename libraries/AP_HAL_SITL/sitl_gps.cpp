@@ -1037,6 +1037,31 @@ void SITL_State::_update_gps_file(uint8_t instance)
     }
 }
 
+//PADLOCK
+static double rand_normal(double mean, double stddev)
+{
+    static double n2 = 0.0;
+    static int n2_cached = 0;
+    if (!n2_cached) {
+        double x, y, r;
+        do
+        {
+            x = 2.0 * rand()/RAND_MAX - 1;
+            y = 2.0 * rand()/RAND_MAX - 1;
+            r = x*x + y*y;
+        } while (is_zero(r) || r > 1.0);
+        const double d = sqrt(-2.0 * log(r)/r);
+        const double n1 = x * d;
+        n2 = y * d;
+        const double result = n1 * stddev + mean;
+        n2_cached = 1;
+        return result;
+    } else {
+        n2_cached = 0;
+        return n2 * stddev + mean;
+    }
+}
+
 /*
   possibly send a new GPS packet
  */
@@ -1102,36 +1127,10 @@ void SITL_State::_update_gps(double latitude, double longitude, float altitude,
         static float prev_lon = d.longitude;
         const float CEP = _sitl->pdlk_gps_noise;
         double const earth_rad_inv = 1.569612305760477e-7; // use Authalic/Volumetric radius
-        float noise_lat = 0;
-        float noise_lon = 0;
-        float bound_lat = rand_float();
-        float bound_lon = rand_float();
-        if(bound_lat > 0){
-            noise_lat = rand_float() * CEP;
-        } else if(bound_lat > -0.437F){
-            noise_lat = (rand_float() * CEP) + CEP;
-        }else if(bound_lat > -0.498F){
-            noise_lat = (rand_float() * CEP) + (2 * CEP);
-        }else{
-            noise_lat = (rand_float() * CEP) + (3 * CEP);
-        }
-        if(bound_lon > 0){
-            noise_lon = rand_float() * CEP;
-        } else if(bound_lon > -0.437F){
-            noise_lon = (rand_float() * CEP) + CEP;
-        }else if(bound_lon > -0.498F){
-            noise_lon = (rand_float() * CEP) + (2 * CEP);
-        }else{
-            noise_lon = (rand_float() * CEP) + (3 * CEP);
-        }
-        //Previous errors only moved in first quadrant,
-        //below allows noise to push into a full circle
-        if(rand_float() < 0){
-            noise_lon *= -1;
-        }
-        if(rand_float() < 0){
-            noise_lat *= -1;
-        }
+        // Converting CEP to DRMS by dividing by sqrt(2)
+        float noise_lat = rand_normal(0, CEP / sqrt(2));
+        float noise_lon = rand_normal(0, CEP / sqrt(2));
+        
         d.latitude += degrees(noise_lat * earth_rad_inv);
         double lng_scale_factor = earth_rad_inv / cos(radians(d.latitude));
         d.longitude += degrees(noise_lon * lng_scale_factor);

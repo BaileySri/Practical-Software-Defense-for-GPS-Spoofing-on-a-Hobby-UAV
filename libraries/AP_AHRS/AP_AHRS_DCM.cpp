@@ -528,7 +528,9 @@ AP_AHRS_DCM::drift_correction_yaw(void)
             // don't suddenly change yaw with a reset
             _gps_last_update = _gps.last_fix_time_ms();
         }
-    } else if (AP::ahrs().get_fly_forward() && have_gps()) {
+        //PADLOCK
+        // Adding a false to simply prevent GPS being used for yaw correction
+    } else if (false && AP::ahrs().get_fly_forward() && have_gps()) {
         /*
           we are using GPS for yaw
          */
@@ -706,7 +708,9 @@ AP_AHRS_DCM::drift_correction(float deltat)
     const AP_GPS &_gps = AP::gps();
     const bool fly_forward = AP::ahrs().get_fly_forward();
 
-    if (!have_gps() ||
+    //PADLOCK
+    // Forcing no GPS
+    if (true || !have_gps() ||
             _gps.status() < AP_GPS::GPS_OK_FIX_3D ||
             _gps.num_sats() < _gps_minsats) {
         // no GPS, or not a good lock. From experience we need at
@@ -759,8 +763,9 @@ AP_AHRS_DCM::drift_correction(float deltat)
         // tube
         _last_airspeed = MAX(airspeed.x, 0);
     }
-
-    if (have_gps()) {
+    //PADLOCK
+    // Removing GPS
+    if (false && have_gps()) {
         // use GPS for positioning with any fix, even a 2D fix
         _last_lat = _gps.location().lat;
         _last_lng = _gps.location().lng;
@@ -797,7 +802,9 @@ AP_AHRS_DCM::drift_correction(float deltat)
     bool using_gps_corrections = false;
     float ra_scale = 1.0f/(_ra_deltat*GRAVITY_MSS);
 
-    if (should_correct_centrifugal() && (_have_gps_lock || fly_forward)) {
+    //PADLOCK
+    // Removing GPS
+    if (false && should_correct_centrifugal() && (_have_gps_lock || fly_forward)) {
         const float v_scale = gps_gain.get() * ra_scale;
         const Vector3f vdelta = (velocity - _last_velocity) * v_scale;
         GA_e += vdelta;
@@ -935,7 +942,7 @@ AP_AHRS_DCM::drift_correction(float deltat)
         _omega_P *= 8;
     }
 
-    if (fly_forward && _gps.status() >= AP_GPS::GPS_OK_FIX_2D &&
+    if (false && fly_forward && _gps.status() >= AP_GPS::GPS_OK_FIX_2D &&
             _gps.ground_speed() < GPS_SPEED_MIN &&
             _ins.get_accel().x >= 7 &&
         pitch > radians(-30) && pitch < radians(30)) {

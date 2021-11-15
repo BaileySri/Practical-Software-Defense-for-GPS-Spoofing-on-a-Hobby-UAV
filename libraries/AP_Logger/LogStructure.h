@@ -759,16 +759,12 @@ struct PACKED log_confirmation_1 {
     //Optical Flow and Error
     float C_OF_North;
     float C_OF_East;
-    float C_OF_Down;
     float C_OF_North_Err;
     float C_OF_East_Err;
-    float C_OF_Down_Err;
     float P_OF_North;
     float P_OF_East;
-    float P_OF_Down;
     float P_OF_North_Err;
     float P_OF_East_Err;
-    float P_OF_Down_Err;
 };
 
 struct PACKED log_confirmation_2 {
@@ -807,16 +803,12 @@ struct PACKED log_accof_1 {
     uint64_t time_us;
     float C_OF_North;
     float C_OF_East;
-    float C_OF_Down;
     float C_OF_North_Err;
     float C_OF_East_Err;
-    float C_OF_Down_Err;
     float P_OF_North;
     float P_OF_East;
-    float P_OF_Down;
     float P_OF_North_Err;
     float P_OF_East_Err;
-    float P_OF_Down_Err;
 };
 
 struct PACKED log_accof_2{
@@ -1468,13 +1460,13 @@ LOG_STRUCTURE_FROM_VISUALODOM \
     { LOG_SNSR_4_MSG, sizeof(log_sensors_4), \
       "SNS4", "Qiiifffff", "TimeUS,gprLat,gprLng,gprAlt,gprGC,gpGC,gprN,gprE,gprD", "sDUmhhnnn", "FGGB00000"}, \
     { LOG_CNFR_1_MSG, sizeof(log_confirmation_1), \
-      "CNF1", "Qffffffffffff", "TimeUS,COFN,COFE,COFD,CNe,CEe,CDe,POFN,POFE,POFD,PNe,PEe,PDe", "snnnnnnnnnnnn", "FBBBBBBBBBBBB"}, \
+      "CNF1", "Qffffffff", "TimeUS,COFN,COFE,CNe,CEe,POFN,POFE,PNe,PEe", "snnnnnnnn", "FBBBBBBBB"}, \
     { LOG_CNFR_2_MSG, sizeof(log_confirmation_2), \
       "CNF2", "Qffffffff", "TimeUS,CGpN,CGpE,CGpD,CGpe,PGpN,PGpE,PGpD,PGpe", "snnnnnnnn", "F00000000"}, \
     { LOG_CNFR_3_MSG, sizeof(log_confirmation_3), \
       "CNF3", "Qfffffffffff", "TimeUS,CAN,CAE,CAD,CAe,NAN,NAE,NAD,NAe,m10,m00,Gye", "snnnnnnnn---", "F00000000---"}, \
     { LOG_ACCOF_1_MSG, sizeof(log_accof_1), \
-      "ACO1", "Qffffffffffff", "TimeUS,COFN,COFE,COFD,CNe,CEe,CDe,POFN,POFE,POFD,PNe,PEe,PDe", "snnnnnnnnnnnn", "F000000000000"}, \
+      "ACO1", "Qffffffff", "TimeUS,COFN,COFE,CNe,CEe,POFN,POFE,PNe,PEe", "snnnnnnnn", "F00000000"}, \
     { LOG_ACCOF_2_MSG, sizeof(log_accof_2), \
       "ACO2", "Qffff", "TimeUS,CAN,CAE,CAD,CAe", "snnnn", "F0000"}, \
 LOG_STRUCTURE_FROM_AIS \

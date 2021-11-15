@@ -337,8 +337,6 @@ class AutoTestCopter(AutoTest):
         if not num_wp:
             raise NotAchievedException("load pdlk_auto_square.txt failed")
         
-
-
         self.progress("Setting sensor parameters")        
         # Set sensor parameters
         #self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
@@ -358,11 +356,10 @@ class AutoTestCopter(AutoTest):
         self.set_parameter("PDLK_SNSR_CONF", 1)
         # Set flight speed, cm/s
         self.set_parameter("WPNAV_SPEED", 1000)
-        #Delay for bias
-        self.delay_sim_time(135)
+        #Delay for sensor settling
+        self.delay_sim_time(30)
 
         self.progress("test: Fly a mission from 1 to %u" % num_wp)
-        self.mavproxy.send('wp set 1\n')
         self.takeoff(10)
 
         # switch into AUTO mode
@@ -412,7 +409,6 @@ class AutoTestCopter(AutoTest):
         self.delay_sim_time(135)
 
         self.progress("test: Fly a mission from 1 to %u" % num_wp)
-        self.mavproxy.send('wp set 1\n')
         self.takeoff(10)
 
         # switch into AUTO mode
@@ -607,7 +603,6 @@ class AutoTestCopter(AutoTest):
         self.delay_sim_time(135)
 
         self.progress("test: Fly a mission from 1 to %u" % num_wp)
-        self.mavproxy.send('wp set 1\n')
         self.takeoff(10)
 
         # switch into AUTO mode

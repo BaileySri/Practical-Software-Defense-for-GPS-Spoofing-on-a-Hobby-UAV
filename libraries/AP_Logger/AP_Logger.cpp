@@ -1137,8 +1137,8 @@ void AP_Logger::Write_SNSR(const float &BAlt)
 }
 
 //Logger for confirmation variables
-void AP_Logger::Write_CNFR(const Vector3f &P_OF, const Vector3f &P_OF_Err,
-                           const Vector3f &C_OF, const Vector3f &C_OF_Err,
+void AP_Logger::Write_CNFR(const Vector2f &P_OF, const Vector2f &P_OF_Err,
+                           const Vector2f &C_OF, const Vector2f &C_OF_Err,
                            const Vector3f &P_GPS, const float P_GPS_Err,
                            const Vector3f &C_GPS, const float C_GPS_Err,
                            const Vector3f &C_ACC, const float C_ACC_Err,
@@ -1152,17 +1152,12 @@ void AP_Logger::Write_CNFR(const Vector3f &P_OF, const Vector3f &P_OF_Err,
         //Optical Flow and Error
         C_OF_North : C_OF.x,
         C_OF_East : C_OF.y,
-        C_OF_Down : C_OF.z,
         C_OF_North_Err : C_OF_Err.x,
         C_OF_East_Err : C_OF_Err.y,
-        C_OF_Down_Err : C_OF_Err.z,
         P_OF_North : P_OF.x,
         P_OF_East : P_OF.y,
-        P_OF_Down : P_OF.z,
         P_OF_North_Err : P_OF_Err.x,
         P_OF_East_Err : P_OF_Err.y,
-        P_OF_Down_Err : P_OF_Err.z,
-
     };
 
     struct log_confirmation_2 pkt2 = {
@@ -1203,8 +1198,8 @@ void AP_Logger::Write_CNFR(const Vector3f &P_OF, const Vector3f &P_OF_Err,
     FOR_EACH_BACKEND(WriteBlock(&pkt3, sizeof(pkt3)));
 }
 
-void AP_Logger::Write_ACO(const Vector3f &P_OF, const Vector3f &P_OF_Err,
-                           const Vector3f &C_OF, const Vector3f &C_OF_Err,
+void AP_Logger::Write_ACO(const Vector2f &P_OF, const Vector2f &P_OF_Err,
+                           const Vector2f &C_OF, const Vector2f &C_OF_Err,
                            const Vector3f &C_ACC, const float C_ACC_Err)
 {
     uint32_t timestamp = AP_HAL::micros64();
@@ -1213,17 +1208,12 @@ void AP_Logger::Write_ACO(const Vector3f &P_OF, const Vector3f &P_OF_Err,
         time_us : timestamp,
         C_OF_North : C_OF.x,
         C_OF_East : C_OF.y,
-        C_OF_Down : C_OF.z,
         C_OF_North_Err : C_OF_Err.x,
         C_OF_East_Err : C_OF_Err.y,
-        C_OF_Down_Err : C_OF_Err.z,
         P_OF_North : P_OF.x,
         P_OF_East : P_OF.y,
-        P_OF_Down : P_OF.z,
         P_OF_North_Err : P_OF_Err.x,
         P_OF_East_Err : P_OF_Err.y,
-        P_OF_Down_Err : P_OF_Err.z,
-
     };
 
     struct log_accof_2 pkt2 = {

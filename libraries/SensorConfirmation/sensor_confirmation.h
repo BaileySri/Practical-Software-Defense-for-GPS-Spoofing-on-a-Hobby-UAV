@@ -1,21 +1,6 @@
 #pragma once
 
-#include <cmath>
-#include <math.h>
-#include <vector>
-#include <numeric>
-
-//Consts
-const float ACC_ERR = 0.0015;     // (m/s/s)/(sqrt(Hz)) Accelerometer noise (LSM303D) Assuming 100Hz Bandwidth
-const float GYRO_ERR = 0.00019;   // (rad/s)/(sqrt(Hz)) Gyro Noise (L3GD20H) Assuming 50Hz Bandwidth
-const float FLOW_ERR = 0.05;      // rad/s, In SITL there is a defined FLOW Noise that should be accounted for
-const float OF_GYRO_ERR = 0.0007; // (rad/s) Gyro Noise (ICM-20602) Assuming 100Hz Bandwidth
-const float LT5_RF_ERR = 0.01;    // meters, Error in rangefinder when less than 5 meters distance
-const float GT5_RF_ERR = 0.025;   // meters, Error in rangefinder when greater than or equal to 5 meters distance
-const float RMS = 1.73;           // RMS constant useful for tri-axis errors
-const float GPS_RATE = 200;       // us, GPS Update rate
-
-//Added to support platform-independent confirmation
+//Libraries
 #include <cstdint>
 #include "../AP_Common/Location.h"
 #include "../AP_Math/AP_Math.h"
@@ -25,6 +10,21 @@ const float GPS_RATE = 200;       // us, GPS Update rate
 #include "../AP_Logger/AP_Logger.h"
 #include "../AP_RangeFinder/AP_RangeFinder.h"
 
+//Consts
+const float ACC_ERR = (150) * (9.80665) * 4 / (1E6); // (m/s/s)/sqrt(Hz), noise density * m/s/s / g * nsamples.
+                                                     // still need to multiply by sqrt(sampling frequency)
+                                                     // For non-SITL builds the nsamples will likely need to be adjusted
+const float GYRO_ERR = (0.011) * (M_PI / 180.0F) * 4;   // (rad/s)/(sqrt(Hz)), noise density * pi / 180 * nsamples
+                                                     // still need to multiply by sqrt(sampling frequency)
+                                                     // For non-SITL builds the nsamples will likely need to be adjusted
+const float FLOW_ERR = 0.05;       // rad/s, In SITL there is a defined FLOW Noise that should be accounted for
+const float OF_GYRO_ERR = (0.004) * (M_PI / 180.0F) * (sqrtf(10.0F)); // (rad/s)
+const float LT5_RF_ERR = 0.01;     // meters, Error in rangefinder when less than 5 meters distance
+const float GT5_RF_ERR = 0.025;    // meters, Error in rangefinder when greater than or equal to 5 meters distance
+const float RMS = 1.73;            // RMS constant useful for tri-axis errors
+const float GPS_RATE = 200;        // ms, GPS Update rate
+const Vector3f GRAVITY_NED = Vector3f{0,0, 9.80665F}; // m/s/s, 3D Vector of gravity
+
 class SensorConfirmation{
     public:
         SensorConfirmation()
@@ -32,10 +32,6 @@ class SensorConfirmation{
         ~SensorConfirmation()
         {}
         
-        //Setup delays
-        uint32_t DELAY = 45000000U;       // Start-Up delay to allow sensors to settle
-        uint32_t BIAS_DELAY = 30000000U;  // Delay after Start-Up to allow biasing (30 seconds)
-
         //----typedef----//
         typedef Vector3f NED;
         typedef Vector3f BF;
@@ -43,25 +39,29 @@ class SensorConfirmation{
         //----   Helper Functions  ----//
         static bool confirm(const float a, const float a_err, const float b, const float b_err, bool);
         static Vector3f abs(const Vector3f &x);
+        static Vector2f abs(const Vector2f &x);
 
         //----   Structs  ----//
         struct Accel
         {
             NED Readings;       //m/s/s, Accelerometer readings rotated to NED
-            NED Velocity;       //m/s
-            float Error;        //m/s, RMS
+            NED Velocity;       //m/s, Velocity in NED frame
+            float Error;        //m/s, Single axis error, Multiply by RMS for Net
             uint32_t Timestamp; //us
 
-            bool update(const AP_InertialSensor *frontend, NED bias)
+            bool update(const AP_InertialSensor *frontend)
             {
                 uint32_t dT = frontend->get_last_update_usec() - Timestamp; //us
                 if (dT > 0)
                 {
-                    NED newReading = (AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned() * frontend->get_accel()) - bias;
+                    uint8_t primary_accel = frontend->get_primary_accel();
+                    NED newReading = (AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned() * frontend->get_accel(primary_accel)) + GRAVITY_NED;
                     //Trapezoidal Integration
                     Velocity += (((newReading + Readings) / 2.0F) * dT) / 1000000;
                     Readings = newReading;
-                    Error += (ACC_ERR * RMS * dT) / 1000000; // Error in acceleration, dT is in us and multiply by time for velocity error
+                    //Pull accelerometer sampling rate for error calculation
+                    uint16_t sample_rate = frontend->get_accel_rate_hz(primary_accel);
+                    Error += (ACC_ERR * sqrtf(sample_rate) * dT) / (float)1000000; // Error in acceleration, dT is in us and multiply by time for velocity error
                     Timestamp += dT;
                     return true;
                 }
@@ -98,8 +98,9 @@ class SensorConfirmation{
                 uint32_t dT = frontend->get_last_update_usec() - Timestamp; //us
                 if (dT > 0)
                 {
-                    Readings = frontend->get_gyro();
-                    Error += GYRO_ERR;
+                    uint8_t primary_gyro = frontend->get_primary_gyro();
+                    Readings = frontend->get_accel(primary_gyro);
+                    Error += GYRO_ERR * sqrtf(frontend->get_gyro_rate_hz(primary_gyro));
                     Timestamp += dT;
                     TimeContained += dT;
                     return true;
@@ -212,8 +213,6 @@ class SensorConfirmation{
         {
             float tcReading;  //meters, Tilt compensated but not filtered readings
             float Timestamp;  //ms, Timestamp of last healthy RF reading
-            float RF_Vel;     //m/s, Velocity from rangefinder measurements
-            float RF_Vel_Err; //m/s, Possible error in velocity
             float RangeErr;   //meters, Error in RF reading
             LowPassFilterFloat rf_filt; //cm, filtered tilt compensated rangefinder readings
 
@@ -226,12 +225,9 @@ class SensorConfirmation{
                 {
                     // Assuming we want to use tilt compensation on rangefinder
                     const float tilt_correction = MAX(0.707f, AP_AHRS::get_singleton()->get_rotation_body_to_ned().c.z);
-                    float prevReading = rf_filt.get();
                     tcReading = tilt_correction * newReading;
                     rf_filt.apply(tcReading, 0.05f);
                     float curReading = rf_filt.get();
-                    RF_Vel = ((curReading - prevReading) / 100) / (dT / 1000);
-                    RF_Vel_Err = ((curReading >= 500 ? GT5_RF_ERR : LT5_RF_ERR) + RangeErr) / (dT / 1000);
                     RangeErr = curReading >= 500 ? GT5_RF_ERR : LT5_RF_ERR;
                     Timestamp += dT;
                 }
@@ -240,8 +236,6 @@ class SensorConfirmation{
             void reset()
             {
                 tcReading = 0;
-                RF_Vel = 0;
-                RF_Vel_Err = 0;
                 //Important note, after every reset if time matters assign the old timestamp to the reset sensor
                 Timestamp = 0;
                 RangeErr = 0;
@@ -255,10 +249,9 @@ class SensorConfirmation{
             Vector2f FlowRate;  // rad/s, this is the angular rate calculated by the camera, i.e., HereFlow
             Vector2f BodyRate;  // rad/s, in SITL this is the same as the gyroscope. Pitch Roll
             uint32_t Timestamp; // ms, Timestamp of last OF Update
-            float RateErr;      // rad/s, Error in angular rate. Depends on sensor but HereFlow has a separate Gyroscope
-            BF VelBF;           //cm/s, Velocity in Body Frame (OF, RF, Barometer)
-            NED VelNED;         //cm/s, velocity in NED frame (Mag, OF, RF)
-            NED Err;            //cm/s. Error in velocity in NED frame
+            Vector2f VelFR;     // m/s, Velocity in body frame (Front/Right)
+            Vector2f VelNE;     // m/s, Velocity in EN frame (North/East)
+            Vector2f Err;     // m/s. Error in velocity in NE frame
 
             bool update(const OpticalFlow *frontend, const RF &currRF)
             {
@@ -267,18 +260,14 @@ class SensorConfirmation{
                 {
                     FlowRate = frontend->flowRate();
                     BodyRate = frontend->bodyRate();
-                    flow_filter.apply(FlowRate - BodyRate);
-                    RateErr += OF_GYRO_ERR;
+                    Vector2f RawRate = FlowRate-BodyRate;
+                    flow_filter.apply(Vector2f{RawRate[1],RawRate[0]}); //Reverse order to be in NE frame
                     Timestamp += dT;
-                    VelBF = Vector3f{tanf(flow_filter.get()[1]) * (currRF.rf_filt.get() / 100), //m/s, Front
-                                    tanf(flow_filter.get()[0]) * (currRF.rf_filt.get() / 100), //m/s, Right
-                                    currRF.RF_Vel};                                               //m/s, Down
-                    VelNED = (AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned() * VelBF);   //Rotated BF to NED
-
-                    BF ErrBF = Vector3f{tanf((flow_filter.get()[1]) + RateErr + FLOW_ERR) * ((currRF.rf_filt.get() / 100) + currRF.RangeErr),
-                                        tanf((flow_filter.get()[0]) + RateErr + FLOW_ERR) * ((currRF.rf_filt.get() / 100) + currRF.RangeErr),
-                                        currRF.RF_Vel + currRF.RF_Vel_Err};
-                    Err = (AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned() * abs(ErrBF - VelBF));
+                    VelNE = AP_AHRS::get_singleton()->body_to_earth2D(flow_filter.get() * currRF.rf_filt.get()/100.0F);   //Rotated BF to NED
+                    // Differential Error Propagation of Rangefinder and Optical Flow Rate
+                    Vector2f ErrFR = Vector2f{sqrtf(sq(currRF.rf_filt.get()/100.0F) * sq(FLOW_ERR + OF_GYRO_ERR) + sq(flow_filter.get()[0]) * sq(currRF.RangeErr)),
+                                              sqrtf(sq(currRF.rf_filt.get()/100.0F) * sq(FLOW_ERR + OF_GYRO_ERR) + sq(flow_filter.get()[1]) * sq(currRF.RangeErr))};
+                    Err = AP_AHRS::get_singleton()->body_to_earth2D(ErrFR);
                     return true;
                 }
                 return false;
@@ -294,9 +283,8 @@ class SensorConfirmation{
                 BodyRate.zero();
                 //Important note, after every reset if time matters assign the old timestamp to the reset sensor
                 Timestamp = 0;
-                RateErr = 0;
-                VelBF.zero();
-                VelNED.zero();
+                VelFR.zero();
+                VelNE.zero();
                 Err.zero();
             }
 
@@ -307,9 +295,8 @@ class SensorConfirmation{
                 FlowRate = rhs.FlowRate;
                 BodyRate = rhs.BodyRate;
                 Timestamp = rhs.Timestamp;
-                RateErr = rhs.RateErr;
-                VelBF = rhs.VelBF;
-                VelNED = rhs.VelNED;
+                VelFR = rhs.VelFR;
+                VelNE = rhs.VelNE;
                 Err = rhs.Err;
                 return *this;
             }
@@ -344,15 +331,6 @@ class SensorConfirmation{
             bool gpsAvail;     //GPS Data has been updated
             bool ofAvail;      // OF Data has been updated
         } framework;
-
-        //Bias Data
-        struct
-        {
-            bool biased = false; //True when bias has been determined
-            uint32_t Timestamp;  //Used to determine when readings change for bias
-            uint32_t count = 0;  //Number of readings used in bias
-            NED AccBias;         //Bias for NED acceleration
-        } bias;
 
         //----General Functions----//
         void initialize();
