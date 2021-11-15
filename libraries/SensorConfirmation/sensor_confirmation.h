@@ -249,7 +249,6 @@ class SensorConfirmation{
             Vector2f FlowRate;  // rad/s, this is the angular rate calculated by the camera, i.e., HereFlow
             Vector2f BodyRate;  // rad/s, in SITL this is the same as the gyroscope. Pitch Roll
             uint32_t Timestamp; // ms, Timestamp of last OF Update
-            Vector2f VelFR;     // m/s, Velocity in body frame (Front/Right)
             Vector2f VelNE;     // m/s, Velocity in EN frame (North/East)
             Vector2f Err;     // m/s. Error in velocity in NE frame
 
@@ -283,7 +282,6 @@ class SensorConfirmation{
                 BodyRate.zero();
                 //Important note, after every reset if time matters assign the old timestamp to the reset sensor
                 Timestamp = 0;
-                VelFR.zero();
                 VelNE.zero();
                 Err.zero();
             }
@@ -295,7 +293,6 @@ class SensorConfirmation{
                 FlowRate = rhs.FlowRate;
                 BodyRate = rhs.BodyRate;
                 Timestamp = rhs.Timestamp;
-                VelFR = rhs.VelFR;
                 VelNE = rhs.VelNE;
                 Err = rhs.Err;
                 return *this;
