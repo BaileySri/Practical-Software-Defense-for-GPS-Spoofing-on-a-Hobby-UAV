@@ -14,7 +14,7 @@
 const float ACC_ERR = (150) * (9.80665) * 4 / (1E6); // (m/s/s)/sqrt(Hz), noise density * m/s/s / g * nsamples.
                                                      // still need to multiply by sqrt(sampling frequency)
                                                      // For non-SITL builds the nsamples will likely need to be adjusted
-const float GYRO_ERR = (0.011) * (M_PI / 180.0F) * 4;   // (rad/s)/(sqrt(Hz)), noise density * pi / 180 * nsamples
+const float GYRO_ERR = (0.011) * (M_PI / 180.0F) * 4;// (rad/s)/(sqrt(Hz)), noise density * pi / 180 * nsamples
                                                      // still need to multiply by sqrt(sampling frequency)
                                                      // For non-SITL builds the nsamples will likely need to be adjusted
 const float FLOW_ERR = 0.05;       // rad/s, In SITL there is a defined FLOW Noise that should be accounted for
@@ -226,9 +226,13 @@ class SensorConfirmation{
                     // Assuming we want to use tilt compensation on rangefinder
                     const float tilt_correction = MAX(0.707f, AP_AHRS::get_singleton()->get_rotation_body_to_ned().c.z);
                     tcReading = tilt_correction * newReading;
-                    rf_filt.apply(tcReading, 0.05f);
-                    float curReading = rf_filt.get();
-                    RangeErr = curReading >= 500 ? GT5_RF_ERR : LT5_RF_ERR;
+                    rf_filt.apply(tcReading, 0.05f);                
+                    #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
+                        RangeErr = 0.05; //SITL error isn't set to LLv3 documentation 
+                    #else
+                        float curReading = rf_filt.get();
+                        RangeErr = curReading >= 500 ? GT5_RF_ERR : LT5_RF_ERR;
+                    #endif
                     Timestamp += dT;
                 }
             }
@@ -262,10 +266,21 @@ class SensorConfirmation{
                     Vector2f RawRate = FlowRate-BodyRate;
                     flow_filter.apply(Vector2f{RawRate[1],RawRate[0]}); //Reverse order to be in NE frame
                     Timestamp += dT;
-                    VelNE = AP_AHRS::get_singleton()->body_to_earth2D(flow_filter.get() * currRF.rf_filt.get()/100.0F);   //Rotated BF to NED
-                    // Differential Error Propagation of Rangefinder and Optical Flow Rate
-                    Vector2f ErrFR = Vector2f{sqrtf(sq(currRF.rf_filt.get()/100.0F) * sq(FLOW_ERR + OF_GYRO_ERR) + sq(flow_filter.get()[0]) * sq(currRF.RangeErr)),
-                                              sqrtf(sq(currRF.rf_filt.get()/100.0F) * sq(FLOW_ERR + OF_GYRO_ERR) + sq(flow_filter.get()[1]) * sq(currRF.RangeErr))};
+                    // SITL has a weird scaling factor based on the rotation matrix, refer to AP_OpticalFlow_SITL::update() rotmat
+                    #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
+                        float scaling_factor = AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned()[2][2];
+                    #else
+                        float scaling_factor = 1;
+                    #endif
+
+                    VelNE = AP_AHRS::get_singleton()->body_to_earth2D(flow_filter.get() * (currRF.rf_filt.get()/100.0F) / scaling_factor);   //Rotated BF to NED
+                    // Differential Error Propagation of Rangefinder, Scaling Factor, and Optical Flow
+                    Vector2f ErrFR = Vector2f{sqrtf(sq(currRF.rf_filt.get()/100.0F / scaling_factor) * sq(FLOW_ERR + OF_GYRO_ERR) + 
+                                                    sq(flow_filter.get()[0] / scaling_factor) * sq(currRF.RangeErr) + 
+                                                    sq(flow_filter.get()[0] * currRF.rf_filt.get()/100.0F) * sq(0.05)),
+                                              sqrtf(sq(currRF.rf_filt.get()/100.0F / scaling_factor) * sq(FLOW_ERR + OF_GYRO_ERR) + 
+                                                    sq(flow_filter.get()[1] / scaling_factor) * sq(currRF.RangeErr) + 
+                                                    sq(flow_filter.get()[1] * currRF.rf_filt.get()/100.0F / sq(scaling_factor)) * sq(0.05))};
                     Err = AP_AHRS::get_singleton()->body_to_earth2D(ErrFR);
                     return true;
                 }

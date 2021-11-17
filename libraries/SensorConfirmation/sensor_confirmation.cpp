@@ -175,9 +175,9 @@ bool SensorConfirmation::run()
 
         // GPS Confirmations
         AccGPS();
-        //GpsMagGC();
+        GpsMagGC();
         GpsOF();
-        //GpsOFGC();
+        GpsOFGC();
         
         //Switch to next IMU data
         sensors.currAccel = sensors.nextAccel;
@@ -259,7 +259,7 @@ void SensorConfirmation::confirmation()
     //If run returns True, Nothing
     if (!run())
     {
-        alert();
+        //alert();
     }
 }
 //----Reactive Attacker----//

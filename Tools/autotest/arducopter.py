@@ -339,8 +339,8 @@ class AutoTestCopter(AutoTest):
         
         self.progress("Setting sensor parameters")        
         # Set sensor parameters
-        #self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
-        self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
+        self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
+        #self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
         self.set_parameter("SIM_PDLK_GPS_SPD", 50) #mm/s
         self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
         self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
@@ -405,8 +405,6 @@ class AutoTestCopter(AutoTest):
         self.set_parameter("PDLK_SNSR_CONF", 1)
         # Set flight speed, cm/s
         self.set_parameter("WPNAV_SPEED", 1000)
-        #Delay for bias
-        self.delay_sim_time(135)
 
         self.progress("test: Fly a mission from 1 to %u" % num_wp)
         self.takeoff(10)
@@ -430,13 +428,8 @@ class AutoTestCopter(AutoTest):
     def fly_auto_circle(self, timeout=360):
         self.progress("Setting sensor parameters")        
         # Set sensor parameters
-        # No Noise
-        #self.set_parameter("SIM_PDLK_GPS", 0)
-        #self.set_parameter("SIM_PDLK_GPS_SPD", 0)
-        #self.set_parameter("SIM_PDLK_ACC", 0)
-        #self.set_parameter("SIM_PDLK_GYRO", 0)
-        self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
-        #self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
+        #self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
+        self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
         self.set_parameter("SIM_PDLK_GPS_SPD", 50) #mm/s
         self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
         self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
@@ -450,8 +443,6 @@ class AutoTestCopter(AutoTest):
 
         #Enable Sensor Confirmation for CNF Logging
         self.set_parameter("PDLK_SNSR_CONF", 1)
-        #Delay for bias
-        self.delay_sim_time(135)
 
 	    # Takeoff and switch to circle
         self.progress("Taking off")
@@ -482,8 +473,8 @@ class AutoTestCopter(AutoTest):
 
         self.progress("Setting sensor parameters")        
         # Set sensor parameters
-        self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
-        #self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
+        #self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
+        self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
         self.set_parameter("SIM_PDLK_GPS_SPD", 50) #mm/s
         self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
         self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
@@ -499,12 +490,9 @@ class AutoTestCopter(AutoTest):
         self.set_parameter("PDLK_SNSR_CONF", 1)
         # Set flight speed, cm/s
         self.set_parameter("WPNAV_SPEED", 1000)
-        #Delay for bias
-        self.delay_sim_time(135)
-
         self.takeoff(25)
         self.change_mode("GUIDED")
-        self.delay_sim_time(5)
+        self.delay_sim_time(20)
 
 	    # Adjust the below parameter to change attack strength in autotest
         # Attack value is in cm, delay is in seconds
@@ -529,8 +517,8 @@ class AutoTestCopter(AutoTest):
 
         self.progress("Setting sensor parameters")        
         # Set sensor parameters
-        #self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
-        self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
+        self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
+        #self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
         self.set_parameter("SIM_PDLK_GPS_SPD", 50) #mm/s
         self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
         self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
@@ -546,8 +534,6 @@ class AutoTestCopter(AutoTest):
         self.set_parameter("PDLK_SNSR_CONF", 1)
         # Set flight speed, cm/s
         self.set_parameter("WPNAV_SPEED", 1000)
-        #Delay for bias
-        self.delay_sim_time(135)
 
         self.takeoff(25)
         self.change_mode("GUIDED")
@@ -599,8 +585,6 @@ class AutoTestCopter(AutoTest):
         self.set_parameter("PDLK_SNSR_CONF", 1)
         # Set flight speed, cm/s
         self.set_parameter("WPNAV_SPEED", 1000)
-        #Delay for bias
-        self.delay_sim_time(135)
 
         self.progress("test: Fly a mission from 1 to %u" % num_wp)
         self.takeoff(10)
