@@ -512,7 +512,7 @@ class AutoTestCopter(AutoTest):
         self.progress("Auto mission completed: passed!")
 
     #PADLOCK
-    # Stealthy attack utilizing our advanced attacker parameter
+    # Stealthy attack utilizing our advanced attacker parameter for GPS
     def fly_auto_stealth(self, timeout=360):
 
         self.progress("Setting sensor parameters")        
@@ -549,6 +549,49 @@ class AutoTestCopter(AutoTest):
 
         # Disable and land
         self.set_parameter("GPS_PDLK_ATK", 0)
+        self.change_mode("LAND")
+        # wait for disarm
+        self.wait_disarmed()
+        self.progress("Landed and Disarmed")
+
+        self.progress("Auto mission completed: passed!")
+
+    #PADLOCK
+    # Stealthy attack on Optical Flow sensor
+    def fly_auto_stealth_of(self, timeout=360):
+
+        self.progress("Setting sensor parameters")        
+        # Set sensor parameters
+        self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
+        #self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
+        self.set_parameter("SIM_PDLK_GPS_SPD", 50) #mm/s
+        self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
+        self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
+        self.set_parameter("PDLK_CHOI_CI", 0)
+
+        #Set Optical Flow
+        self.set_parameter("SIM_FLOW_ENABLE", 1)
+        self.set_parameter("FLOW_TYPE", 10)
+        self.set_analog_rangefinder_parameters()
+        self.reboot_sitl()
+
+        #Enable Sensor Confirmation for CNF Logging
+        self.set_parameter("PDLK_SNSR_CONF", 1)
+        # Set flight speed, cm/s
+        self.set_parameter("WPNAV_SPEED", 1000)
+        self.takeoff(25)
+        self.change_mode("GUIDED")
+        self.delay_sim_time(20)
+
+	    # Adjust the below parameter to change attack strength in autotest
+        # Attack value is in cm, delay is in seconds
+        Attack_Delay = 60
+        self.set_parameter("FLOW_PDLK_ADV", 1)
+        self.set_parameter("FLOW_PDLK_ATK", 1)
+        self.delay_sim_time(Attack_Delay)
+
+        # Disable and land
+        self.set_parameter("FLOW_PDLK_ATK", 0)
         self.change_mode("LAND")
         # wait for disarm
         self.wait_disarmed()
@@ -7999,9 +8042,14 @@ class AutoTestCopter(AutoTest):
             self.fly_auto_idle),
 
             #PADLOCK
-            ("AutoStealth",
-            "Always attack under threshold",
+            ("AutoStealthGPS",
+            "Always attack the gps under detection threshold",
             self.fly_auto_stealth),
+
+            #PADLOCK
+            ("AutoStealthOF",
+            "Always attack the flow rate under detection threshold",
+            self.fly_auto_stealth_of),
 
             ("SplineLastWaypoint",
              "Test Spline as last waypoint",
