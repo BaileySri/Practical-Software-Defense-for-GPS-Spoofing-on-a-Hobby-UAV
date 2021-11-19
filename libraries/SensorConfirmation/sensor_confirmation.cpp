@@ -131,7 +131,7 @@ void SensorConfirmation::update()
     //IMU Sensors
     //Updating Current and Previous based on GPS Update rate
 
-    if ((signed)((IMU->get_last_update_usec() / (float)1000) - sensors.currGps.Timestamp) >= GPS_RATE)
+    if ((signed)((IMU->get_last_update_usec() / 1000.0F) - sensors.currGps.Timestamp) >= GPS_RATE)
     {
         sensors.nextAccel.update(IMU);
         sensors.nextGyro.update(IMU);

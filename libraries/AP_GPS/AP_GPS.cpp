@@ -435,9 +435,10 @@ const AP_Param::GroupInfo AP_GPS::var_info[] = {
     // @Description: Adjustable number of attacked frames so the attacker can avoid threshold
     // @Units: Frames
     // @Range: INT8_MIN INT8_MAX
+    // @Values: -1: Always Attack, 0: Never Attack, Int: 1/INT frames will be attacked
     // @Increment: 1
     // @User: Advanced
-    AP_GROUPINFO("_PDLK_FAIL", 38, AP_GPS, FAILED_FRAMES, 0),
+    AP_GROUPINFO("_PDLK_FAIL", 38, AP_GPS, FAILED_FRAMES, -1),
 
     //var_info declarations for GPS
     // @Param: PDLK_ADV_ATK
