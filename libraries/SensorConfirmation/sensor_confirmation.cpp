@@ -296,7 +296,7 @@ float SensorConfirmation::NetOFLimit() const
     ret = MAX(0.0F, sensors.cOF.Err.length() + (sensors.cOFAccel.Error * 1.414/1.73) - std::abs(currAccelNE - cOF));
 
     //GpsOF limit
-    ret = MIN(ret, (sensors.currGps.Hacc / 0.2F) + sensors.cOF.Err.length() - std::abs(currGpsNE - currOF));
+    ret = MIN(ret, (sensors.currGps.Hacc / 0.2F) + sensors.currOF.Err.length() - std::abs(currGpsNE - currOF));
 
     //Disallow returning a negative
     ret = MAX(0.0F, ret);
