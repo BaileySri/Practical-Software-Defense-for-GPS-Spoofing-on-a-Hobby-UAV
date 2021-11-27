@@ -497,13 +497,57 @@ class AutoTestCopter(AutoTest):
 	    # Adjust the below parameter to change attack strength in autotest
         # Attack value is in cm, delay is in seconds
         Attack_Delay = 60
-        self.set_parameter("GPS_PDLK_E", 250)
+        self.set_parameter("GPS_PDLK_E", 500)
         self.set_parameter("GPS_PDLK_N", 0)
         self.set_parameter("GPS_PDLK_ATK", 1)
         self.delay_sim_time(Attack_Delay)
 
         # Disable and land
         self.set_parameter("GPS_PDLK_ATK", 0)
+        self.change_mode("LAND")
+        # wait for disarm
+        self.wait_disarmed()
+        self.progress("Landed and Disarmed")
+
+        self.progress("Auto mission completed: passed!")
+
+    #PADLOCK
+    # Stealthy attack on Optical Flow sensor
+    def fly_auto_idle_of(self, timeout=360):
+        self.progress("Setting sensor parameters")        
+        # Set sensor parameters
+        self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
+        #self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
+        self.set_parameter("SIM_PDLK_GPS_SPD", 50) #mm/s
+        self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
+        self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
+        self.set_parameter("PDLK_CHOI_CI", 0)
+
+        #Set Optical Flow
+        self.set_parameter("SIM_FLOW_ENABLE", 1)
+        self.set_parameter("FLOW_TYPE", 10)
+        self.set_analog_rangefinder_parameters()
+        self.reboot_sitl()
+
+        #Enable Sensor Confirmation for CNF Logging
+        self.set_parameter("PDLK_SNSR_CONF", 1)
+        # Set flight speed, cm/s
+        self.set_parameter("WPNAV_SPEED", 1000)
+        self.takeoff(25)
+        self.change_mode("GUIDED")
+        self.delay_sim_time(20)
+        #Set Optical Flow primary
+        self.configure_EKFs_to_use_optical_flow_instead_of_GPS()
+
+	    # Adjust the below parameter to change attack strength in autotest
+        # Attack value is in cm, delay is in seconds
+        Attack_Delay = 60
+        self.set_parameter("FLOW_PDLK_X", 0.13)
+        self.set_parameter("FLOW_PDLK_ATK", 1)
+        self.delay_sim_time(Attack_Delay)
+
+        # Disable and land
+        self.set_parameter("FLOW_PDLK_ATK", 0)
         self.change_mode("LAND")
         # wait for disarm
         self.wait_disarmed()
@@ -582,6 +626,8 @@ class AutoTestCopter(AutoTest):
         self.takeoff(25)
         self.change_mode("GUIDED")
         self.delay_sim_time(20)
+        #Set Optical Flow primary
+        self.configure_EKFs_to_use_optical_flow_instead_of_GPS()
 
 	    # Adjust the below parameter to change attack strength in autotest
         # Attack value is in cm, delay is in seconds
@@ -652,6 +698,71 @@ class AutoTestCopter(AutoTest):
         # Allow the attack time to deviate the QuadCopters path
         self.delay_sim_time(60)
         self.set_parameter("GPS_PDLK_ATK", 0)
+        self.change_mode("LAND")
+        # wait for disarm
+        self.wait_disarmed()
+        self.progress("Landed and Disarmed")
+
+        self.progress("Auto mission completed: passed!")
+
+    #PADLOCK
+    # The initial layout was provided from the fly_auto_motion function above
+    def fly_auto_motion_of(self, timeout=360):
+        # Fly mission the data gathering mission
+        self.progress("# Load PDLK Attack Waypoints")
+        # load the waypoint count
+        num_wp = self.load_mission("pdlk_auto_motion.txt")
+        if not num_wp:
+            raise NotAchievedException("load pdlk_auto_motion.txt failed")
+        
+        self.progress("Setting sensor parameters")        
+        # Set sensor parameters
+        self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
+        #self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
+        self.set_parameter("SIM_PDLK_GPS_SPD", 50) #mm/s
+        self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
+        self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
+        self.set_parameter("PDLK_CHOI_CI", 0)
+        
+        #Set Optical Flow
+        self.set_parameter("SIM_FLOW_ENABLE", 1)
+        self.set_parameter("FLOW_TYPE", 10)
+        self.set_analog_rangefinder_parameters()
+
+        self.reboot_sitl()
+        
+        #Enable Sensor Confirmation for CNF Logging
+        self.set_parameter("PDLK_SNSR_CONF", 1)
+        # Set flight speed, cm/s
+        self.set_parameter("WPNAV_SPEED", 1000)
+
+        self.progress("test: Fly a mission from 1 to %u" % num_wp)
+        self.takeoff(10)
+
+        # switch into AUTO mode
+        self.change_mode("AUTO")
+
+        # fly the mission
+        # wait until 100m from home
+        try:
+            self.wait_distance(distance=150, accuracy=5, timeout=120)
+        except Exception as e:
+            if self.use_map:
+                self.show_gps_and_sim_positions(False)
+            raise e
+
+        #Set Optical Flow primary
+        # Still unsure if we can force Auto navigation with only Optical Flow, consider TODO
+        self.configure_EKFs_to_use_optical_flow_instead_of_GPS()
+
+	    # Adjust the below parameter to change attack strength in autotest
+        # Attack value is in cm
+        self.set_parameter("FLOW_PDLK_X", 0.13)
+        self.set_parameter("FLOW_PDLK_ATK", 1)
+
+        # Allow the attack time to deviate the QuadCopters path
+        self.delay_sim_time(60)
+        self.set_parameter("FLOW_PDLK_ATK", 0)
         self.change_mode("LAND")
         # wait for disarm
         self.wait_disarmed()
@@ -8035,6 +8146,11 @@ class AutoTestCopter(AutoTest):
             ("AutoMotion",
             "Fly in auto then perform an attack",
             self.fly_auto_motion),
+
+            #PADLOCK
+            ("AutoMotionOF",
+            "Fly in auto then perform an attack on the optical flow",
+            self.fly_auto_motion_of),
             
             #PADLOCK
             ("AutoIdle",
@@ -8042,7 +8158,12 @@ class AutoTestCopter(AutoTest):
             self.fly_auto_idle),
 
             #PADLOCK
-            ("AutoStealthGPS",
+            ("AutoIdleOF",
+            "Raise altitude in guided mode, then attack the optical flow",
+            self.fly_auto_idle_of),
+
+            #PADLOCK
+            ("AutoStealth",
             "Always attack the gps under detection threshold",
             self.fly_auto_stealth),
 

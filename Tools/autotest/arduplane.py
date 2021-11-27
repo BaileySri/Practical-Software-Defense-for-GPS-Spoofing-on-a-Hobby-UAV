@@ -131,6 +131,20 @@ class AutoTestPlane(AutoTest):
         self.progress("TAKEOFF COMPLETE")
     
     #PADLOCK
+    # Pulled from arducopter.py
+    def configure_EKFs_to_use_optical_flow_instead_of_GPS(self):
+        '''configure EKF to use optical flow instead of GPS'''
+        ahrs_ekf_type = self.get_parameter("AHRS_EKF_TYPE")
+        if ahrs_ekf_type == 2:
+            self.set_parameter("EK2_GPS_TYPE", 3)
+        if ahrs_ekf_type == 3:
+            self.set_parameters({
+                "EK3_SRC1_POSXY": 0,
+                "EK3_SRC1_VELXY": 5,
+                "EK3_SRC1_VELZ": 0,
+            })
+
+    #PADLOCK
     # Flies a square for benign data
     def fly_auto_square(self, timeout=360):
         self.progress("# Load PDLK Square Waypoints")
@@ -324,6 +338,70 @@ class AutoTestPlane(AutoTest):
         self.progress("Auto mission completed: passed!")
 
     #PADLOCK
+    # Flies North and then attacks before final waypoint
+    def fly_auto_motion_of(self, timeout=360):
+        #Set Optical Flow
+        self.set_parameter("SIM_FLOW_ENABLE", 1)
+        self.set_parameter("FLOW_TYPE", 10)
+        self.set_analog_rangefinder_parameters()
+        
+        self.reboot_sitl()
+
+        self.progress("# Load PDLK Attack Waypoints")
+        # load the waypoint count
+        num_wp = self.load_mission("pdlk_auto_motion.txt")
+        if not num_wp:
+            raise NotAchievedException("load pdlk_auto_motion.txt failed")
+
+        self.progress("Setting sensor parameters")        
+        # Set sensor parameters
+        #self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
+        self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
+        self.set_parameter("SIM_PDLK_GPS_SPD", 50) #mm/s
+        self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
+        self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
+        self.progress("test: Fly a mission from 1 to %u" % num_wp)
+        self.mavproxy.send('wp set 1\n')
+
+        #Enable Sensor Confirmation for CNF Logging
+        self.set_parameter("PDLK_SNSR_CONF", 1)
+        # Set flight speed, cm/s
+        self.set_parameter("TRIM_ARSPD_CM", 2900)
+
+	    # Setting Location
+        loc = self.mav.location()
+        self.change_mode("AUTO")
+        self.wait_ready_to_arm()
+        self.arm_vehicle()
+
+        # fly the mission
+        # wait until 600m from home
+        try:
+            self.wait_distance(distance=650, accuracy=5, timeout=120)
+        except Exception as e:
+            if self.use_map:
+                self.show_gps_and_sim_positions(False)
+            raise e
+
+        # Setting Optical Flow as primary
+        # Still unsure if we can do OF only during Auto mode, consider TODO
+        self.configure_EKFs_to_use_optical_flow_instead_of_GPS()
+
+	    # Adjust the below parameter to change attack strength in autotest
+        self.set_parameter("FLOW_PDLK_X",0.13)
+        self.set_parameter("FLOW_PDLK_ATK", 1)
+
+        # Allow the attack time to deviate the planes path
+        self.delay_sim_time(60)
+        self.set_parameter("FLOW_PDLK_ATK", 0)
+        # wait for RTL
+        self.wait_mode("RTL")
+        self.disarm_vehicle()
+        self.progress("Landed, Mission Complete.")
+
+        self.progress("Auto mission completed: passed!")
+
+    #PADLOCK
     # Stealthy attack utilizing our advanced attacker parameter
     def fly_auto_stealth(self, timeout=360):
 
@@ -381,6 +459,72 @@ class AutoTestPlane(AutoTest):
 
         # Disable and land
         self.set_parameter("GPS_PDLK_ATK", 0)
+        # wait for RTL
+        self.wait_mode("RTL")
+        self.disarm_vehicle()
+        self.progress("Auto mission completed: passed!")
+
+        #PADLOCK
+    
+    # Stealthy attack utilizing our advanced attacker parameter, pulled from above
+    def fly_auto_stealth_of(self, timeout=360):
+
+        #Set Optical Flow
+        self.set_parameter("SIM_FLOW_ENABLE", 1)
+        self.set_parameter("FLOW_TYPE", 10)
+        self.set_analog_rangefinder_parameters()
+        self.reboot_sitl()
+
+        #Enable Sensor Confirmation for CNF Logging
+        self.set_parameter("PDLK_SNSR_CONF", 1)
+        # Set flight speed, cm/s
+        self.set_parameter("TRIM_ARSPD_CM", 2900)
+
+        self.progress("# Load PDLK Attack Waypoints")
+        # load the waypoint count
+        num_wp = self.load_mission("pdlk_auto_stealth.txt")
+        if not num_wp:
+            raise NotAchievedException("load pdlk_auto_stealth.txt failed")
+
+	    # Set sensor parameters
+        self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
+        #self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
+        self.set_parameter("SIM_PDLK_GPS_SPD", 50) #mm/s
+        self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
+        self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
+        self.progress("test: Fly a mission from 1 to %u" % num_wp)
+        self.mavproxy.send('wp set 1\n')
+
+        #Enable Sensor Confirmation for CNF Logging
+        self.set_parameter("PDLK_SNSR_CONF", 1)
+        # Set flight speed, cm/s
+        self.set_parameter("TRIM_ARSPD_CM", 2900)
+
+        self.change_mode("AUTO")
+        self.wait_ready_to_arm()
+        self.arm_vehicle()
+
+        # fly the mission
+        # wait until 600m from home
+        try:
+            self.wait_distance(distance=650, accuracy=5, timeout=120)
+        except Exception as e:
+            if self.use_map:
+                self.show_gps_and_sim_positions(False)
+            raise e
+
+        # Setting Optical Flow as primary
+        # Still unsure if we can do OF only during Auto mode, consider TODO
+        self.configure_EKFs_to_use_optical_flow_instead_of_GPS()
+
+        # Adjust the below parameter to change attack strength in autotest  
+        Attack_Delay = 60
+        self.set_parameter("FLOW_PDLK_ADV", 1)
+        self.set_parameter("FLOW_PDLK_ATK", 1)
+        self.delay_sim_time(Attack_Delay)
+
+        # Disable and land
+        self.set_parameter("FLOW_PDLK_ATK", 0)
         # wait for RTL
         self.wait_mode("RTL")
         self.disarm_vehicle()
@@ -3456,9 +3600,17 @@ class AutoTestPlane(AutoTest):
              "Run the auto mission with an offset attack",
               self.fly_auto_motion),
 
+            ("AutoMotionOF",
+             "Run the auto mission with an offset attack with Optical Flow",
+              self.fly_auto_motion_of),
+
             ("AutoStealth",
              "Run the advanced attacker mission",
               self.fly_auto_stealth),
+
+            ("AutoStealthOF",
+             "Run the advanced attacker mission with Optical Flow",
+              self.fly_auto_stealth_of),
               
             ("AutoSquare",
              "A square mission for benign data",
