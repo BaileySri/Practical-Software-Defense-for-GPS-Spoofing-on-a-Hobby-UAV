@@ -274,7 +274,7 @@ class SensorConfirmation{
                     #endif
 
                     VelNE = AP_AHRS::get_singleton()->body_to_earth2D(flow_filter.get() * (currRF.rf_filt.get()/100.0F) / scaling_factor);   //Rotated BF to NED
-                    // Differential Error Propagation of Rangefinder, Scaling Factor, and Optical Flow
+                    // Error Propagation of Rangefinder, Scaling Factor, and Optical Flow
                     Vector2f ErrFR = Vector2f{sqrtf(sq(currRF.rf_filt.get()/100.0F / scaling_factor) * sq(FLOW_ERR + OF_GYRO_ERR) + 
                                                     sq(flow_filter.get()[0] / scaling_factor) * sq(currRF.RangeErr) + 
                                                     sq(flow_filter.get()[0] * currRF.rf_filt.get()/100.0F) * sq(0.05)),

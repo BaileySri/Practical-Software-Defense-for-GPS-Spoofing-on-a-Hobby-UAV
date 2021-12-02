@@ -542,7 +542,8 @@ class AutoTestCopter(AutoTest):
 	    # Adjust the below parameter to change attack strength in autotest
         # Attack value is in cm, delay is in seconds
         Attack_Delay = 60
-        self.set_parameter("FLOW_PDLK_X", 0.13)
+        # Positive RH rotation about x-axis gives West flow, corrected by moving East
+        self.set_parameter("FLOW_PDLK_X", 0.03)
         self.set_parameter("FLOW_PDLK_ATK", 1)
         self.delay_sim_time(Attack_Delay)
 

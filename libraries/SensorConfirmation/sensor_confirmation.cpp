@@ -154,6 +154,7 @@ void SensorConfirmation::update()
 
 bool SensorConfirmation::run()
 {
+    bool res = true;
     if (framework.gpsAvail)
     {
     #if CONFIG_HAL_BOARD == HAL_BOARD_SITL && 0
@@ -174,10 +175,10 @@ bool SensorConfirmation::run()
                                                 ToDeg(sensors.currGyro.Error * (sensors.currGyro.TimeContained / (float)1000000)));
 
         // GPS Confirmations
-        AccGPS();
-        GpsMagGC();
-        GpsOF();
-        GpsOFGC();
+        res &= AccGPS();
+        res &= GpsMagGC();
+        res &= GpsOF();
+        res &= GpsOFGC();
         
         //Switch to next IMU data
         sensors.currAccel = sensors.nextAccel;
@@ -203,11 +204,8 @@ bool SensorConfirmation::run()
                                                 sensors.cOF.Err,
                                                 sensors.cOFAccel.Velocity,
                                                 sensors.cOFAccel.Error);
-        // if (!AccOF())
-        // {
-        //     gcs().send_text(MAV_SEVERITY_WARNING, "AccOF Failed.");
-        // }
-        //Save current accelerometer data and move new data into current sensor
+        res &= AccOF();
+
         sensors.pOFAccel = sensors.cOFAccel;
         sensors.cOFAccel = sensors.nOFAccel;
         sensors.nOFAccel.reset();
@@ -219,7 +217,7 @@ bool SensorConfirmation::run()
 
         framework.ofAvail = false;
     }
-    return true;
+    return res;
 }
 
 void SensorConfirmation::alert()
@@ -259,7 +257,7 @@ void SensorConfirmation::confirmation()
     //If run returns True, Nothing
     if (!run())
     {
-        //alert();
+        alert();
     }
 }
 //----Reactive Attacker----//
