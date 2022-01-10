@@ -232,7 +232,7 @@ void SensorConfirmation::debug()
                             AP_HAL::micros64(),
                             sensors.currAccel.Timestamp,
                             sensors.nextAccel.Timestamp,
-                            sensors.gps.Timestamp);
+                            sensors.currGps.Timestamp);
     #elif CONFIG_HAL_BOARD == HAL_BOARD_SITL
             gcs().send_text(MAV_SEVERITY_INFO, "CURRENT [%lu] currAcc: %u | nextAcc: %u | GPS: %u",
                             AP_HAL::micros64(),
