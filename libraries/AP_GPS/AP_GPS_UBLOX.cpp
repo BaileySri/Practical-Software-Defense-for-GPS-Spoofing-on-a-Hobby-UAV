@@ -892,6 +892,8 @@ bool
 AP_GPS_UBLOX::_parse_gps(void)
 {
     //PADLOCK
+    //  RC Trigger for Spoofing
+    RC_Channel* ch_gps = RC_Channels::rc_channel(CH_7);
     //  Fencing
     static bool fenced = false;
     static bool atk_started = false;
@@ -1293,7 +1295,7 @@ AP_GPS_UBLOX::_parse_gps(void)
 
         //PADLOCK
         //  Set fencing value
-        if(!atk_started && gps.GPS_ATK == 1){
+        if(!atk_started && (ch_gps->get_radio_in() > 1600)){
             //As the attack is enabled
             fence_lat = state.location.lat;
             fence_lng = state.location.lng;
@@ -1307,7 +1309,7 @@ AP_GPS_UBLOX::_parse_gps(void)
             #endif
         }
         // Attack has started, We are not outside the fence, next frame is attacked
-        if(gps.GPS_ATK == 1 && atk_started && !fenced && gps.FAILED_FRAMES != attacked_posllh){
+        if((ch_gps->get_radio_in() > 1600) && atk_started && !fenced && gps.FAILED_FRAMES != attacked_posllh){
             // Overwrite latitude/longitude
             /*  Lat and Long are in E-7 format, cm accuracy
                 Latitude:  111.32km = 1 degree
@@ -1329,7 +1331,7 @@ AP_GPS_UBLOX::_parse_gps(void)
             }
             attacked_posllh++;
         } else{
-            if(gps.GPS_ATK == 1 && gps.ADV_ATK == 1){
+            if((ch_gps->get_radio_in() > 1600) && gps.ADV_ATK == 1){
                 if(attack_limit > 0){
                     // During advanced attack we force confirmation to avoid streaks
                     state.location.lng = fence_lng + static_cast<int32_t>((attack_limit * dt) * (.89831f) / cosf(radians(state.location.lat / 1E7)));
@@ -1553,7 +1555,7 @@ AP_GPS_UBLOX::_parse_gps(void)
 
         //PADLOCK
         // Set fencing value
-        if(!atk_started && gps.GPS_ATK == 1){
+        if(!atk_started && (ch_gps->get_radio_in() > 1600)){
             //As the attack is enabled
             fence_lat = state.location.lat;
             fence_lng = state.location.lng;
@@ -1565,7 +1567,7 @@ AP_GPS_UBLOX::_parse_gps(void)
             gcs().send_text(MAV_SEVERITY_INFO,"FENCE INIT(lat,lng, alt): %li, %li, %li", fence_lat, fence_lng, fence_alt);
             #endif
         }
-        if(gps.GPS_ATK == 1 && atk_started && !fenced && gps.FAILED_FRAMES != attacked_pvt){
+        if((ch_gps->get_radio_in() > 1600) && atk_started && !fenced && gps.FAILED_FRAMES != attacked_pvt){
             if(dt == 0){
                 dt = 1;
             }
@@ -1606,7 +1608,7 @@ AP_GPS_UBLOX::_parse_gps(void)
             }
             attacked_pvt++;
         } else{
-            if(gps.GPS_ATK == 1 && gps.ADV_ATK == 1){
+            if((ch_gps->get_radio_in() > 1600) && gps.ADV_ATK == 1){
                 if(attack_limit > 0){
                     // During advanced attack we force confirmation to avoid streaks
                     state.location.lng = fence_lng + static_cast<int32_t>((attack_limit * dt) * (.89831f) / cosf(radians(state.location.lat / 1E7)));
@@ -1661,7 +1663,7 @@ AP_GPS_UBLOX::_parse_gps(void)
 
         //PADLOCK
         //VELNED is same calculations as PVT, skip update during attack
-        if(!fenced && gps.GPS_ATK == 1){
+        if(!fenced && (ch_gps->get_radio_in() > 1600)){
             //Skip Update
         } else{
             state.ground_speed     = _buffer.velned.speed_2d*0.01f;          // m/s

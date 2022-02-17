@@ -380,13 +380,6 @@ const AP_Param::GroupInfo AP_GPS::var_info[] = {
 
     //PADLOCK
     //var_info declarations for GPS
-    // @Param: PDLK_ATK
-    // @DisplayName: GPS Sensor Attack
-    // @Description: Enable/Disable the GPS Sensor Attack
-    // @Values: 0:Disable, 1:Enable
-    // @User: Advanced
-    AP_GROUPINFO("_PDLK_ATK", 32, AP_GPS, GPS_ATK, 0),
-
     // @Param: PDLK_N
     // @DisplayName: North/South spoofed value
     // @Description: Set the spoofed North/South position of the drone relative to the drone
@@ -394,7 +387,7 @@ const AP_Param::GroupInfo AP_GPS::var_info[] = {
     // @Range: ITN32_MIN INT32_MAX
     // @Increment: 1
     // @User: Advanced
-    AP_GROUPINFO("_PDLK_N", 33, AP_GPS, ATK_OFS_NORTH, 0),
+    AP_GROUPINFO("_PDLK_N", 32, AP_GPS, ATK_OFS_NORTH, 0),
 
     // @Param: PDLK_E
     // @DisplayName: East/West spoofed value
@@ -403,14 +396,14 @@ const AP_Param::GroupInfo AP_GPS::var_info[] = {
     // @Range: INT32_MIN INT32_MAX
     // @Increment: 1
     // @User: Advanced
-    AP_GROUPINFO("_PDLK_E", 34, AP_GPS, ATK_OFS_EAST, 0),
+    AP_GROUPINFO("_PDLK_E", 33, AP_GPS, ATK_OFS_EAST, 0),
     
     // @Param: GPS_FEN
     // @DisplayName: Disable/Enable the fence around GPS Spoofing
     // @Description: Turns on or off the fencing around gps spoofing for safety.
     // @Values: 0:Disabled, 1:Enabled
     // @User: Advanced
-    AP_GROUPINFO("_PDLK_FEN", 35, AP_GPS, GPS_FENCE, 0),
+    AP_GROUPINFO("_PDLK_FEN", 34, AP_GPS, GPS_FENCE, 0),
 
     // @Param: PDLK_FEN_SIZ
     // @DisplayName: Box size of GPS Fence
@@ -419,7 +412,7 @@ const AP_Param::GroupInfo AP_GPS::var_info[] = {
     // @Range: INT8_MIN INT8_MAX
     // @Increment: 1
     // @User: Advanced
-    AP_GROUPINFO("_PDLK_FEN_SIZ", 36, AP_GPS, GPS_FENCE_SIZE, 5),
+    AP_GROUPINFO("_PDLK_FEN_SIZ", 35, AP_GPS, GPS_FENCE_SIZE, 5),
 
     // @Param: PDLK_FEN_ALT
     // @DisplayName: Fence height above and below
@@ -428,7 +421,7 @@ const AP_Param::GroupInfo AP_GPS::var_info[] = {
     // @Range: INT8_MIN INT8_MAX
     // @Increment: 1
     // @User: Advanced
-    AP_GROUPINFO("_PDLK_FEN_ALT", 37, AP_GPS, GPS_FENCE_ALT, 5),
+    AP_GROUPINFO("_PDLK_FEN_ALT", 36, AP_GPS, GPS_FENCE_ALT, 5),
 
     // @Param: PDLK_FAIL
     // @DisplayName: The number of frames allowed to fail
@@ -438,7 +431,7 @@ const AP_Param::GroupInfo AP_GPS::var_info[] = {
     // @Values: -1: Always Attack, 0: Never Attack, Int: 1/INT frames will be attacked
     // @Increment: 1
     // @User: Advanced
-    AP_GROUPINFO("_PDLK_FAIL", 38, AP_GPS, FAILED_FRAMES, -1),
+    AP_GROUPINFO("_PDLK_FAIL", 37, AP_GPS, FAILED_FRAMES, -1),
 
     //var_info declarations for GPS
     // @Param: PDLK_ADV_ATK
@@ -446,7 +439,7 @@ const AP_Param::GroupInfo AP_GPS::var_info[] = {
     // @Description: Enable/Disable the advanced attacker mode of sensor spoofing, requires PDLK_ATK == 1
     // @Values: 0:Disable, 1:Enable
     // @User: Advanced
-    AP_GROUPINFO("_PDLK_ADV_ATK", 39, AP_GPS, ADV_ATK, 0),
+    AP_GROUPINFO("_PDLK_ADV_ATK", 38, AP_GPS, ADV_ATK, 0),
 
     AP_GROUPEND
 };
