@@ -1192,7 +1192,39 @@ void AP_Logger::Write_CNFR(const Vector2f &P_OF, const Vector2f &P_OF_Err,
         M_0_0 : dcm.a[0],
         GYRO_Err : Gyro_Err,
     };
+    
+    
 
+    #if !(CONFIG_HAL_BOARD==HAL_BOARD_SITL)
+        float Sacc; //m/s GPS 3D RMS Speed Accuracy
+        float Hacc; //m GPS 3D RMS Horizontal Position Accuracy
+        float Vacc; //m GPS 3D RMS Vertical Position Accuracy
+        const AP_GPS *gps = AP::gps().get_singleton();
+
+        if (!gps->speed_accuracy(Sacc))
+        {
+            Sacc = -1;
+        }
+        if (!gps->vertical_accuracy(Vacc))
+        {
+            Vacc = -1;
+        }
+        if (!gps->horizontal_accuracy(Hacc))
+        {
+            Hacc = -1;
+        }
+
+        // This is just for GPS reported accuracy metrics
+        struct log_confirmation_4 pkt4 = {
+            LOG_PACKET_HEADER_INIT(LOG_CNFR_4_MSG),
+            time_us : timestamp,
+            //GPS Error
+            gpSA : Sacc,
+            gpHA : Hacc,
+            gpVA : Vacc,
+        };
+        FOR_EACH_BACKEND(WriteBlock(&pkt4, sizeof(pkt4)));
+    #endif
     FOR_EACH_BACKEND(WriteBlock(&pkt1, sizeof(pkt1)));
     FOR_EACH_BACKEND(WriteBlock(&pkt2, sizeof(pkt2)));
     FOR_EACH_BACKEND(WriteBlock(&pkt3, sizeof(pkt3)));

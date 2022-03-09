@@ -798,6 +798,15 @@ struct PACKED log_confirmation_3 {
     float GYRO_Err;
 };
 
+struct PACKED log_confirmation_4 {
+    LOG_PACKET_HEADER
+    uint64_t time_us;
+    //GPS Errors
+    float gpSA;
+    float gpHA;
+    float gpVA;
+};
+
 struct PACKED log_accof_1 {
     LOG_PACKET_HEADER
     uint64_t time_us;
@@ -1465,6 +1474,8 @@ LOG_STRUCTURE_FROM_VISUALODOM \
       "CNF2", "Qffffffff", "TimeUS,CGpN,CGpE,CGpD,CGpe,PGpN,PGpE,PGpD,PGpe", "snnnnnnnn", "F00000000"}, \
     { LOG_CNFR_3_MSG, sizeof(log_confirmation_3), \
       "CNF3", "Qfffffffffff", "TimeUS,CAN,CAE,CAD,CAe,NAN,NAE,NAD,NAe,m10,m00,Gye", "snnnnnnnn---", "F00000000---"}, \
+    { LOG_CNFR_4_MSG, sizeof(log_confirmation_4), \
+      "CNF4", "Qfff", "TimeUS,gpSA,gpHA,gpVA", "snmm", "F000"}, \
     { LOG_ACCOF_1_MSG, sizeof(log_accof_1), \
       "ACO1", "Qffffffff", "TimeUS,COFN,COFE,CNe,CEe,POFN,POFE,PNe,PEe", "snnnnnnnn", "F00000000"}, \
     { LOG_ACCOF_2_MSG, sizeof(log_accof_2), \
@@ -1554,6 +1565,7 @@ enum LogMessages : uint8_t {
     LOG_CNFR_1_MSG,
     LOG_CNFR_2_MSG,
     LOG_CNFR_3_MSG,
+    LOG_CNFR_4_MSG,
     LOG_ACCOF_1_MSG,
     LOG_ACCOF_2_MSG,
 
