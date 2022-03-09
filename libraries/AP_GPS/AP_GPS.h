@@ -612,6 +612,8 @@ protected:
 
     //PADLOCK
     //GPS Parameters
+    // Boolean to enable attack
+    AP_Int8 GPS_ATK;
     // Boolean to enable advanced attack
     AP_Int8 ADV_ATK;
     // How many frames should be attacked in a streak
