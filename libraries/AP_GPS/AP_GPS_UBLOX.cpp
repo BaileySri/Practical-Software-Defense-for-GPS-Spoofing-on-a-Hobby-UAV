@@ -18,11 +18,13 @@
 //	Origin code by Michael Smith, Jordi Munoz and Jose Julio, DIYDrones.com
 //  Substantially rewritten for new GPS driver structure by Andrew Tridgell
 //
+#include "AP_Common/Location.h"
 #include "AP_GPS.h"
 #include "AP_GPS_UBLOX.h"
 #include <AP_HAL/Util.h>
 #include <AP_Logger/AP_Logger.h>
 #include <GCS_MAVLink/GCS.h>
+#include "AP_Math/vector2.h"
 #include "RTCM3_Parser.h"
 #include <stdio.h>
 //PADLOCK
@@ -909,6 +911,14 @@ AP_GPS_UBLOX::_parse_gps(void)
     const float attack_limit = PDLK.NetGpsLimit() - 0.01; // Net difference in m/s
     static const uint32_t attack_limit_delay = 5000000U; //5 seconds between notification
     static uint32_t last_attack_msg = AP_HAL::micros64();
+    // Take Over Attack Variables
+    static uint32_t take_over[2]; //Loop incrementer for attack values for POSLLH and PVT respectively
+    static int32_t target_x = 0; //Distance offset to reduce speed to 0 in N-S direction
+    static int32_t target_y = 0; //Distance offset to reduce speed to 0 in E-W direction
+    static Location last_spoof;
+    static bool hold_position_x = false; //If we are just relaying the last longitude position
+    static bool hold_position_y = false; //If we are just relaying the last latitude position
+    uint32_t POS_VEL_RATIO = gps.SLOW_RATE/.250; //Numerator is m/s slowed down per second
 
     if (_class == CLASS_ACK) {
         Debug("ACK %u", (unsigned)_msg_id);
@@ -1301,7 +1311,10 @@ AP_GPS_UBLOX::_parse_gps(void)
             fence_lat = state.location.lat;
             fence_lng = state.location.lng;
             fence_alt = state.location.alt;
+            target_x = state.velocity.x * 20;
+            target_y = state.velocity.y * 20;
             atk_started = true;
+            last_spoof = state.location;
 
             #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
             gcs().send_text(MAV_SEVERITY_INFO,"FENCE INIT(lat,lng, alt): %i, %i, %i", fence_lat, fence_lng, fence_alt);
@@ -1327,8 +1340,39 @@ AP_GPS_UBLOX::_parse_gps(void)
                 state.location.lng = fence_lng + static_cast<int32_t>((attack_limit * dt) * (.89831f) / cosf(radians(state.location.lat / 1E7)));
                 state.location.lat = fence_lat + static_cast<int32_t>(0 * .89831f);
             } else if(gps.ADV_ATK == 0){
-                state.location.lng = fence_lng + static_cast<int32_t>(gps.ATK_OFS_EAST * (.89831f) / cosf(radians(state.location.lat / 1E7)));
-                state.location.lat = fence_lat + static_cast<int32_t>(gps.ATK_OFS_NORTH * .89831f);
+                uint32_t take_over_iter = MAX(take_over[0], take_over[1]);
+                int32_t scaled_attack_x = POS_VEL_RATIO * take_over_iter;
+                if(!hold_position_x && abs(scaled_attack_x) > abs(target_x) + abs(gps.ATK_OFS_NORTH)){
+                    hold_position_x = true;
+                    scaled_attack_x = 0;
+                }
+                if(target_x > 0){
+                    scaled_attack_x *= -1;
+                }
+                int32_t scaled_attack_y = POS_VEL_RATIO * take_over_iter;
+                if(!hold_position_y && abs(scaled_attack_y) > abs(target_y) + abs(gps.ATK_OFS_EAST)){
+                    hold_position_y = true;
+                    scaled_attack_y = 0;
+                }
+                if(target_y > 0){
+                    scaled_attack_y *= -1;
+                }
+                take_over[0] = MIN(take_over[0] + uint32_t(1), uint32_t(1000));
+
+                if(!hold_position_x){
+                    //Runs East-West, spoofing pushes the drone North-South
+                    state.location.lat = state.location.lat + static_cast<int32_t>(scaled_attack_x * .89831f);
+                    last_spoof.lat = state.location.lat;
+                } else{
+                    state.location.lat = last_spoof.lat;
+                }
+                if(!hold_position_y){
+                    //Runs North-South, spoofing pushes the drone East-West
+                    state.location.lng = state.location.lng + static_cast<int32_t>(scaled_attack_y * (.89831f) / cosf(radians(state.location.lat / 1E7)));
+                    last_spoof.lng = state.location.lng;
+                } else{
+                    state.location.lng = last_spoof.lng;
+                }
             }
             attacked_posllh++;
         } else{
@@ -1561,7 +1605,11 @@ AP_GPS_UBLOX::_parse_gps(void)
             fence_lat = state.location.lat;
             fence_lng = state.location.lng;
             fence_alt = state.location.alt;
+            target_x = state.velocity.x * 100;
+            target_y = state.velocity.y * 100;
+            last_spoof = state.location;
             atk_started = true;
+
             #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
             gcs().send_text(MAV_SEVERITY_INFO,"FENCE INIT(lat,lng, alt): %i, %i, %i", fence_lat, fence_lng, fence_alt);
             #elif CONFIG_HAL_BOARD == HAL_BOARD_CHIBIOS
@@ -1596,14 +1644,56 @@ AP_GPS_UBLOX::_parse_gps(void)
                 //Ground Course
                 state.ground_course = wrap_360(degrees(atan2f(state.velocity.y, state.velocity.x)));
             } else if(gps.ADV_ATK == 0){
-                state.location.lng = fence_lng + static_cast<int32_t>(gps.ATK_OFS_EAST * (.89831f) / cosf(radians(state.location.lat / 1E7)));
-                state.location.lat = fence_lat + static_cast<int32_t>(gps.ATK_OFS_NORTH * .89831f);
+                uint32_t take_over_iter = MAX(take_over[0], take_over[1]);
+                int32_t scaled_attack_x = POS_VEL_RATIO * take_over_iter;
+                if(!hold_position_x && abs(scaled_attack_x) > abs(target_x) + abs(gps.ATK_OFS_NORTH)){
+                    hold_position_x = true;
+                    scaled_attack_x = 0;
+                }
+                if(target_x > 0){
+                    scaled_attack_x *= -1;
+                }
+                int32_t scaled_attack_y = POS_VEL_RATIO * take_over_iter;
+                if(!hold_position_y && abs(scaled_attack_y) > abs(target_y) + abs(gps.ATK_OFS_EAST)){
+                    hold_position_y = true;
+                    scaled_attack_y = 0;
+                }
+                if(target_y > 0){
+                    scaled_attack_y *= -1;
+                }
+                take_over[1] = MIN(take_over[1] + uint32_t(1), uint32_t(1000));
+
+                if(!hold_position_x){
+                    //Runs East-West, spoofing pushes the drone North-South
+                    state.location.lat = state.location.lat + static_cast<int32_t>(scaled_attack_x * .89831f);
+                    last_spoof.lat = state.location.lat;
+                } else{
+                    state.location.lat = last_spoof.lat;
+                }
+                if(!hold_position_y){
+                    //Runs North-South, spoofing pushes the drone East-West
+                    state.location.lng = state.location.lng + static_cast<int32_t>(scaled_attack_y * (.89831f) / cosf(radians(state.location.lat / 1E7)));
+                    last_spoof.lng = state.location.lng;
+                } else{
+                    state.location.lng = last_spoof.lng;
+                }
+
                 //North Velocity
-                state.velocity.x = (gps.ATK_OFS_NORTH / 1e2 ) / dt; 
+                if(hold_position_x){
+                    state.velocity.x = 0;
+                } else{
+                    state.velocity.x = state.velocity.x + ((float)scaled_attack_x / dt);
+                    state.velocity.x = MAX(state.velocity.x, 0);     
+                }
                 //East Velocity
-                state.velocity.y = (gps.ATK_OFS_EAST / 1e2) / dt;
+                if(hold_position_y){
+                    state.velocity.y = 0;
+                } else{
+                    state.velocity.y = state.velocity.y + ((float)scaled_attack_y / dt);
+                    state.velocity.y = MAX(state.velocity.y, 0);     
+                }
                 //Ground Speed
-                state.ground_speed = norm(gps.ATK_OFS_NORTH / 1e2, gps.ATK_OFS_EAST / 1e2) / dt;
+                state.ground_speed = norm(state.velocity.x, state.velocity.y) / dt;
                 //Ground Course
                 state.ground_course = wrap_360(degrees(atan2f(state.velocity.y, state.velocity.x)));
             }

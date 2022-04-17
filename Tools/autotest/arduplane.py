@@ -173,7 +173,6 @@ class AutoTestPlane(AutoTest):
         self.set_parameter("TRIM_ARSPD_CM", 2900)
 
         self.progress("test: Fly a mission from 1 to %u" % num_wp)
-        self.mavproxy.send('wp set 1\n')
         self.progress("# Beginning Takeoff")
         self.change_mode("AUTO")
         self.wait_ready_to_arm()
@@ -218,7 +217,6 @@ class AutoTestPlane(AutoTest):
         self.set_parameter("TRIM_ARSPD_CM", 2900)
 
         self.progress("test: Fly a mission from 1 to %u" % num_wp)
-        self.mavproxy.send('wp set 1\n')
         self.progress("# Beginning Takeoff")
         self.change_mode("AUTO")
         self.wait_ready_to_arm()
@@ -261,7 +259,6 @@ class AutoTestPlane(AutoTest):
         self.set_parameter("TRIM_ARSPD_CM", 2900)
 
         self.progress("test: Fly a mission from 1 to %u" % num_wp)
-        self.mavproxy.send('wp set 1\n')
         self.progress("# Beginning Takeoff")
         loc = self.mav.location()
         self.change_mode("AUTO")
@@ -301,7 +298,6 @@ class AutoTestPlane(AutoTest):
         self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
         self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
         self.progress("test: Fly a mission from 1 to %u" % num_wp)
-        self.mavproxy.send('wp set 1\n')
 
         #Enable Sensor Confirmation for CNF Logging
         self.set_parameter("PDLK_SNSR_CONF", 1)
@@ -361,7 +357,6 @@ class AutoTestPlane(AutoTest):
         self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
         self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
         self.progress("test: Fly a mission from 1 to %u" % num_wp)
-        self.mavproxy.send('wp set 1\n')
 
         #Enable Sensor Confirmation for CNF Logging
         self.set_parameter("PDLK_SNSR_CONF", 1)
@@ -429,7 +424,6 @@ class AutoTestPlane(AutoTest):
         self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
         self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
         self.progress("test: Fly a mission from 1 to %u" % num_wp)
-        self.mavproxy.send('wp set 1\n')
 
         #Enable Sensor Confirmation for CNF Logging
         self.set_parameter("PDLK_SNSR_CONF", 1)
@@ -493,7 +487,6 @@ class AutoTestPlane(AutoTest):
         self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
         self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
         self.progress("test: Fly a mission from 1 to %u" % num_wp)
-        self.mavproxy.send('wp set 1\n')
 
         #Enable Sensor Confirmation for CNF Logging
         self.set_parameter("PDLK_SNSR_CONF", 1)

@@ -628,6 +628,8 @@ protected:
     AP_Int32 GPS_FENCE_SIZE;
     // meter resolution of fenced altitude
     AP_Int8 GPS_FENCE_ALT;
+    // m/s reduced every second
+    AP_Int8 SLOW_RATE;
     
 private:
     static AP_GPS *_singleton;
