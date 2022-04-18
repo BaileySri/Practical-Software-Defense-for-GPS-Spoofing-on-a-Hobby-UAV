@@ -329,7 +329,7 @@ class AutoTestCopter(AutoTest):
     #PADLOCK
     # The initial layout was provided from the fly_auto_test function down below
     # collects benign data for square mission
-    def fly_auto_square(self, timeout=360):
+    def fly_delivery(self, timeout=360):
         # Fly mission the data gathering mission
         self.progress("# Load PDLK Square Waypoints")
         # load the waypoint count
@@ -469,7 +469,7 @@ class AutoTestCopter(AutoTest):
         
     #PADLOCK
     # This is our attack during idling, an aspect of Copters only
-    def fly_auto_idle(self, timeout=360):
+    def fly_idle(self, timeout=360):
 
         self.progress("Setting sensor parameters")        
         # Set sensor parameters
@@ -498,6 +498,7 @@ class AutoTestCopter(AutoTest):
         # Attack value is in cm, delay is in seconds
         Attack_Delay = 60
         self.set_parameter("GPS_PDLK_E", 500)
+        self.set_parameter("GPS_PDLK_SLW_RAT", 0.25)
         self.set_parameter("GPS_PDLK_N", 0)
         self.set_parameter("GPS_PDLK_ATK", 1)
         self.delay_sim_time(Attack_Delay)
@@ -513,7 +514,7 @@ class AutoTestCopter(AutoTest):
 
     #PADLOCK
     # Stealthy attack on Optical Flow sensor
-    def fly_auto_idle_of(self, timeout=360):
+    def fly_idle_of(self, timeout=360):
         self.progress("Setting sensor parameters")        
         # Set sensor parameters
         self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
@@ -540,10 +541,9 @@ class AutoTestCopter(AutoTest):
         self.configure_EKFs_to_use_optical_flow_instead_of_GPS()
 
 	    # Adjust the below parameter to change attack strength in autotest
-        # Attack value is in cm, delay is in seconds
-        Attack_Delay = 60
-        # Positive RH rotation about x-axis gives West flow, corrected by moving East
-        self.set_parameter("FLOW_PDLK_X", 0.03)
+        Attack_Delay = 40
+        # Positive RH rotation about x-axis gives West flow, corrected by moving East, rad/s
+        self.set_parameter("FLOW_PDLK_X", 0.1745) #10 degree tilt
         self.set_parameter("FLOW_PDLK_ATK", 1)
         self.delay_sim_time(Attack_Delay)
 
@@ -648,7 +648,7 @@ class AutoTestCopter(AutoTest):
 
     #PADLOCK
     # The initial layout was provided from the fly_auto_test function down below
-    def fly_auto_motion(self, timeout=360):
+    def fly_adversarial(self, timeout=360):
         # Fly mission the data gathering mission
         self.progress("# Load PDLK Attack Waypoints")
         # load the waypoint count
@@ -693,7 +693,8 @@ class AutoTestCopter(AutoTest):
 
 	    # Adjust the below parameter to change attack strength in autotest
         # Attack value is in cm
-        self.set_parameter("GPS_PDLK_E", 250)
+        self.set_parameter("GPS_PDLK_N", -250)
+        self.set_parameter("GPS_PDLK_SLW_RAT", 1)
         self.set_parameter("GPS_PDLK_ATK", 1)
 
         # Allow the attack time to deviate the QuadCopters path
@@ -708,7 +709,7 @@ class AutoTestCopter(AutoTest):
 
     #PADLOCK
     # The initial layout was provided from the fly_auto_motion function above
-    def fly_auto_motion_of(self, timeout=360):
+    def fly_adversarial_of(self, timeout=360):
         # Fly mission the data gathering mission
         self.progress("# Load PDLK Attack Waypoints")
         # load the waypoint count
@@ -8129,9 +8130,9 @@ class AutoTestCopter(AutoTest):
              self.fly_auto_test),
              
              #PADLOCK
-            ("AutoSquare",
-             "Fly a square mission to collect data",
-             self.fly_auto_square),
+            ("Delivery",
+             "Fly a mission with no adversary imitating a neighbourhood block",
+             self.fly_delivery),
              
             #PADLOCK
             ("AutoCircle",
@@ -8144,24 +8145,24 @@ class AutoTestCopter(AutoTest):
             self.fly_auto_wave),
             
             #PADLOCK
-            ("AutoMotion",
-            "Fly in auto then perform an attack",
-            self.fly_auto_motion),
+            ("Adversarial",
+            "Fly the neighbourhood block mission but with adversarial influence",
+            self.fly_adversarial),
 
             #PADLOCK
-            ("AutoMotionOF",
-            "Fly in auto then perform an attack on the optical flow",
-            self.fly_auto_motion_of),
+            ("AdversarialOF",
+            "Same as Adversarial but with influence on optical flow sensor",
+            self.fly_adversarial_of),
             
             #PADLOCK
-            ("AutoIdle",
+            ("Idle",
             "Raise altitude in guided mode, then attack",
-            self.fly_auto_idle),
+            self.fly_idle),
 
             #PADLOCK
-            ("AutoIdleOF",
+            ("IdleOF",
             "Raise altitude in guided mode, then attack the optical flow",
-            self.fly_auto_idle_of),
+            self.fly_idle_of),
 
             #PADLOCK
             ("AutoStealth",

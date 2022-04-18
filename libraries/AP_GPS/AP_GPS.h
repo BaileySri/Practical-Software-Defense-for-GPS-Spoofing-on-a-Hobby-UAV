@@ -629,7 +629,7 @@ protected:
     // meter resolution of fenced altitude
     AP_Int8 GPS_FENCE_ALT;
     // m/s reduced every second
-    AP_Int8 SLOW_RATE;
+    AP_Float SLOW_RATE;
     
 private:
     static AP_GPS *_singleton;
