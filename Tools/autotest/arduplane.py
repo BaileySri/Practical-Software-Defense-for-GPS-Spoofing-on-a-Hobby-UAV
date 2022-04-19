@@ -146,7 +146,7 @@ class AutoTestPlane(AutoTest):
 
     #PADLOCK
     # Flies a square for benign data
-    def fly_auto_square(self, timeout=360):
+    def fly_delivery(self, timeout=360):
         self.progress("# Load PDLK Square Waypoints")
         # load the waypoint count
         num_wp = self.load_mission("pdlk_auto_square.txt")
@@ -170,7 +170,7 @@ class AutoTestPlane(AutoTest):
         #Enable Sensor Confirmation for CNF Logging
         self.set_parameter("PDLK_SNSR_CONF", 1)
         #Set speed in cm/s
-        self.set_parameter("TRIM_ARSPD_CM", 2900)
+        self.set_parameter("TRIM_ARSPD_CM", 2000)
 
         self.progress("test: Fly a mission from 1 to %u" % num_wp)
         self.progress("# Beginning Takeoff")
@@ -214,7 +214,7 @@ class AutoTestPlane(AutoTest):
         #Enable Sensor Confirmation for CNF Logging
         self.set_parameter("PDLK_SNSR_CONF", 1)
         # Set flight speed, cm/s
-        self.set_parameter("TRIM_ARSPD_CM", 2900)
+        self.set_parameter("TRIM_ARSPD_CM", 2000)
 
         self.progress("test: Fly a mission from 1 to %u" % num_wp)
         self.progress("# Beginning Takeoff")
@@ -256,7 +256,7 @@ class AutoTestPlane(AutoTest):
         #Enable Sensor Confirmation for CNF Logging
         self.set_parameter("PDLK_SNSR_CONF", 1)
         #Set speed in cm/s
-        self.set_parameter("TRIM_ARSPD_CM", 2900)
+        self.set_parameter("TRIM_ARSPD_CM", 2000)
 
         self.progress("test: Fly a mission from 1 to %u" % num_wp)
         self.progress("# Beginning Takeoff")
@@ -277,7 +277,7 @@ class AutoTestPlane(AutoTest):
 
     #PADLOCK
     # Flies North and then attacks before final waypoint
-    def fly_auto_motion(self, timeout=360):
+    def fly_adversarial(self, timeout=360):
         #Set Optical Flow
         self.set_parameter("SIM_FLOW_ENABLE", 1)
         self.set_parameter("FLOW_TYPE", 10)
@@ -292,8 +292,8 @@ class AutoTestPlane(AutoTest):
 
         self.progress("Setting sensor parameters")        
         # Set sensor parameters
-        #self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
-        self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
+        self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
+        #self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
         self.set_parameter("SIM_PDLK_GPS_SPD", 50) #mm/s
         self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
         self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
@@ -302,7 +302,7 @@ class AutoTestPlane(AutoTest):
         #Enable Sensor Confirmation for CNF Logging
         self.set_parameter("PDLK_SNSR_CONF", 1)
         # Set flight speed, cm/s
-        self.set_parameter("TRIM_ARSPD_CM", 2900)
+        self.set_parameter("TRIM_ARSPD_CM", 2000)
 
 	    # Setting Location
         loc = self.mav.location()
@@ -311,20 +311,21 @@ class AutoTestPlane(AutoTest):
         self.arm_vehicle()
 
         # fly the mission
-        # wait until 600m from home
+        # wait until waypoint 8
         try:
-            self.wait_distance(distance=650, accuracy=5, timeout=120)
+            self.wait_current_waypoint(9, timeout=300)
         except Exception as e:
             if self.use_map:
                 self.show_gps_and_sim_positions(False)
             raise e
 
 	    # Adjust the below parameter to change attack strength in autotest
-        self.set_parameter("GPS_PDLK_E", 250)
+        self.set_parameter("GPS_PDLK_N", -250)
+        self.set_parameter("GPS_PDLK_SLW_RAT", 4)
         self.set_parameter("GPS_PDLK_ATK", 1)
 
         # Allow the attack time to deviate the planes path
-        self.delay_sim_time(60)
+        self.delay_sim_time(20)
         self.set_parameter("GPS_PDLK_ATK", 0)
         # wait for RTL
         self.wait_mode("RTL")
@@ -335,7 +336,8 @@ class AutoTestPlane(AutoTest):
 
     #PADLOCK
     # Flies North and then attacks before final waypoint
-    def fly_auto_motion_of(self, timeout=360):
+    # TODO: This is not possible on the Fixed-wing, need to spoof gyroscope instead
+    def adversarial_of(self, timeout=360):
         #Set Optical Flow
         self.set_parameter("SIM_FLOW_ENABLE", 1)
         self.set_parameter("FLOW_TYPE", 10)
@@ -361,7 +363,7 @@ class AutoTestPlane(AutoTest):
         #Enable Sensor Confirmation for CNF Logging
         self.set_parameter("PDLK_SNSR_CONF", 1)
         # Set flight speed, cm/s
-        self.set_parameter("TRIM_ARSPD_CM", 2900)
+        self.set_parameter("TRIM_ARSPD_CM", 2000)
 
 	    # Setting Location
         loc = self.mav.location()
@@ -369,25 +371,27 @@ class AutoTestPlane(AutoTest):
         self.wait_ready_to_arm()
         self.arm_vehicle()
 
-        # fly the mission
-        # wait until 600m from home
-        try:
-            self.wait_distance(distance=650, accuracy=5, timeout=120)
-        except Exception as e:
-            if self.use_map:
-                self.show_gps_and_sim_positions(False)
-            raise e
+        self.set_parameter("SIM_GPS_DISABLE", 1)
 
         # Setting Optical Flow as primary
         # Still unsure if we can do OF only during Auto mode, consider TODO
         self.configure_EKFs_to_use_optical_flow_instead_of_GPS()
 
+        # fly the mission
+        # wait until waypoint 8
+        try:
+            self.wait_current_waypoint(9, timeout=300)
+        except Exception as e:
+            if self.use_map:
+                self.show_gps_and_sim_positions(False)
+            raise e
+
 	    # Adjust the below parameter to change attack strength in autotest
-        self.set_parameter("FLOW_PDLK_X",0.13)
+        self.set_parameter("FLOW_PDLK_X", 0.5)#0.1745) #10 degree tilt
         self.set_parameter("FLOW_PDLK_ATK", 1)
 
         # Allow the attack time to deviate the planes path
-        self.delay_sim_time(60)
+        self.delay_sim_time(20)
         self.set_parameter("FLOW_PDLK_ATK", 0)
         # wait for RTL
         self.wait_mode("RTL")
@@ -409,7 +413,7 @@ class AutoTestPlane(AutoTest):
         #Enable Sensor Confirmation for CNF Logging
         self.set_parameter("PDLK_SNSR_CONF", 1)
         # Set flight speed, cm/s
-        self.set_parameter("TRIM_ARSPD_CM", 2900)
+        self.set_parameter("TRIM_ARSPD_CM", 2000)
 
         self.progress("# Load PDLK Attack Waypoints")
         # load the waypoint count
@@ -428,7 +432,7 @@ class AutoTestPlane(AutoTest):
         #Enable Sensor Confirmation for CNF Logging
         self.set_parameter("PDLK_SNSR_CONF", 1)
         # Set flight speed, cm/s
-        self.set_parameter("TRIM_ARSPD_CM", 2900)
+        self.set_parameter("TRIM_ARSPD_CM", 2000)
 
         self.change_mode("AUTO")
         self.wait_ready_to_arm()
@@ -472,7 +476,7 @@ class AutoTestPlane(AutoTest):
         #Enable Sensor Confirmation for CNF Logging
         self.set_parameter("PDLK_SNSR_CONF", 1)
         # Set flight speed, cm/s
-        self.set_parameter("TRIM_ARSPD_CM", 2900)
+        self.set_parameter("TRIM_ARSPD_CM", 2000)
 
         self.progress("# Load PDLK Attack Waypoints")
         # load the waypoint count
@@ -491,7 +495,7 @@ class AutoTestPlane(AutoTest):
         #Enable Sensor Confirmation for CNF Logging
         self.set_parameter("PDLK_SNSR_CONF", 1)
         # Set flight speed, cm/s
-        self.set_parameter("TRIM_ARSPD_CM", 2900)
+        self.set_parameter("TRIM_ARSPD_CM", 2000)
 
         self.change_mode("AUTO")
         self.wait_ready_to_arm()
@@ -3589,13 +3593,13 @@ class AutoTestPlane(AutoTest):
         ret = super(AutoTestPlane, self).tests()
         ret.extend([
             #PADLOCK
-            ("AutoMotion",
+            ("Adversarial",
              "Run the auto mission with an offset attack",
-              self.fly_auto_motion),
+              self.fly_adversarial),
 
-            ("AutoMotionOF",
+            ("AdversarialOF",
              "Run the auto mission with an offset attack with Optical Flow",
-              self.fly_auto_motion_of),
+              self.adversarial_of),
 
             ("AutoStealth",
              "Run the advanced attacker mission",
@@ -3605,9 +3609,9 @@ class AutoTestPlane(AutoTest):
              "Run the advanced attacker mission with Optical Flow",
               self.fly_auto_stealth_of),
               
-            ("AutoSquare",
-             "A square mission for benign data",
-              self.fly_auto_square),
+            ("Delivery",
+             "Flies a simple neighbourhood block, 200mx100m",
+              self.fly_delivery),
 
             ("AutoWave",
             "A varied altitude mission for benign data",

@@ -92,7 +92,7 @@ const AP_Param::GroupInfo OpticalFlow::var_info[] = {
     //PADLOCK
     // @Param: _PDLK_X
     // @DisplayName: Replace rotation about x axis
-    // @Description: Value to replace actual flow rate X reading with. Indicates front/back tilt and compensates for body rate.
+    // @Description: Value to replace actual flow rate X reading with. Indicates right/left tilt and compensates for body rate.
     // @Units: rad/s
     // @Range: -3.14 3.14
     // @User: Advanced

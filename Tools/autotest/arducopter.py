@@ -388,8 +388,8 @@ class AutoTestCopter(AutoTest):
 
         self.progress("Setting sensor parameters")        
         # Set sensor parameters
-        #self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
-        self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
+        self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
+        #self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
         self.set_parameter("SIM_PDLK_GPS_SPD", 50) #mm/s
         self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
         self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
@@ -428,8 +428,8 @@ class AutoTestCopter(AutoTest):
     def fly_auto_circle(self, timeout=360):
         self.progress("Setting sensor parameters")        
         # Set sensor parameters
-        #self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
-        self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
+        self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
+        #self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
         self.set_parameter("SIM_PDLK_GPS_SPD", 50) #mm/s
         self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
         self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
@@ -543,7 +543,7 @@ class AutoTestCopter(AutoTest):
 	    # Adjust the below parameter to change attack strength in autotest
         Attack_Delay = 40
         # Positive RH rotation about x-axis gives West flow, corrected by moving East, rad/s
-        self.set_parameter("FLOW_PDLK_X", 0.1745) #10 degree tilt
+        self.set_parameter("FLOW_PDLK_X", 0.003491) #0.2 degree/s tilt
         self.set_parameter("FLOW_PDLK_ATK", 1)
         self.delay_sim_time(Attack_Delay)
 
@@ -562,8 +562,8 @@ class AutoTestCopter(AutoTest):
 
         self.progress("Setting sensor parameters")        
         # Set sensor parameters
-        #self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
-        self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
+        self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
+        #self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
         self.set_parameter("SIM_PDLK_GPS_SPD", 50) #mm/s
         self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
         self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
@@ -758,12 +758,11 @@ class AutoTestCopter(AutoTest):
         self.configure_EKFs_to_use_optical_flow_instead_of_GPS()
 
 	    # Adjust the below parameter to change attack strength in autotest
-        # Attack value is in cm
-        self.set_parameter("FLOW_PDLK_X", 0.13)
+        self.set_parameter("FLOW_PDLK_X", 0.1745) #10 degree tilt
         self.set_parameter("FLOW_PDLK_ATK", 1)
 
         # Allow the attack time to deviate the QuadCopters path
-        self.delay_sim_time(60)
+        self.delay_sim_time(40)
         self.set_parameter("FLOW_PDLK_ATK", 0)
         self.change_mode("LAND")
         # wait for disarm
