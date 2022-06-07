@@ -160,18 +160,12 @@ bool SensorConfirmation::run()
     #if CONFIG_HAL_BOARD == HAL_BOARD_SITL && 0
         debug();
     #endif
-        AP_Logger::get_singleton()->Write_CNFR(sensors.prevOF.VelNE,
-                                                sensors.prevOF.Err,
-                                                sensors.currOF.VelNE,
-                                                sensors.currOF.Err,
-                                                sensors.prevGps.Airspeed,
-                                                sensors.prevGps.Hacc,
-                                                sensors.currGps.Airspeed,
-                                                sensors.currGps.Hacc,
-                                                sensors.currAccel.Velocity,
-                                                sensors.currAccel.Error,
-                                                sensors.nextAccel.Velocity,
-                                                sensors.nextAccel.Error,
+        AP_Logger::get_singleton()->Write_CNFR( sensors.prevOF,
+                                                sensors.currOF,
+                                                sensors.prevGps,
+                                                sensors.currGps,
+                                                sensors.currAccel,
+                                                sensors.nextAccel,
                                                 ToDeg(sensors.currGyro.Error * (sensors.currGyro.TimeContained / (float)1000000)));
 
         // GPS Confirmations
@@ -182,17 +176,14 @@ bool SensorConfirmation::run()
         
         //Switch to next IMU data
         sensors.currAccel = sensors.nextAccel;
-        sensors.nextAccel.reset();
-        sensors.nextAccel.Timestamp = sensors.currAccel.Timestamp;
+        sensors.nextAccel.reset(sensors.currAccel.Timestamp);
         sensors.currGyro = sensors.nextGyro;
-        sensors.nextGyro.reset();
-        sensors.nextGyro.Timestamp = sensors.currGyro.Timestamp;
+        sensors.nextGyro.reset(sensors.currGyro.Timestamp);
 
         //Switch to next OF data
         sensors.prevOF = sensors.currOF;
         sensors.currOF = sensors.nextOF;
-        sensors.nextOF.reset();
-        sensors.nextOF.Timestamp = sensors.currOF.Timestamp;
+        sensors.nextOF.reset(sensors.currOF.Timestamp);
 
         framework.gpsAvail = false;
     }
@@ -212,8 +203,7 @@ bool SensorConfirmation::run()
 
         //Save current OF data and reset current
         sensors.pOF = sensors.cOF;
-        sensors.cOF.reset();
-        sensors.cOF.Timestamp = sensors.pOF.Timestamp;
+        sensors.cOF.reset(sensors.pOF.Timestamp);
 
         framework.ofAvail = false;
     }

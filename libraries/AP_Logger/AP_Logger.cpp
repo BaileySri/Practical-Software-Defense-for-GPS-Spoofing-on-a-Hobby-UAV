@@ -1137,41 +1137,41 @@ void AP_Logger::Write_SNSR(const float &BAlt)
 }
 
 //Logger for confirmation variables
-void AP_Logger::Write_CNFR(const Vector2f &P_OF, const Vector2f &P_OF_Err,
-                           const Vector2f &C_OF, const Vector2f &C_OF_Err,
-                           const Vector3f &P_GPS, const float P_GPS_Err,
-                           const Vector3f &C_GPS, const float C_GPS_Err,
-                           const Vector3f &C_ACC, const float C_ACC_Err,
-                           const Vector3f &N_ACC, const float N_ACC_Err,
-                           const float  Gyro_Err)
+void AP_Logger::Write_CNFR(const OF &pOF,
+                           const OF &cOF,
+                           const GPS &pGPS,
+                           const GPS &cGPS,
+                           const Accel &cACC,
+                           const Accel &nACC,
+                           const float Gyro_Err)
 {
     uint32_t timestamp = AP_HAL::micros64();
     struct log_confirmation_1 pkt1 = {
         LOG_PACKET_HEADER_INIT(LOG_CNFR_1_MSG),
         time_us : timestamp,
         //Optical Flow and Error
-        C_OF_North : C_OF.x,
-        C_OF_East : C_OF.y,
-        C_OF_North_Err : C_OF_Err.x,
-        C_OF_East_Err : C_OF_Err.y,
-        P_OF_North : P_OF.x,
-        P_OF_East : P_OF.y,
-        P_OF_North_Err : P_OF_Err.x,
-        P_OF_East_Err : P_OF_Err.y,
+        C_OF_North : cOF.VelNE.x,
+        C_OF_East : cOF.VelNE.y,
+        C_OF_North_Err : cOF.Err.x,
+        C_OF_East_Err : cOF.Err.y,
+        P_OF_North : pOF.VelNE.x,
+        P_OF_East : pOF.VelNE.y,
+        P_OF_North_Err : pOF.Err.x,
+        P_OF_East_Err : pOF.Err.y,
     };
 
     struct log_confirmation_2 pkt2 = {
         LOG_PACKET_HEADER_INIT(LOG_CNFR_2_MSG),
         time_us : timestamp,
-        //Optical Flow and Error
-        C_GPS_North : C_GPS.x,
-        C_GPS_East : C_GPS.y,
-        C_GPS_Down : C_GPS.z,
-        C_GPS_Err : C_GPS_Err,
-        P_GPS_North : P_GPS.x,
-        P_GPS_East : P_GPS.y,
-        P_GPS_Down : P_GPS.z,
-        P_GPS_Err : P_GPS_Err,
+        //GPS and Error
+        C_GPS_North : cGPS.Airspeed.x,
+        C_GPS_East : cGPS.Airspeed.y,
+        C_GPS_Down : cGPS.Airspeed.z,
+        C_GPS_Err : cGPS.Hacc,
+        P_GPS_North : pGPS.Airspeed.x,
+        P_GPS_East : pGPS.Airspeed.y,
+        P_GPS_Down : pGPS.Airspeed.z,
+        P_GPS_Err : pGPS.Hacc,
     };
 
     const Matrix3f dcm = AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned();
@@ -1179,55 +1179,52 @@ void AP_Logger::Write_CNFR(const Vector2f &P_OF, const Vector2f &P_OF_Err,
     struct log_confirmation_3 pkt3 = {
         LOG_PACKET_HEADER_INIT(LOG_CNFR_3_MSG),
         time_us : timestamp,
-        //Optical Flow and Error
-        C_ACC_North : C_ACC.x,
-        C_ACC_East : C_ACC.y,
-        C_ACC_Down : C_ACC.z,
-        C_ACC_Err : C_ACC_Err,
-        N_ACC_North : N_ACC.x,
-        N_ACC_East : N_ACC.y,
-        N_ACC_Down : N_ACC.z,
-        N_ACC_Err : N_ACC_Err,
+        //Dead-reckoning and Error
+        C_ACC_North : cACC.Velocity.x,
+        C_ACC_East : cACC.Velocity.y,
+        C_ACC_Down : cACC.Velocity.z,
+        C_ACC_Err : cACC.Error,
+        N_ACC_North : nACC.Velocity.x,
+        N_ACC_East : nACC.Velocity.y,
+        N_ACC_Down : nACC.Velocity.z,
+        N_ACC_Err : nACC.Error,
         M_1_0 : dcm.b[0],
         M_0_0 : dcm.a[0],
         GYRO_Err : Gyro_Err,
     };
+
+    float Sacc; //m/s GPS 3D RMS Speed Accuracy
+    float Hacc; //m GPS 3D RMS Horizontal Position Accuracy
+    float Vacc; //m GPS 3D RMS Vertical Position Accuracy
+    const AP_GPS *gps = AP::gps().get_singleton();
+
+    if (!gps->speed_accuracy(Sacc))
+    {
+        Sacc = -1;
+    }
+    if (!gps->vertical_accuracy(Vacc))
+    {
+        Vacc = -1;
+    }
+    if (!gps->horizontal_accuracy(Hacc))
+    {
+        Hacc = -1;
+    }
+
+    // This is just for GPS reported accuracy metrics
+    struct log_confirmation_4 pkt4 = {
+        LOG_PACKET_HEADER_INIT(LOG_CNFR_4_MSG),
+        time_us : timestamp,
+        //GPS Error
+        gpSA : Sacc,
+        gpHA : Hacc,
+        gpVA : Vacc,
+    };
     
-    
-
-    #if !(CONFIG_HAL_BOARD==HAL_BOARD_SITL)
-        float Sacc; //m/s GPS 3D RMS Speed Accuracy
-        float Hacc; //m GPS 3D RMS Horizontal Position Accuracy
-        float Vacc; //m GPS 3D RMS Vertical Position Accuracy
-        const AP_GPS *gps = AP::gps().get_singleton();
-
-        if (!gps->speed_accuracy(Sacc))
-        {
-            Sacc = -1;
-        }
-        if (!gps->vertical_accuracy(Vacc))
-        {
-            Vacc = -1;
-        }
-        if (!gps->horizontal_accuracy(Hacc))
-        {
-            Hacc = -1;
-        }
-
-        // This is just for GPS reported accuracy metrics
-        struct log_confirmation_4 pkt4 = {
-            LOG_PACKET_HEADER_INIT(LOG_CNFR_4_MSG),
-            time_us : timestamp,
-            //GPS Error
-            gpSA : Sacc,
-            gpHA : Hacc,
-            gpVA : Vacc,
-        };
-        FOR_EACH_BACKEND(WriteBlock(&pkt4, sizeof(pkt4)));
-    #endif
     FOR_EACH_BACKEND(WriteBlock(&pkt1, sizeof(pkt1)));
     FOR_EACH_BACKEND(WriteBlock(&pkt2, sizeof(pkt2)));
     FOR_EACH_BACKEND(WriteBlock(&pkt3, sizeof(pkt3)));
+    FOR_EACH_BACKEND(WriteBlock(&pkt4, sizeof(pkt4)));
 }
 
 void AP_Logger::Write_ACO(const Vector2f &P_OF, const Vector2f &P_OF_Err,
