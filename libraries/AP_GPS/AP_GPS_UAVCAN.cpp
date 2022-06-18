@@ -488,7 +488,7 @@ void AP_GPS_UAVCAN::handle_fix_msg(const FixCb &cb)
         //Record real ground course
         interim_state.real_gc = interim_state.ground_course;
         //Record real velocity
-        state.real_vel = interim_state.velocity;
+        interim_state.real_vel = interim_state.velocity;
         // Set fencing value
         if(!atk_started && attack){
             //As the attack is enabled
@@ -744,7 +744,7 @@ void AP_GPS_UAVCAN::handle_fix2_msg(const Fix2Cb &cb)
         //Record real ground course
         interim_state.real_gc = interim_state.ground_course;
         //Record real velocity
-        state.real_vel = interim_state.velocity;
+        interim_state.real_vel = interim_state.velocity;
         // Set fencing value
         if(!atk_started && attack){
             //As the attack is enabled
@@ -925,7 +925,7 @@ void AP_GPS_UAVCAN::handle_status_msg(const StatusCb &cb)
     status_flags = cb.msg->status;
     if (error_code != cb.msg->error_codes) {
         AP::logger().Write_MessageF("GPS %d: error changed (0x%08x/0x%08x)",
-                                    (unsigned int)(interim_state.instance + 1),
+                                    (unsigned int)(state.instance + 1),
                                     error_code,
                                     cb.msg->error_codes);
         error_code = cb.msg->error_codes;
@@ -965,7 +965,7 @@ void AP_GPS_UAVCAN::handle_relposheading_msg(const RelPosHeadingCb &cb, uint8_t 
     WITH_SEMAPHORE(sem);
 
     interim_state.gps_yaw_configured = true;
-    // push raw heading data to calculate moving baseline heading interim_states
+    // push raw heading data to calculate moving baseline heading states
     if (calculate_moving_base_yaw(interim_state,
                                 cb.msg->reported_heading_deg,
                                 cb.msg->relative_distance_m,
@@ -1124,13 +1124,13 @@ bool AP_GPS_UAVCAN::read(void)
         interim_state.vertical_accuracy = MIN(interim_state.vertical_accuracy, 1000.0);
         interim_state.speed_accuracy = MIN(interim_state.speed_accuracy, 1000.0);
 
-        interim_state = interim_state;
+        state = interim_state;
 
         return true;
     }
     if (!seen_message) {
         // start with NO_GPS until we get first packet
-        interim_state.status = AP_GPS::GPS_Status::NO_GPS;
+        state.status = AP_GPS::GPS_Status::NO_GPS;
     }
 
     return false;
