@@ -176,7 +176,7 @@ public:
         Location location;                  ///< last fix location
         //PADLOCK
         // Location unaltered by attack values
-        Location real_loc;
+        Location real_loc = Location(-1, -1, -1, Location::AltFrame::ABOVE_HOME);
         // Velocity unaltered by attack values
         Vector3f real_vel;
         // ground_course unaltered by attack values
