@@ -1445,7 +1445,6 @@ AP_GPS_UBLOX::_parse_gps(void)
         state.have_vertical_accuracy = true;
         // SVs
         state.num_sats    = _buffer.pvt.num_sv;
-        // velocity
         _last_vel_time         = _buffer.pvt.itow;
         state.ground_speed     = _buffer.pvt.gspeed*0.001f;          // m/s
         state.ground_course    = wrap_360(_buffer.pvt.head_mot * 1.0e-5f);       // Heading 2D deg * 100000

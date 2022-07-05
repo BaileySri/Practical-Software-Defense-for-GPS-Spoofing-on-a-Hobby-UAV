@@ -886,6 +886,7 @@ void AP_GPS::update_instance(uint8_t instance)
 
     // we have an active driver for this instance
     bool result = drivers[instance]->read();
+    
     //PADLOCK
     //  RC Trigger for Spoofing
     RC_Channel* ch_gps = RC_Channels::rc_channel(CH_7);
@@ -893,12 +894,9 @@ void AP_GPS::update_instance(uint8_t instance)
     //  Fencing
     static bool fenced = false;
     static bool atk_started = false;
-    static int32_t fence_lat = 0;
-    static int32_t fence_lng = 0;
-    static int32_t fence_alt = 0;
+    static Location fence = { };
     //  Counter for passing frames
-    // static int32_t attacked_posllh = 0;
-    static int32_t attacked_pvt = 0;
+    static int32_t attacked_frames = 0;
     // Subtle Attack variables
     const SensorConfirmation &PDLK = AP_Vehicle::get_singleton()->PDLK;
     const float attack_limit = PDLK.NetGpsLimit() - 0.01; // Net difference in m/s
@@ -906,12 +904,12 @@ void AP_GPS::update_instance(uint8_t instance)
     static uint32_t last_attack_msg = AP_HAL::micros64();
     // Take Over Attack Variables
     static uint32_t take_over[2]; //Loop incrementer for attack values for POSLLH and PVT respectively
-    static int32_t target_x = 0; //Distance offset to reduce speed to 0 in N-S direction
-    static int32_t target_y = 0; //Distance offset to reduce speed to 0 in E-W direction
+    static float target_dist[2] = {0, 0}; //Distance offset to reduce speed to 0 in (N-S, E-W) direction
+    static bool hold_position[2] = {false, false}; //If we are just relaying the last (longitude, latitude) position
     static Location last_spoof;
-    static bool hold_position_x = false; //If we are just relaying the last longitude position
-    static bool hold_position_y = false; //If we are just relaying the last latitude position
-    uint32_t POS_VEL_RATIO = SLOW_RATE/.250; //Numerator is m/s slowed down per second
+    const float POS_VEL_RATIO = SLOW_RATE/25; //The amount of distance the lat/lng are offset at each update until GPS reads desired movement.
+    static int32_t ATK_OFS[2] = {ATK_OFS_NORTH, ATK_OFS_EAST};
+
     //PADLOCK
     //Need to record time for injecting speed adjustments
     uint32_t dt            = AP_HAL::millis64() - state[instance].last_gps_time_ms; //ms
@@ -923,21 +921,23 @@ void AP_GPS::update_instance(uint8_t instance)
     // Set fencing value
     if(!atk_started && attack){
         //As the attack is enabled
-        fence_lat = state[instance].location.lat;
-        fence_lng = state[instance].location.lng;
-        fence_alt = state[instance].location.alt;
-        target_x = state[instance].velocity.x * 100;
-        target_y = state[instance].velocity.y * 100;
+        fence.lat = state[instance].location.lat;
+        fence.lng = state[instance].location.lng;
+        fence.alt = state[instance].location.alt;
+        target_dist[0] = state[instance].velocity.x / 5;
+        target_dist[1] = state[instance].velocity.y / 5;
         last_spoof = state[instance].location;
+        ATK_OFS[0] = ATK_OFS_NORTH;
+        ATK_OFS[1] = ATK_OFS_EAST;
         atk_started = true;
 
         #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
-        GCS_SEND_TEXT(MAV_SEVERITY_INFO,"FENCE INIT(lat,lng, alt): %i, %i, %i", fence_lat, fence_lng, fence_alt);
+        GCS_SEND_TEXT(MAV_SEVERITY_INFO,"FENCE INIT(lat, lng, alt): %i, %i, %i", fence.lat, fence.lng, fence.alt);
         #elif CONFIG_HAL_BOARD == HAL_BOARD_CHIBIOS
-        GCS_SEND_TEXT(MAV_SEVERITY_INFO,"FENCE INIT(lat,lng, alt): %li, %li, %li", fence_lat, fence_lng, fence_alt);
+        GCS_SEND_TEXT(MAV_SEVERITY_INFO,"FENCE INIT(lat,lng, alt): %li, %li, %li", fence.lat, fence.lng, fence.alt);
         #endif
     }
-    if(attack && atk_started && !fenced && FAILED_FRAMES != attacked_pvt){
+    if(attack && atk_started && !fenced && FAILED_FRAMES != attacked_frames){
         if(dt == 0){
             dt = 1;
         }
@@ -954,8 +954,8 @@ void AP_GPS::update_instance(uint8_t instance)
             GCS_SEND_TEXT(MAV_SEVERITY_INFO, "PDLK: Attack Limit is 0");
         }
         if(ADV_ATK == 1 && (attack_limit > 0)){
-            state[instance].location.lng = fence_lng + static_cast<int32_t>((attack_limit * dt) * (.89831f) / cosf(radians(state[instance].location.lat / 1E7)));
-            state[instance].location.lat = fence_lat + static_cast<int32_t>(0 * .89831f);
+            state[instance].location.lng = fence.lng + static_cast<int32_t>((attack_limit * dt) * (.89831f) / cosf(radians(state[instance].location.lat / 1E7)));
+            state[instance].location.lat = fence.lat + static_cast<int32_t>(0 * .89831f);
             //North Velocity
             state[instance].velocity.x = 0; 
             //East Velocity
@@ -966,51 +966,45 @@ void AP_GPS::update_instance(uint8_t instance)
             state[instance].ground_course = wrap_360(degrees(atan2f(state[instance].velocity.y, state[instance].velocity.x)));
         } else if(ADV_ATK == 0){
             uint32_t take_over_iter = MAX(take_over[0], take_over[1]);
-            int32_t scaled_attack_x = POS_VEL_RATIO * take_over_iter;
-            if(!hold_position_x && abs(scaled_attack_x) > abs(target_x) + abs(ATK_OFS_NORTH)){
-                hold_position_x = true;
-                scaled_attack_x = 0;
+            float scaled_attack[2] = {POS_VEL_RATIO * take_over_iter, POS_VEL_RATIO * take_over_iter};
+            for(int axis = 0; axis < 2; axis++){
+                if(!hold_position[axis] && abs(scaled_attack[axis]) > abs(target_dist[axis]) + abs(ATK_OFS[axis])){
+                    hold_position[axis] = true;
+                    scaled_attack[axis] = 0;
+                } else if(target_dist[axis] > 0){
+                    scaled_attack[axis] *= -1;
+                }
+                take_over[axis] = MIN(take_over[axis] + uint32_t(1), uint32_t(1000));
             }
-            if(target_x > 0){
-                scaled_attack_x *= -1;
-            }
-            int32_t scaled_attack_y = POS_VEL_RATIO * take_over_iter;
-            if(!hold_position_y && abs(scaled_attack_y) > abs(target_y) + abs(ATK_OFS_EAST)){
-                hold_position_y = true;
-                scaled_attack_y = 0;
-            }
-            if(target_y > 0){
-                scaled_attack_y *= -1;
-            }
-            take_over[1] = MIN(take_over[1] + uint32_t(1), uint32_t(1000));
-
-            if(!hold_position_x){
+            if(!hold_position[0]){
                 //Runs East-West, spoofing pushes the drone North-South
-                state[instance].location.lat = state[instance].location.lat + static_cast<int32_t>(scaled_attack_x * .89831f);
+                state[instance].location.lat = state[instance].location.lat + static_cast<int32_t>(scaled_attack[0] * .89831f);
                 last_spoof.lat = state[instance].location.lat;
             } else{
                 state[instance].location.lat = last_spoof.lat;
             }
-            if(!hold_position_y){
+            if(!hold_position[1]){
                 //Runs North-South, spoofing pushes the drone East-West
-                state[instance].location.lng = state[instance].location.lng + static_cast<int32_t>(scaled_attack_y * (.89831f) / cosf(radians(state[instance].location.lat / 1E7)));
+                state[instance].location.lng = state[instance].location.lng + static_cast<int32_t>(scaled_attack[1] * (.89831f) / cosf(radians(state[instance].location.lat / 1E7)));
                 last_spoof.lng = state[instance].location.lng;
             } else{
                 state[instance].location.lng = last_spoof.lng;
             }
+            
+
 
             //North Velocity
-            if(hold_position_x){
+            if(hold_position[0]){
                 state[instance].velocity.x = 0;
             } else{
-                state[instance].velocity.x = state[instance].velocity.x + ((float)scaled_attack_x / dt);
+                state[instance].velocity.x = state[instance].velocity.x + (scaled_attack[0] / dt);
                 state[instance].velocity.x = MAX(state[instance].velocity.x, 0);     
             }
             //East Velocity
-            if(hold_position_y){
+            if(hold_position[1]){
                 state[instance].velocity.y = 0;
             } else{
-                state[instance].velocity.y = state[instance].velocity.y + ((float)scaled_attack_y / dt);
+                state[instance].velocity.y = state[instance].velocity.y + (scaled_attack[1] / dt);
                 state[instance].velocity.y = MAX(state[instance].velocity.y, 0);     
             }
             //Ground Speed
@@ -1018,16 +1012,16 @@ void AP_GPS::update_instance(uint8_t instance)
             //Ground Course
             state[instance].ground_course = wrap_360(degrees(atan2f(state[instance].velocity.y, state[instance].velocity.x)));
         }
-        attacked_pvt++;
+        attacked_frames++;
     } else{
         if(attack && ADV_ATK == 1){
             if(attack_limit > 0){
                 // During advanced attack we force confirmation to avoid streaks
-                state[instance].location.lng = fence_lng + static_cast<int32_t>((attack_limit * dt) * (.89831f) / cosf(radians(state[instance].location.lat / 1E7)));
-                state[instance].location.lat = fence_lat + static_cast<int32_t>(0 * .89831f);
+                state[instance].location.lng = fence.lng + static_cast<int32_t>((attack_limit * dt) * (.89831f) / cosf(radians(state[instance].location.lat / 1E7)));
+                state[instance].location.lat = fence.lat + static_cast<int32_t>(0 * .89831f);
             }
         }
-        attacked_pvt = 0;
+        attacked_frames = 0;
     }
     uint32_t tnow = AP_HAL::millis();
 
