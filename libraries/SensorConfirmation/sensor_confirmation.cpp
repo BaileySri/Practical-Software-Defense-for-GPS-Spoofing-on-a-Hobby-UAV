@@ -130,8 +130,8 @@ void SensorConfirmation::update()
 
     //IMU Sensors
     //Updating Current and Previous based on GPS Update rate
-
-    if ((signed)((IMU->get_last_update_usec() / 1000.0F) - sensors.currGps.Timestamp) >= GPS_RATE)
+    uint32_t ts_imu = IMU->get_last_update_usec() / 1000;
+    if((ts_imu > sensors.currGps.Timestamp) && (ts_imu - sensors.currGps.Timestamp) >= GPS_RATE)
     {
         sensors.nextAccel.update(IMU);
         sensors.nextGyro.update(IMU);
@@ -142,7 +142,8 @@ void SensorConfirmation::update()
         sensors.currGyro.update(IMU);
     }
 
-    if ((signed)(sensors.currOF.Timestamp - sensors.currGps.Timestamp) >= GPS_RATE)
+    uint32_t ts_of = sensors.currOF.Timestamp;
+    if((ts_of > sensors.currGps.Timestamp) && (ts_of - sensors.currGps.Timestamp) >= GPS_RATE)
     {
         sensors.nextOF.update(AP_OF, sensors.rangefinder);
     }
