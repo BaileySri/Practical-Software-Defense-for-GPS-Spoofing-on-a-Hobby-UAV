@@ -908,11 +908,11 @@ void AP_GPS::update_instance(uint8_t instance)
         static uint32_t last_attack_msg = AP_HAL::micros64();
         // Take Over Attack Variables
         static uint32_t take_over[2]; //Loop incrementer for attack values for POSLLH and PVT respectively
-        static float target_dist[2] = {0, 0}; //Distance offset to reduce speed to 0 in (N-S, E-W) direction
+        static float target_dist[2] = {0, 0}; //cm. Distance offset to reduce speed to 0 in (N-S, E-W) direction
         static bool hold_position[2] = {false, false}; //If we are just relaying the last (longitude, latitude) position
         static Location last_spoof;
-        const float POS_VEL_RATIO = SLOW_RATE/25; //The amount of distance the lat/lng are offset at each update until GPS reads desired movement.
-        static int32_t ATK_OFS[2] = {ATK_OFS_NORTH, ATK_OFS_EAST};
+        const float POS_VEL_RATIO = (SLOW_RATE/25) * 100; //cm, The amount of distance the lat/lng are offset at each update until GPS reads desired movement.
+        static int32_t ATK_OFS[2] = {ATK_OFS_NORTH, ATK_OFS_EAST}; //cm
 
         
         //PADLOCK
@@ -926,8 +926,8 @@ void AP_GPS::update_instance(uint8_t instance)
             fence.lat = state[instance].location.lat;
             fence.lng = state[instance].location.lng;
             fence.alt = state[instance].location.alt;
-            target_dist[0] = state[instance].velocity.x / 5;
-            target_dist[1] = state[instance].velocity.y / 5;
+            target_dist[0] = (state[instance].velocity.x / 5) * 100;
+            target_dist[1] = (state[instance].velocity.y / 5) * 100;
             last_spoof = state[instance].location;
             ATK_OFS[0] = ATK_OFS_NORTH;
             ATK_OFS[1] = ATK_OFS_EAST;
@@ -986,16 +986,18 @@ void AP_GPS::update_instance(uint8_t instance)
                         take_over[axis] = MIN(take_over[axis] + uint32_t(1), uint32_t(100000));
                     }
                 }
+                scaled_attack[0] /= 100; //Changing to meters for meter -> degree conversion
+                scaled_attack[1] /= 100; //Changing to meters for meter -> degree conversion
                 if(!hold_position[0]){
                     //Runs East-West, spoofing pushes the drone North-South
-                    state[instance].location.lat = state[instance].location.lat + static_cast<int32_t>(scaled_attack[0] * .89831f);
+                    state[instance].location.lat = fence.lat + static_cast<int32_t>(scaled_attack[0] * .89831f);
                     last_spoof.lat = state[instance].location.lat;
                 } else{
                     state[instance].location.lat = last_spoof.lat;
                 }
                 if(!hold_position[1]){
                     //Runs North-South, spoofing pushes the drone East-West
-                    state[instance].location.lng = state[instance].location.lng + static_cast<int32_t>(scaled_attack[1] * (.89831f) / cosf(radians(state[instance].location.lat / 1E7)));
+                    state[instance].location.lng = fence.lng + static_cast<int32_t>(scaled_attack[1] * (.89831f) / cosf(radians(state[instance].location.lat / 1E7)));
                     last_spoof.lng = state[instance].location.lng;
                 } else{
                     state[instance].location.lng = last_spoof.lng;
