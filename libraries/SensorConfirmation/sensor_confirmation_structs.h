@@ -256,8 +256,8 @@ struct OF
             #else
                 float scaling_factor = 1;
             #endif
-
-            VelNE = AP_AHRS::get_singleton()->body_to_earth2D(flow_filter.get() * (currRF.rf_filt.get()/100.0F) / scaling_factor);   //Rotated BF to NED
+            Vector2f VelBF = flow_filter.get() * (currRF.rf_filt.get()/100.0F) / scaling_factor;
+            VelNE = AP_AHRS::get_singleton()->body_to_earth2D(VelBF);   //Rotated BF to NED
             // Error Propagation of Rangefinder, Scaling Factor, and Optical Flow
             Vector2f ErrFR = Vector2f{sqrtf(sq(currRF.rf_filt.get()/100.0F / scaling_factor) * sq(FLOW_ERR + OF_GYRO_ERR) + 
                                             sq(flow_filter.get()[0] / scaling_factor) * sq(currRF.RangeErr) + 
