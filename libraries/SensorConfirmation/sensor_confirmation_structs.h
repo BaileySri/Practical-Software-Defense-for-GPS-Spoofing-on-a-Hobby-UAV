@@ -31,6 +31,7 @@ typedef Vector3f BF;
 //----   Structs  ----//
 struct Accel
 {
+    BF Raw;             //m/s/s, Unfiltered accelerometer readings, Scaled and Rotated into BF
     NED Readings;       //m/s/s, Accelerometer readings rotated to NED
     NED Velocity;       //m/s, Velocity in NED frame
     float Error;        //m/s, Single axis error, Multiply by RMS for Net
@@ -41,6 +42,7 @@ struct Accel
         uint32_t dT = frontend->get_last_update_usec() - Timestamp; //us
         if (dT > 0)
         {
+            Raw = frontend -> get_accel_raw();
             uint8_t primary_accel = frontend->get_primary_accel();
             NED newReading = (AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned() * frontend->get_accel(primary_accel)) + GRAVITY_NED;
             //Trapezoidal Integration
@@ -57,6 +59,7 @@ struct Accel
 
     void reset(float newTs = 0)
     {
+        Raw.zero();
         Readings.zero();
         Velocity.zero();
         Error = 0;
@@ -65,6 +68,7 @@ struct Accel
 
     Accel &operator=(const Accel &rhs)
     {
+        Raw = rhs.Raw;
         Readings = rhs.Readings;
         Velocity = rhs.Velocity;
         Timestamp = rhs.Timestamp;

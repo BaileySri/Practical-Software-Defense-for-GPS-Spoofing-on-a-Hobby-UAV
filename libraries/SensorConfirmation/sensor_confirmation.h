@@ -52,7 +52,7 @@ class SensorConfirmation{
         void update();
         bool run();
         void alert();
-        void debug();
+        void log();
         void confirmation();
         // The max velocity allowed before confirmation fails
         float NetGpsLimit() const;
