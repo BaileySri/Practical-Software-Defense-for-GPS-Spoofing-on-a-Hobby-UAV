@@ -1,3 +1,4 @@
+#include "AP_Logger/AP_Logger.h"
 #include <SensorConfirmation/sensor_confirmation.h>
 
 //----   Helper Functions  ----//
@@ -220,7 +221,13 @@ void SensorConfirmation::alert()
 
 void SensorConfirmation::log()
 {
-   
+    AP_Logger::get_singleton()->Write_SNSR(//ACO Data
+                          sensors.cOFAccel,
+                          sensors.cOF,
+                          //CNF Data
+                          sensors.currAccel,
+                          sensors.currGps,
+                          sensors.rangefinder);
 }
 
 void SensorConfirmation::confirmation()
@@ -233,6 +240,7 @@ void SensorConfirmation::confirmation()
 
     //Update sensor values
     update();
+    log();
 
     //If run returns False, Recover
     //If run returns True, Nothing

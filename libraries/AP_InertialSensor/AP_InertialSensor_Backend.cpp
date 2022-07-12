@@ -284,6 +284,10 @@ void AP_InertialSensor_Backend::_notify_new_gyro_raw_sample(uint8_t instance,
 
         // apply the low pass filter last to attentuate any notch induced noise
         gyro_filtered = _imu._gyro_filter[instance].apply(gyro_filtered);
+        //PADLOCK
+        // Save raw gyro data for Sensor Confirmation logging
+        // The below check is for the filter, of which we don't care for
+        _imu._gyro_raw2[instance] = gyro_filtered;
 
         // if the filtering failed in any way then reset the filters and keep the old value
         if (gyro_filtered.is_nan() || gyro_filtered.is_inf()) {

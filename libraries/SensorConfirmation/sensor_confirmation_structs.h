@@ -7,6 +7,7 @@
 #include "../AP_Common/Location.h"
 #include "../AP_OpticalFlow/AP_OpticalFlow.h"
 #include "../AP_RangeFinder/AP_RangeFinder.h"
+#include "AP_Math/matrix3.h"
 
 //Consts
 const float ACC_ERR = (150) * (9.80665) * 4 / (1E6); // (m/s/s)/sqrt(Hz), noise density * m/s/s / g * nsamples.
@@ -32,6 +33,7 @@ typedef Vector3f BF;
 struct Accel
 {
     BF Raw;             //m/s/s, Unfiltered accelerometer readings, Scaled and Rotated into BF
+    Matrix3f rot;       //Rotation matrix used by AHRS
     NED Readings;       //m/s/s, Accelerometer readings rotated to NED
     NED Velocity;       //m/s, Velocity in NED frame
     float Error;        //m/s, Single axis error, Multiply by RMS for Net
@@ -42,9 +44,10 @@ struct Accel
         uint32_t dT = frontend->get_last_update_usec() - Timestamp; //us
         if (dT > 0)
         {
-            Raw = frontend -> get_accel_raw();
             uint8_t primary_accel = frontend->get_primary_accel();
-            NED newReading = (AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned() * frontend->get_accel(primary_accel)) + GRAVITY_NED;
+            Raw = frontend -> get_accel_raw(primary_accel);
+            rot = AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned();
+            NED newReading = (rot * frontend->get_accel(primary_accel)) + GRAVITY_NED;
             //Trapezoidal Integration
             Velocity += (((newReading + Readings) / 2.0F) * dT) / 1000000;
             Readings = newReading;
@@ -59,6 +62,7 @@ struct Accel
 
     void reset(float newTs = 0)
     {
+        rot.zero();
         Raw.zero();
         Readings.zero();
         Velocity.zero();
@@ -68,6 +72,7 @@ struct Accel
 
     Accel &operator=(const Accel &rhs)
     {
+        rot = rhs.rot;
         Raw = rhs.Raw;
         Readings = rhs.Readings;
         Velocity = rhs.Velocity;
@@ -78,9 +83,10 @@ struct Accel
 };
 struct Gyro
 {
+    BF Raw; //x = Roll, y = Pitch, z = Yaw
     BF Readings; //x = Roll, y = Pitch, z = Yaw
     float Error;
-    uint32_t Timestamp;
+    uint32_t Timestamp; //us
     uint32_t TimeContained;
 
     bool update(const AP_InertialSensor *frontend)
@@ -89,7 +95,8 @@ struct Gyro
         if (dT > 0)
         {
             uint8_t primary_gyro = frontend->get_primary_gyro();
-            Readings = frontend->get_accel(primary_gyro);
+            Raw = frontend->get_gyro_raw(primary_gyro);
+            Readings = frontend->get_gyro(primary_gyro);
             Error += GYRO_ERR * sqrtf(frontend->get_gyro_rate_hz(primary_gyro));
             Timestamp += dT;
             TimeContained += dT;
@@ -100,6 +107,7 @@ struct Gyro
 
     void reset(float newTs = 0)
     {
+        Raw.zero();
         Readings.zero();
         Error = 0;
         Timestamp = newTs;
@@ -108,6 +116,7 @@ struct Gyro
 
     Gyro &operator=(const Gyro &rhs)
     {
+        Raw = rhs.Raw;
         Readings = rhs.Readings;
         Timestamp = rhs.Timestamp;
         Error = rhs.Error;
@@ -199,7 +208,6 @@ struct GPS
 };
 struct RF
 {
-    float tcReading;  //meters, Tilt compensated but not filtered readings
     float Timestamp;  //ms, Timestamp of last healthy RF reading
     float RangeErr;   //meters, Error in RF reading
     LowPassFilterFloat rf_filt; //cm, filtered tilt compensated rangefinder readings
@@ -212,10 +220,8 @@ struct RF
         if (dT > 0)
         {
             // Assuming we want to use tilt compensation on rangefinder
-            const float tilt_correction = MAX(0.707f, AP_AHRS::get_singleton()->get_rotation_body_to_ned().c.z);
-            tcReading = tilt_correction * newReading;
-            rf_raw = tcReading;
-            rf_filt.apply(tcReading, 0.05f);                
+            rf_raw = newReading;
+            rf_filt.apply(rf_raw, 0.05f);                
             #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
                 RangeErr = 0.05; //SITL error isn't set to LLv3 documentation 
             #else
@@ -228,7 +234,7 @@ struct RF
 
     void reset(float newTs = 0)
     {
-        tcReading = 0;
+        rf_raw = 0;
         Timestamp = newTs;
         RangeErr = 0;
         rf_filt.reset();
@@ -249,7 +255,7 @@ struct OF
         uint32_t dT = frontend->last_update() - Timestamp; //ms
         if (dT > 0)
         {
-            FlowRate = frontend->flowRate();
+            FlowRate = frontend->flowRate(); //FlowRate is scaled and yawed according to parameters
             BodyRate = frontend->bodyRate();
             Vector2f RawRate = FlowRate-BodyRate;
             flow_filter.apply(Vector2f{RawRate[1],RawRate[0]}); //Reverse order to be in NE frame

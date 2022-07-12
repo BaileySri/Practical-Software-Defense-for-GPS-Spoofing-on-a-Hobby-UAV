@@ -265,15 +265,6 @@ void Copter::fast_loop()
     if (should_log(MASK_LOG_ANY)) {
         Log_Sensor_Health();
     }
-    //PADLOCK
-    //Logging sensors, two calls for OPTFLOW enabled or Disabled
-    #if OPTFLOW == ENABLED
-    if(copter.motors->armed())
-        logger.Write_SNSR(AP_Baro::get_singleton()->get_altitude(), rangefinder_state.alt_cm_filt.get(), optflow.bodyRate(), optflow.flowRate(), optflow.last_update());
-    #else
-    if(copter.motors->armed())
-        logger.Write_SNSR(AP_Baro::get_singleton()->get_altitude());
-    #endif
 
     //@@INVARIANT check
     copter_invariants_check(attitude_control->get_att_target_euler_cd().x, ahrs.roll_sensor);   // in centi-degree

@@ -341,8 +341,9 @@ public:
     void Write_PSCD(float pos_target, float pos, float vel_desired, float vel_target, float vel, float accel_desired, float accel_target, float accel);
     //PADLOCK
     //Log write function
-    void Write_SNSR(const float &BAlt, const float &rf_dist, const Vector2f &body_rate, const Vector2f &flow_rate, const uint32_t &OF_Time);
-    void Write_SNSR(const float &BAlt);
+    void Write_SNSR(const Accel &ACO_cAccel, const OF &ACO_cOF, 
+                    const Accel &CNF_cAccel,
+                    const GPS &CNF_cGPS, const RF &RF);
     void Write_CNFR(const OF &pOF,
                     const OF &cOF,
                     const GPS &pGPS,

@@ -689,68 +689,59 @@ struct PACKED log_STAK {
 
 //PADLOCK
 //Log packet definitions
+
+//ACO Data with filtered accelerometer
 struct PACKED log_sensors_1 {
     LOG_PACKET_HEADER;
     uint64_t time_us;
-    float accel_front;
-    float accel_right;
-    float accel_down;
-    float gyro_droll;
-    float gyro_dpitch;
-    float gyro_dyaw;
-    float baro_alt;
-    int32_t gps_lat;
-    int32_t gps_lon;
-    int32_t gps_alt;
-    float gps_vel_N;
-    float gps_vel_E;
-    float gps_vel_D;
+    uint32_t acc_us; // Accelerometer Timestamp
+    float acc_N; 
+    float acc_E;
+    float acc_D;
+    float m00; // Rotation matrix at Timestamp
+    float m01;
+    float m02;
+    float m10;
+    float m11;
+    float m12;
+    float m20;
+    float m21;
+    float m22;
 };
 
+//ACO Data with raw accelerometer and OF readings
 struct PACKED log_sensors_2 {
     LOG_PACKET_HEADER;
     uint64_t time_us;
-    float mX;
-    float mY;
-    float mZ;
-    float of_bodyX;
-    float of_bodyY;
-    float of_flowX;
-    float of_flowY;
-    float rf_dist;
-    float gps_SAcc;
-    float gps_HAcc;
-    float gps_VAcc;
-    uint32_t gps_Time;
-    uint32_t acc_Time;
-    uint32_t of_Time;
+    float acc_raw_F; // Accelerometer Raw Data
+    float acc_raw_R;
+    float acc_raw_D;
+    uint32_t of_us; // OF Timestamp
+    float OF_FR_N;
+    float OF_FR_E;
+    float OF_BR_N;
+    float OF_BR_E;
+    float rf_ms; // Rangefinder Timestamp in ms
+    float rf;
+    float rf_filt;
 };
 
+//CNF data with CNF specific IMU accumulation
 struct PACKED log_sensors_3 {
     LOG_PACKET_HEADER;
     uint64_t time_us;
-    float m_0_0; //Matrix i,j value for DCM
-    float m_0_1; //Matrix i,j value for DCM
-    float m_0_2; //Matrix i,j value for DCM
-    float m_1_0; //Matrix i,j value for DCM
-    float m_1_1; //Matrix i,j value for DCM
-    float m_1_2; //Matrix i,j value for DCM
-    float m_2_0; //Matrix i,j value for DCM
-    float m_2_1; //Matrix i,j value for DCM
-    float m_2_2; //Matrix i,j value for DCM
-};
-
-struct PACKED log_sensors_4 {
-    LOG_PACKET_HEADER;
-    uint64_t time_us;
-    int32_t gps_lat;
-    int32_t gps_lon;
-    int32_t gps_alt;
-    float real_gps_gc;
-    float spoof_gps_gc;
-    float gps_vel_N;
-    float gps_vel_E;
-    float gps_vel_D;
+    uint32_t acc_us; // Accelerometer Timestamp
+    float acc_N; 
+    float acc_E;
+    float acc_D;
+    uint32_t gps_ms;
+    int32_t lat;
+    int32_t lng;
+    float hacc;
+    float vacc;
+    float sacc;
+    float yaw;
+    float yaw_e;
 };
 
 struct PACKED log_confirmation_1 {
@@ -1461,13 +1452,11 @@ LOG_STRUCTURE_FROM_VISUALODOM \
     { LOG_STAK_MSG, sizeof(log_STAK), \
       "STAK", "QBBHHN", "TimeUS,Id,Pri,Total,Free,Name", "s#----", "F-----", true }, \
     { LOG_SNSR_1_MSG, sizeof(log_sensors_1), \
-      "SNS1", "Qfffffffiiifff", "TimeUS,aF,aR,aD,gyR,gyP,gyY,bAlt,gpLat,gpLng,gpAlt,gpN,gpE,gpD", "soooEEEmDUmnnn", "F0000000GGB000"}, \
+      "SNS1", "QIffffffffffff", "TimeUS,cUS,CAN,CAE,CAD,m00,m01,m02,m10,m11,m12,m20,m21,m22", "ssooo---------", "FF000---------"}, \
     { LOG_SNSR_2_MSG, sizeof(log_sensors_2), \
-      "SNS2", "QfffffffffffIII", "TimeUS,mX,mY,mZ,obX,obY,ofX,ofY,rfD,gpSA,gpHA,gpVA,gpT,aT,ofT", "sGGGEEEEmnmmsss", "FCCC00000000CFC"}, \
+      "SNS2", "QfffIfffffff", "TimeUS,rCAN,rCAE,rCAD,ofUS,frN,frE,brN,brE,rfMS,rf,rfFilt", "sooosEEEEsmm", "F000F0000CBB"}, \
     { LOG_SNSR_3_MSG, sizeof(log_sensors_3), \
-      "SNS3", "Qfffffffff", "TimeUS,m00,m01,m02,m10,m11,m12,m20,m21,m22", "s---------", "F---------"}, \
-    { LOG_SNSR_4_MSG, sizeof(log_sensors_4), \
-      "SNS4", "Qiiifffff", "TimeUS,gprLat,gprLng,gprAlt,gprGC,gpGC,gprN,gprE,gprD", "sDUmhhnnn", "FGGB00000"}, \
+      "SNS3", "QIfffILLfffff", "TimeUS,accUS,CAN,CAE,CAD,gpsMS,lat,lng,hacc,vacc,sacc,yaw,yawe", "ssooosDUmmndd", "FF000CGG00000"}, \
     { LOG_CNFR_1_MSG, sizeof(log_confirmation_1), \
       "CNF1", "Qffffffff", "TimeUS,COFN,COFE,CNe,CEe,POFN,POFE,PNe,PEe", "snnnnnnnn", "FBBBBBBBB"}, \
     { LOG_CNFR_2_MSG, sizeof(log_confirmation_2), \
@@ -1561,7 +1550,6 @@ enum LogMessages : uint8_t {
     LOG_SNSR_1_MSG,
     LOG_SNSR_2_MSG,
     LOG_SNSR_3_MSG,
-    LOG_SNSR_4_MSG,
     LOG_CNFR_1_MSG,
     LOG_CNFR_2_MSG,
     LOG_CNFR_3_MSG,

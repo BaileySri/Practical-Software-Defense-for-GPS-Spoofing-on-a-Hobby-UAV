@@ -173,15 +173,6 @@ void Plane::ahrs_update()
     quadplane.inertial_nav.update();
 #endif
 
-    //PADLOCK
-    //Logging sensors, two calls for OPTFLOW enabled or Disabled
-    #if OPTFLOW == ENABLED
-    if(arming.is_armed())
-        logger.Write_SNSR(AP_Baro::get_singleton()->get_altitude(), rangefinder_state.last_distance, optflow.bodyRate(), optflow.flowRate(), optflow.last_update());
-    #else
-    if(arming.is_armed())
-        logger.Write_SNSR(AP_Baro::get_singleton()->get_altitude());
-    #endif
     if(g.confirmation == 1){
         PDLK.confirmation();
     }

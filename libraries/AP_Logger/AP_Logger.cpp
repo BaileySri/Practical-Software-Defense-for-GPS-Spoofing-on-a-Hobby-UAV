@@ -918,222 +918,67 @@ void AP_Logger::Write_Rally()
 
 //PADLOCK
 //Logging function
-void AP_Logger::Write_SNSR(const float &BAlt, const float &rf_dist,
-                           const Vector2f &body_rate, const Vector2f &flow_rate,
-                           const uint32_t &OF_Time)
+void AP_Logger::Write_SNSR( const Accel &ACO_cAccel, const OF &ACO_cOF, 
+                            const Accel &CNF_cAccel,
+                            const GPS &CNF_cGPS, const RF &RF)
 {
     uint64_t timestamp = AP_HAL::micros64();
-    const AP_InertialSensor &ins = AP::ins();
-    const Matrix3f &rot = AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned();
-    const Vector3f &gyro = ins.get_gyro();
-    const Vector3f &accel = ins.get_accel();
-    const AP_GPS *gps = AP::gps().get_singleton();
-    int32_t gps_alt = 0;
-    int32_t gps_alt_real = 0;
-    if (!gps->location().get_alt_cm(Location::AltFrame::ABOVE_HOME, gps_alt))
-    {
-        gps_alt = -1;
-    }
-    if (!gps->real_loc().get_alt_cm(Location::AltFrame::ABOVE_HOME, gps_alt))
-    {
-        gps_alt_real = -1;
-    }
-    Vector3f mag = AP::compass().get_field();
 
+    //ACO
     struct log_sensors_1 pkt1 = {
         LOG_PACKET_HEADER_INIT(LOG_SNSR_1_MSG),
         time_us : timestamp,
-        accel_front : accel.x,
-        accel_right : accel.y,
-        accel_down : accel.z,
-        gyro_droll : gyro.x,
-        gyro_dpitch : gyro.y,
-        gyro_dyaw : gyro.z,
-        baro_alt : BAlt,
-        gps_lat : gps->location().lat,
-        gps_lon : gps->location().lng,
-        gps_alt : gps_alt,
-        gps_vel_N : gps->velocity().x,
-        gps_vel_E : gps->velocity().y,
-        gps_vel_D : gps->velocity().z,
-
+        acc_us  : ACO_cAccel.Timestamp, // Filtered Accelerometer data
+        acc_N  : ACO_cAccel.Readings.x, // Same for both CNF and ACO
+        acc_E  : ACO_cAccel.Readings.y,
+        acc_D  : ACO_cAccel.Readings.z,
+        m00     : ACO_cAccel.rot.a.x, // DCM Rotation Matrix, same for both CNF and ACO
+        m01     : ACO_cAccel.rot.a.y,
+        m02     : ACO_cAccel.rot.a.z,
+        m10     : ACO_cAccel.rot.b.x,
+        m11     : ACO_cAccel.rot.b.y,
+        m12     : ACO_cAccel.rot.b.z,
+        m20     : ACO_cAccel.rot.c.x,
+        m21     : ACO_cAccel.rot.c.y,
+        m22     : ACO_cAccel.rot.c.z  
     };
-
-    float Sacc; //m/s GPS 3D RMS Speed Accuracy
-    float Hacc; //m GPS 3D RMS Horizontal Position Accuracy
-    float Vacc; //m GPS 3D RMS Vertical Position Accuracy
-
-    if (!gps->speed_accuracy(Sacc))
-    {
-        Sacc = -1;
-    }
-    if (!gps->vertical_accuracy(Vacc))
-    {
-        Vacc = -1;
-    }
-    if (!gps->horizontal_accuracy(Hacc))
-    {
-        Hacc = -1;
-    }
-
     struct log_sensors_2 pkt2 = {
         LOG_PACKET_HEADER_INIT(LOG_SNSR_2_MSG),
-        time_us : timestamp,
-        mX : mag.x, //Averaged Sum
-        mY : mag.y, //Averaged Sum
-        mZ : mag.z, //Averaged Sum
-        of_bodyX : body_rate.x,
-        of_bodyY : body_rate.y,
-        of_flowX : flow_rate.x,
-        of_flowY : flow_rate.y,
-        rf_dist : rf_dist / 100,
-        gps_SAcc : Sacc, //From GPS
-        gps_HAcc : Hacc, //From GPS
-        gps_VAcc : Vacc, //From GPS
-        gps_Time : gps->last_fix_time_ms(),
-        acc_Time : ins.get_last_update_usec(),
-        of_Time : OF_Time
+        time_us      : timestamp,
+        acc_raw_F    : ACO_cAccel.Raw.x, // Raw Accelerometer, same for both CNF and ACO
+        acc_raw_R    : ACO_cAccel.Raw.y,
+        acc_raw_D    : ACO_cAccel.Raw.z,
+        of_us        : ACO_cOF.Timestamp, // Optical Flow is same for CNF and ACO at log time
+        OF_FR_N      : ACO_cOF.FlowRate.x, // Optical Flow Flowrate
+        OF_FR_E      : ACO_cOF.FlowRate.y,
+        OF_BR_N      : ACO_cOF.BodyRate.x, // Optical Flow Bodyrate
+        OF_BR_E      : ACO_cOF.BodyRate.y,
+        rf_ms        : RF.Timestamp, // RF Timestamp is in ms, same for both CNF and ACO
+        rf           : RF.rf_raw,
+        rf_filt      : RF.rf_filt.get()
     };
 
+    //CNF
     struct log_sensors_3 pkt3 = {
         LOG_PACKET_HEADER_INIT(LOG_SNSR_3_MSG),
         time_us : timestamp,
-        m_0_0 : rot.a.x,
-        m_0_1 : rot.a.y,
-        m_0_2 : rot.a.z,
-        m_1_0 : rot.b.x,
-        m_1_1 : rot.b.y,
-        m_1_2 : rot.b.z,
-        m_2_0 : rot.c.x,
-        m_2_1 : rot.c.y,
-        m_2_2 : rot.c.z,
-    };
-
-    struct log_sensors_4 pkt4 = {
-        LOG_PACKET_HEADER_INIT(LOG_SNSR_4_MSG),
-        time_us : timestamp,
-        gps_lat : gps->real_loc().lat,
-        gps_lon : gps->real_loc().lng,
-        gps_alt : gps_alt_real,
-        real_gps_gc : gps->real_ground_course(),
-        spoof_gps_gc : gps->ground_course(),
-        gps_vel_N : gps->real_vel().x,
-        gps_vel_E : gps->real_vel().y,
-        gps_vel_D : gps->real_vel().z,
+        acc_us  : CNF_cAccel.Timestamp, // Filtered Accelerometer data
+        acc_N   : CNF_cAccel.Readings.x, //TODO: Change accelerometer log to velocity
+        acc_E   : CNF_cAccel.Readings.y,
+        acc_D   : CNF_cAccel.Readings.z,
+        gps_ms  : CNF_cGPS.Timestamp,
+        lat     : CNF_cGPS.Latitude,
+        lng     : CNF_cGPS.Longitude,
+        hacc    : CNF_cGPS.Hacc,
+        vacc    : CNF_cGPS.Vacc,
+        sacc    : CNF_cGPS.Sacc,
+        yaw     : CNF_cGPS.Yaw,
+        yaw_e   : CNF_cGPS.Yaw_Error
     };
 
     FOR_EACH_BACKEND(WriteBlock(&pkt1, sizeof(pkt1)));
     FOR_EACH_BACKEND(WriteBlock(&pkt2, sizeof(pkt2)));
     FOR_EACH_BACKEND(WriteBlock(&pkt3, sizeof(pkt3)));
-    FOR_EACH_BACKEND(WriteBlock(&pkt4, sizeof(pkt4)));
-}
-
-//The below Write_SNSR is for when OF/RF is unavailable
-void AP_Logger::Write_SNSR(const float &BAlt)
-{
-    uint64_t timestamp = AP_HAL::micros64();
-    const AP_InertialSensor &ins = AP::ins();
-    const Vector3f &gyro = ins.get_gyro();
-    const Vector3f &accel = ins.get_accel();
-    const AP_GPS *gps = AP::gps().get_singleton();
-    Vector3f mag = AP::compass().get_field();
-    int32_t gps_alt;
-    if (gps->location().get_alt_cm(Location::AltFrame::ABOVE_HOME, gps_alt))
-    {
-    }
-    else
-    {
-        gps_alt = -1;
-    }
-
-    struct log_sensors_1 pkt1 = {
-        LOG_PACKET_HEADER_INIT(LOG_SNSR_1_MSG),
-        time_us : timestamp,
-        accel_front : accel.x,         //LPF, Scaled, and Offset
-        accel_right : accel.y,         //LPF, Scaled, and Offset
-        accel_down : accel.z,          //LPF, Scaled, and Offset
-        gyro_droll : gyro.x,           //LPF, Rotated, and Offset
-        gyro_dpitch : gyro.y,          //LPF, Rotated, and Offset
-        gyro_dyaw : gyro.z,            //LPF, Rotated, and Offset
-        baro_alt : BAlt,               //Filtered, depends on sensor
-        gps_lat : gps->location().lat, //If multiple present, should be blended
-        gps_lon : gps->location().lng, //If multiple present, should be blended
-        gps_alt : gps_alt / 100,       //If multiple present, should be blended
-        gps_vel_N : gps->velocity().x, //LPF and Tilt Compensated
-        gps_vel_E : gps->velocity().y, //LPF and Tilt Compensated
-        gps_vel_D : gps->velocity().z, //LPF and Tilt Compensated
-
-    };
-
-    float Sacc; //m/s GPS 3D RMS Speed Accuracy
-    float Hacc; //m GPS 3D RMS Horizontal Position Accuracy
-    float Vacc; //m GPS 3D RMS Vertical Position Accuracy
-
-    if (!gps->speed_accuracy(Sacc))
-    {
-        Sacc = -1;
-    }
-    if (!gps->vertical_accuracy(Vacc))
-    {
-        Vacc = -1;
-    }
-    if (!gps->horizontal_accuracy(Hacc))
-    {
-        Hacc = -1;
-    }
-
-    struct log_sensors_2 pkt2 = {
-        LOG_PACKET_HEADER_INIT(LOG_SNSR_2_MSG),
-        time_us : timestamp,
-        mX : mag.x,       //Averaged Sum
-        mY : mag.y,       //Averaged Sum
-        mZ : mag.z,       //Averaged Sum
-        of_bodyX : -1.0f, //Disabled
-        of_bodyY : -1.0f, //Disabled
-        of_flowX : -1.0f, //Disabled
-        of_flowY : -1.0f, //Disabled
-        rf_dist : -1.0f,  //Disabled
-        gps_SAcc : Sacc,  //From GPS
-        gps_HAcc : Hacc,  //From GPS
-        gps_VAcc : Vacc,  //From GPS
-    };
-
-    const Matrix3f &rot = AP_AHRS::get_singleton()->get_DCM_rotation_body_to_ned();
-
-    struct log_sensors_3 pkt3 = {
-        LOG_PACKET_HEADER_INIT(LOG_SNSR_3_MSG),
-        time_us : timestamp,
-        m_0_0 : rot.a.x,
-        m_0_1 : rot.a.y,
-        m_0_2 : rot.a.z,
-        m_1_0 : rot.b.x,
-        m_1_1 : rot.b.y,
-        m_1_2 : rot.b.z,
-        m_2_0 : rot.c.x,
-        m_2_1 : rot.c.y,
-        m_2_2 : rot.c.z,
-    };
-    int32_t gps_alt_real = 0;
-    if (!gps->real_loc().get_alt_cm(Location::AltFrame::ABOVE_HOME, gps_alt))
-    {
-        gps_alt_real = -1;
-    }
-    struct log_sensors_4 pkt4 = {
-        LOG_PACKET_HEADER_INIT(LOG_SNSR_4_MSG),
-        time_us : timestamp,
-        gps_lat : gps->real_loc().lat,
-        gps_lon : gps->real_loc().lng,
-        gps_alt : gps_alt_real,
-        real_gps_gc : gps->real_ground_course(),
-        spoof_gps_gc : gps->ground_course(),
-        gps_vel_N : gps->real_vel().x,
-        gps_vel_E : gps->real_vel().y,
-        gps_vel_D : gps->real_vel().z,
-    };
-    FOR_EACH_BACKEND(WriteBlock(&pkt1, sizeof(pkt1)));
-    FOR_EACH_BACKEND(WriteBlock(&pkt2, sizeof(pkt2)));
-    FOR_EACH_BACKEND(WriteBlock(&pkt3, sizeof(pkt3)));
-    FOR_EACH_BACKEND(WriteBlock(&pkt4, sizeof(pkt4)));
 }
 
 //Logger for confirmation variables
