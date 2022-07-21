@@ -18,12 +18,15 @@
  *
  */
 
+#include "AP_RangeFinder_analog.h"
+
+#if AP_RANGEFINDER_ANALOG_ENABLED
+
 #include <AP_HAL/AP_HAL.h>
 #include <AP_Common/AP_Common.h>
 #include <AP_Math/AP_Math.h>
 #include "AP_RangeFinder.h"
 #include "AP_RangeFinder_Params.h"
-#include "AP_RangeFinder_analog.h"
 
 extern const AP_HAL::HAL& hal;
 
@@ -111,10 +114,11 @@ void AP_RangeFinder_analog::update(void)
     if (dist_m < 0) {
         dist_m = 0;
     }
-    state.distance_cm = dist_m * 100.0f;
+    state.distance_m = dist_m;
     state.last_reading_ms = AP_HAL::millis();
 
     // update range_valid state based on distance measured
     update_status();
 }
 
+#endif  // AP_RANGEFINDER_ANALOG_ENABLED

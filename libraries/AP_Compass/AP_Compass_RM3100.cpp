@@ -149,7 +149,7 @@ bool AP_Compass_RM3100::init()
     }
     set_dev_id(compass_instance, dev->get_bus_id());
 
-    hal.console->printf("RM3100: Found at address 0x%x as compass %u\n", dev->get_bus_address(), compass_instance);
+    DEV_PRINTF("RM3100: Found at address 0x%x as compass %u\n", dev->get_bus_address(), compass_instance);
     
     set_rotation(compass_instance, rotation);
 
@@ -207,6 +207,21 @@ void AP_Compass_RM3100::timer()
     magx >>= 8;
     magy >>= 8;
     magz >>= 8;
+
+#ifdef AP_RM3100_REVERSAL_MASK
+    // some RM3100 builds get the polarity wrong on one or more of the
+    // elements. By setting AP_RM3100_REVERSAL_MASK in hwdef.dat you
+    // can fix it without modifying the hardware
+    if (AP_RM3100_REVERSAL_MASK & 1U) {
+        magx = -magx;
+    }
+    if (AP_RM3100_REVERSAL_MASK & 2U) {
+        magy = -magy;
+    }
+    if (AP_RM3100_REVERSAL_MASK & 4U) {
+        magz = -magz;
+    }
+#endif
 
     {
         // apply scaler and store in field vector

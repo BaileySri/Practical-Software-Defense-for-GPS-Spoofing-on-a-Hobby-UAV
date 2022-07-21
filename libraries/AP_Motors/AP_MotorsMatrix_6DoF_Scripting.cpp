@@ -13,11 +13,12 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifdef ENABLE_SCRIPTING
+#if AP_SCRIPTING_ENABLED
 
 #include <AP_HAL/AP_HAL.h>
 #include "AP_MotorsMatrix_6DoF_Scripting.h"
 #include <AP_Vehicle/AP_Vehicle.h>
+#include <SRV_Channel/SRV_Channel.h>
 
 extern const AP_HAL::HAL& hal;
 
@@ -322,4 +323,4 @@ bool AP_MotorsMatrix_6DoF_Scripting::init(uint8_t expected_num_motors) {
 // singleton instance
 AP_MotorsMatrix_6DoF_Scripting *AP_MotorsMatrix_6DoF_Scripting::_singleton;
 
-#endif // ENABLE_SCRIPTING
+#endif // AP_SCRIPTING_ENABLED

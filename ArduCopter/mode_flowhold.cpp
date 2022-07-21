@@ -1,7 +1,7 @@
 #include "Copter.h"
 #include <utility>
 
-#if !HAL_MINIMIZE_FEATURES && OPTFLOW == ENABLED
+#if !HAL_MINIMIZE_FEATURES && AP_OPTICALFLOW_ENABLED
 
 /*
   implement FLOWHOLD mode, for position hold using optical flow
@@ -106,7 +106,7 @@ bool ModeFlowHold::init(bool ignore_checks)
     flow_pi_xy.set_dt(1.0/copter.scheduler.get_loop_rate_hz());
 
     // start with INS height
-    last_ins_height = copter.inertial_nav.get_altitude() * 0.01;
+    last_ins_height = copter.inertial_nav.get_position_z_up_cm() * 0.01;
     height_offset = 0;
 
     return true;
@@ -130,7 +130,7 @@ void ModeFlowHold::flowhold_flow_to_angle(Vector2f &bf_angles, bool stick_input)
     Vector2f sensor_flow = flow_filter.apply(raw_flow);
 
     // scale by height estimate, limiting it to height_min to height_max
-    float ins_height = copter.inertial_nav.get_altitude() * 0.01;
+    float ins_height = copter.inertial_nav.get_position_z_up_cm() * 0.01;
     float height_estimate = ins_height + height_offset;
 
     // compensate for height, this converts to (approx) m/s
@@ -179,7 +179,7 @@ void ModeFlowHold::flowhold_flow_to_angle(Vector2f &bf_angles, bool stick_input)
         for (uint8_t i=0; i<2; i++) {
             float &velocity = sensor_flow[i];
             float abs_vel_cms = fabsf(velocity)*100;
-            const float brake_gain = (15.0f * brake_rate_dps.get() + 95.0f) / 100.0f;
+            const float brake_gain = (15.0f * brake_rate_dps.get() + 95.0f) * 0.01f;
             float lean_angle_cd = brake_gain * abs_vel_cms * (1.0f+500.0f/(abs_vel_cms+60.0f));
             if (velocity < 0) {
                 lean_angle_cd = -lean_angle_cd;
@@ -347,7 +347,7 @@ void ModeFlowHold::run()
  */
 void ModeFlowHold::update_height_estimate(void)
 {
-    float ins_height = copter.inertial_nav.get_altitude() * 0.01;
+    float ins_height = copter.inertial_nav.get_position_z_up_cm() * 0.01;
 
 #if 1
     // assume on ground when disarmed, or if we have only just started spooling the motors up
@@ -509,4 +509,4 @@ void ModeFlowHold::update_height_estimate(void)
     last_ins_height = ins_height;
 }
 
-#endif // OPTFLOW == ENABLED
+#endif // AP_OPTICALFLOW_ENABLED

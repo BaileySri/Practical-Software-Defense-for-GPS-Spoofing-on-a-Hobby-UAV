@@ -9,7 +9,7 @@
 #include "AP_MotorsHeli_RSC.h"
 #include "AP_MotorsHeli_Swash.h"
 
-// rsc and extgyro function output channels. 
+// rsc and extgyro function output channels.
 #define AP_MOTORS_HELI_SINGLE_EXTGYRO                          CH_7
 #define AP_MOTORS_HELI_SINGLE_TAILRSC                          CH_7
 
@@ -50,19 +50,11 @@ public:
     // set update rate to motors - a value in hertz
     void set_update_rate(uint16_t speed_hz) override;
 
-    // output_test_seq - spin a motor at the pwm value specified
-    //  motor_seq is the motor's sequence number from 1 to the number of motors on the frame
-    //  pwm value is an actual pwm value that will be output, normally in the range of 1000 ~ 2000
-    virtual void output_test_seq(uint8_t motor_seq, int16_t pwm) override;
-
     // output_to_motors - sends values out to the motors
     void output_to_motors() override;
 
     // set_desired_rotor_speed - sets target rotor speed as a number from 0 ~ 1
     void set_desired_rotor_speed(float desired_speed) override;
-
-    // set_rpm - for rotor speed governor
-    void set_rpm(float rotor_rpm) override;
 
     // get_main_rotor_speed - estimated rotor speed when no speed sensor or governor is used
     float get_main_rotor_speed() const  override { return _main_rotor.get_rotor_speed(); }
@@ -72,10 +64,10 @@ public:
 
     // rotor_speed_above_critical - return true if rotor speed is above that critical for flight
     bool rotor_speed_above_critical() const  override { return _main_rotor.get_rotor_speed() > _main_rotor.get_critical_speed(); }
-    
+
     // get_governor_output
     float get_governor_output() const override { return _main_rotor.get_governor_output(); }
-    
+
     // get_control_output
     float get_control_output() const override{ return _main_rotor.get_control_output(); }
 
@@ -87,7 +79,7 @@ public:
 
     // get_motor_mask - returns a bitmask of which outputs are being used for motors or servos (1 means being used)
     //  this can be used to ensure other pwm outputs (i.e. for servos) do not conflict
-    uint16_t get_motor_mask() override;
+    uint32_t get_motor_mask() override;
 
     // ext_gyro_gain - set external gyro gain in range 0 ~ 1000
     void ext_gyro_gain(float gain)  override { if (gain >= 0 && gain <= 1000) { _ext_gyro_gain_std = gain; }}
@@ -122,6 +114,11 @@ protected:
 
     // servo_test - move servos through full range of movement
     void servo_test() override;
+
+    // output_test_seq - spin a motor at the pwm value specified
+    //  motor_seq is the motor's sequence number from 1 to the number of motors on the frame
+    //  pwm value is an actual pwm value that will be output, normally in the range of 1000 ~ 2000
+    virtual void _output_test_seq(uint8_t motor_seq, int16_t pwm) override;
 
     // external objects we depend upon
     AP_MotorsHeli_RSC   _tail_rotor;            // tail rotor

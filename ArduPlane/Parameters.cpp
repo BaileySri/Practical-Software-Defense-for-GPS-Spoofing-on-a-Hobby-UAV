@@ -108,7 +108,7 @@ const AP_Param::Info Plane::var_info[] = {
     // @Description: When enabled, this adds user stick input to the control surfaces in auto modes, allowing the user to have some degree of flight control without changing modes.  There are two types of stick mixing available. If you set STICK_MIXING to 1 then it will use "fly by wire" mixing, which controls the roll and pitch in the same way that the FBWA mode does. This is the safest option if you usually fly ArduPlane in FBWA or FBWB mode. If you set STICK_MIXING to 2 then it will enable direct mixing mode, which is what the STABILIZE mode uses. That will allow for much more extreme maneuvers while in AUTO mode. If you set STICK_MIXING to 3 then it will apply to the yaw while in quadplane modes only, such as while doing an automatic VTOL takeoff or landing.
     // @Values: 0:Disabled,1:FBWMixing,2:DirectMixing,3:VTOL Yaw only
     // @User: Advanced
-    GSCALAR(stick_mixing,           "STICK_MIXING",   STICK_MIXING_FBW),
+    GSCALAR(stick_mixing,           "STICK_MIXING",   uint8_t(StickMixing::FBW)),
 
     // @Param: TKOFF_THR_MINSPD
     // @DisplayName: Takeoff throttle min speed
@@ -405,8 +405,8 @@ const AP_Param::Info Plane::var_info[] = {
 
     // @Param: FS_SHORT_ACTN
     // @DisplayName: Short failsafe action
-    // @Description: The action to take on a short (FS_SHORT_TIMEOUT) failsafe event. A short failsafe event can be triggered either by loss of RC control (see THR_FS_VALUE) or by loss of GCS control (see FS_GCS_ENABL). If in CIRCLE or RTL mode this parameter is ignored. A short failsafe event in stabilization and manual modes will cause a change to CIRCLE mode if FS_SHORT_ACTN is 0 or 1, and a change to FBWA mode if FS_SHORT_ACTN is 2. In all other modes (AUTO, GUIDED and LOITER) a short failsafe event will cause no mode change if FS_SHORT_ACTN is set to 0, will cause a change to CIRCLE mode if set to 1 and will change to FBWA mode if set to 2. Please see the documentation for FS_LONG_ACTN for the behaviour after FS_LONG_TIMEOUT seconds of failsafe.
-    // @Values: 0:CIRCLE/no change(if already in AUTO|GUIDED|LOITER),1:CIRCLE,2:FBWA,3:Disable
+    // @Description: The action to take on a short (FS_SHORT_TIMEOUT) failsafe event. A short failsafe event can be triggered either by loss of RC control (see THR_FS_VALUE) or by loss of GCS control (see FS_GCS_ENABL). If in CIRCLE or RTL mode this parameter is ignored. A short failsafe event in stabilization and manual modes will cause a change to CIRCLE mode if FS_SHORT_ACTN is 0 or 1, a change to FBWA mode with zero throttle if FS_SHORT_ACTN is 2, and a change to FBWB mode if FS_SHORT_ACTN is 4. In all other modes (AUTO, GUIDED and LOITER) a short failsafe event will cause no mode change if FS_SHORT_ACTN is set to 0, will cause a change to CIRCLE mode if set to 1, will change to FBWA mode with zero throttle if set to 2, or will change to FBWB if set to 4. Please see the documentation for FS_LONG_ACTN for the behaviour after FS_LONG_TIMEOUT seconds of failsafe.
+    // @Values: 0:CIRCLE/no change(if already in AUTO|GUIDED|LOITER),1:CIRCLE,2:FBWA at zero throttle,3:Disable,4:FBWB
     // @User: Standard
     GSCALAR(fs_action_short,        "FS_SHORT_ACTN",  FS_ACTION_SHORT_BESTGUESS),
 
@@ -460,42 +460,42 @@ const AP_Param::Info Plane::var_info[] = {
     // @Param: FLTMODE2
     // @DisplayName: FlightMode2
     // @Description: Flight mode for switch position 2 (1231 to 1360)
-    // @Values: 0:Manual,1:CIRCLE,2:STABILIZE,3:TRAINING,4:ACRO,5:FBWA,6:FBWB,7:CRUISE,8:AUTOTUNE,10:Auto,11:RTL,12:Loiter,13:TAKEOFF,14:AVOID_ADSB,15:Guided,17:QSTABILIZE,18:QHOVER,19:QLOITER,20:QLAND,21:QRTL,22:QAUTOTUNE,23:QACRO,24:THERMAL,25:Loiter to QLand
+    // @CopyValuesFrom: FLTMODE1
     // @User: Standard
     GSCALAR(flight_mode2,           "FLTMODE2",       FLIGHT_MODE_2),
 
     // @Param: FLTMODE3
     // @DisplayName: FlightMode3
     // @Description: Flight mode for switch position 3 (1361 to 1490)
-    // @Values: 0:Manual,1:CIRCLE,2:STABILIZE,3:TRAINING,4:ACRO,5:FBWA,6:FBWB,7:CRUISE,8:AUTOTUNE,10:Auto,11:RTL,12:Loiter,13:TAKEOFF,14:AVOID_ADSB,15:Guided,17:QSTABILIZE,18:QHOVER,19:QLOITER,20:QLAND,21:QRTL,22:QAUTOTUNE,23:QACRO,24:THERMAL,25:Loiter to QLand
+    // @CopyValuesFrom: FLTMODE1
     // @User: Standard
     GSCALAR(flight_mode3,           "FLTMODE3",       FLIGHT_MODE_3),
 
     // @Param: FLTMODE4
     // @DisplayName: FlightMode4
     // @Description: Flight mode for switch position 4 (1491 to 1620)
-    // @Values: 0:Manual,1:CIRCLE,2:STABILIZE,3:TRAINING,4:ACRO,5:FBWA,6:FBWB,7:CRUISE,8:AUTOTUNE,10:Auto,11:RTL,12:Loiter,13:TAKEOFF,14:AVOID_ADSB,15:Guided,17:QSTABILIZE,18:QHOVER,19:QLOITER,20:QLAND,21:QRTL,22:QAUTOTUNE,23:QACRO,24:THERMAL,25:Loiter to QLand
+    // @CopyValuesFrom: FLTMODE1
     // @User: Standard
     GSCALAR(flight_mode4,           "FLTMODE4",       FLIGHT_MODE_4),
 
     // @Param: FLTMODE5
     // @DisplayName: FlightMode5
     // @Description: Flight mode for switch position 5 (1621 to 1749)
-    // @Values: 0:Manual,1:CIRCLE,2:STABILIZE,3:TRAINING,4:ACRO,5:FBWA,6:FBWB,7:CRUISE,8:AUTOTUNE,10:Auto,11:RTL,12:Loiter,13:TAKEOFF,14:AVOID_ADSB,15:Guided,17:QSTABILIZE,18:QHOVER,19:QLOITER,20:QLAND,21:QRTL,22:QAUTOTUNE,23:QACRO,24:THERMAL,25:Loiter to QLand
+    // @CopyValuesFrom: FLTMODE1
     // @User: Standard
     GSCALAR(flight_mode5,           "FLTMODE5",       FLIGHT_MODE_5),
 
     // @Param: FLTMODE6
     // @DisplayName: FlightMode6
     // @Description: Flight mode for switch position 6 (1750 to 2049)
-    // @Values: 0:Manual,1:CIRCLE,2:STABILIZE,3:TRAINING,4:ACRO,5:FBWA,6:FBWB,7:CRUISE,8:AUTOTUNE,10:Auto,11:RTL,12:Loiter,13:TAKEOFF,14:AVOID_ADSB,15:Guided,17:QSTABILIZE,18:QHOVER,19:QLOITER,20:QLAND,21:QRTL,22:QAUTOTUNE,23:QACRO,24:THERMAL,25:Loiter to QLand
+    // @CopyValuesFrom: FLTMODE1
     // @User: Standard
     GSCALAR(flight_mode6,           "FLTMODE6",       FLIGHT_MODE_6),
 
     // @Param: INITIAL_MODE
     // @DisplayName: Initial flight mode
     // @Description: This selects the mode to start in on boot. This is useful for when you want to start in AUTO mode on boot without a receiver.
-    // @Values: 0:Manual,1:CIRCLE,2:STABILIZE,3:TRAINING,4:ACRO,5:FBWA,6:FBWB,7:CRUISE,8:AUTOTUNE,10:Auto,11:RTL,12:Loiter,13:TAKEOFF,14:AVOID_ADSB,15:Guided,17:QSTABILIZE,18:QHOVER,19:QLOITER,20:QLAND,21:QRTL,22:QAUTOTUNE,23:QACRO,24:THERMAL,25:Loiter to QLand
+    // @CopyValuesFrom: FLTMODE1
     // @User: Advanced
     GSCALAR(initial_mode,        "INITIAL_MODE",     Mode::Number::MANUAL),
 
@@ -544,6 +544,15 @@ const AP_Param::Info Plane::var_info[] = {
     // @User: Standard
     GSCALAR(acro_pitch_rate,          "ACRO_PITCH_RATE",  180),
 
+    // @Param: ACRO_YAW_RATE
+    // @DisplayName: ACRO mode yaw rate
+    // @Description: The maximum yaw rate at full stick deflection in ACRO mode. If this is zero then rudder is directly controlled by rudder stick input. This option is only available if you also set YAW_RATE_ENABLE to 1.
+    // @Units: deg/s
+    // @Range: 0 500
+    // @Increment: 1
+    // @User: Standard
+    GSCALAR(acro_yaw_rate,            "ACRO_YAW_RATE",    0),
+    
     // @Param: ACRO_LOCKING
     // @DisplayName: ACRO mode attitude locking
     // @Description: Enable attitude locking when sticks are released
@@ -609,7 +618,7 @@ const AP_Param::Info Plane::var_info[] = {
     // @Param: LOG_BITMASK
     // @DisplayName: Log bitmask
     // @Description: Bitmap of what on-board log types to enable. This value is made up of the sum of each of the log types you want to be saved. It is usually best just to enable all log types by setting this to 65535. The individual bits are ATTITUDE_FAST=1, ATTITUDE_MEDIUM=2, GPS=4, PerformanceMonitoring=8, ControlTuning=16, NavigationTuning=32, Mode=64, IMU=128, Commands=256, Battery=512, Compass=1024, TECS=2048, Camera=4096, RCandServo=8192, Sonar=16384, Arming=32768, FullLogs=65535
-    // @Bitmask: 0:ATTITUDE_FAST,1:ATTITUDE_MED,2:GPS,3:PM,4:CTUN,5:NTUN,6:MODE,7:IMU,8:CMD,9:CURRENT,10:COMPASS,11:TECS,12:CAMERA,13:RC,14:SONAR,15:ARM/DISARM,19:IMU_RAW,20:ATTITUDE_FULLRATE
+    // @Bitmask: 0:ATTITUDE_FAST,1:ATTITUDE_MED,2:GPS,3:PM,4:CTUN,5:NTUN,6:MODE,7:IMU,8:CMD,9:CURRENT,10:COMPASS,11:TECS,12:CAMERA,13:RC,14:SONAR,15:ARM/DISARM,19:IMU_RAW,20:ATTITUDE_FULLRATE,21:VideoStabilization
     // @User: Advanced
     GSCALAR(log_bitmask,            "LOG_BITMASK",    DEFAULT_LOG_BITMASK),
 
@@ -707,10 +716,10 @@ const AP_Param::Info Plane::var_info[] = {
 
     // @Param: RTL_AUTOLAND
     // @DisplayName: RTL auto land
-    // @Description: Automatically begin landing sequence after arriving at RTL location. This requires the addition of a DO_LAND_START mission item, which acts as a marker for the start of a landing sequence. The closest landing sequence will be chosen to the current location. 
-    // @Values: 0:Disable,1:Enable - go HOME then land,2:Enable - go directly to landing sequence
+    // @Description: Automatically begin landing sequence after arriving at RTL location. This requires the addition of a DO_LAND_START mission item, which acts as a marker for the start of a landing sequence. The closest landing sequence will be chosen to the current location. If this is set to 0 and there is a DO_LAND_START mission item then you will get an arming check failure. You can set to a value of 3 to avoid the arming check failure and use the DO_LAND_START for go-around without it changing RTL behaviour. For a value of 1 a rally point will be used instead of HOME if in range (see rally point documentation).
+    // @Values: 0:Disable,1:Fly HOME then land,2:Go directly to landing sequence, 3:OnlyForGoAround
     // @User: Standard
-    GSCALAR(rtl_autoland,         "RTL_AUTOLAND",   0),
+    GSCALAR(rtl_autoland,         "RTL_AUTOLAND",   float(RtlAutoland::RTL_DISABLE)),
 
     // @Param: CRASH_ACC_THRESH
     // @DisplayName: Crash Deceleration Threshold
@@ -811,9 +820,9 @@ const AP_Param::Info Plane::var_info[] = {
     // @Path: ../libraries/APM_Control/AP_PitchController.cpp
     GOBJECT(pitchController,        "PTCH",  AP_PitchController),
 
-    // @Group: YAW2SRV_
+    // @Group: YAW
     // @Path: ../libraries/APM_Control/AP_YawController.cpp
-	GOBJECT(yawController,          "YAW2SRV_",   AP_YawController),
+    GOBJECT(yawController,          "YAW",   AP_YawController),
 
     // @Group: STEER2SRV_
     // @Path: ../libraries/APM_Control/AP_SteerController.cpp
@@ -881,9 +890,7 @@ const AP_Param::Info Plane::var_info[] = {
     // @Path: ../libraries/AP_AHRS/AP_AHRS.cpp
     GOBJECT(ahrs,                   "AHRS_",    AP_AHRS),
 
-    // @Group: ARSPD
-    // @Path: ../libraries/AP_Airspeed/AP_Airspeed.cpp
-    GOBJECT(airspeed,                               "ARSPD",   AP_Airspeed),
+    // Airspeed was here
 
     // @Group: NAVL1_
     // @Path: ../libraries/AP_L1_Control/AP_L1_Control.cpp
@@ -917,7 +924,7 @@ const AP_Param::Info Plane::var_info[] = {
     GOBJECT(can_mgr,        "CAN_",       AP_CANManager),
 #endif
 
-#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
+#if AP_SIM_ENABLED
     // @Group: SIM_
     // @Path: ../libraries/SITL/SITL.cpp
     GOBJECT(sitl, "SIM_", SITL::SIM),
@@ -929,9 +936,9 @@ const AP_Param::Info Plane::var_info[] = {
     GOBJECT(afs,  "AFS_", AP_AdvancedFailsafe),
 #endif
 
-#if OPTFLOW == ENABLED
+#if AP_OPTICALFLOW_ENABLED
     // @Group: FLOW
-    // @Path: ../libraries/AP_OpticalFlow/OpticalFlow.cpp
+    // @Path: ../libraries/AP_OpticalFlow/AP_OpticalFlow.cpp
     GOBJECT(optflow,   "FLOW", OpticalFlow),
 #endif
 
@@ -1082,11 +1089,11 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     // @Param: FLIGHT_OPTIONS
     // @DisplayName: Flight mode options
     // @Description: Flight mode specific options
-    // @Bitmask: 0:Rudder mixing in direct flight modes only (Manual / Stabilize / Acro),1:Use centered throttle in Cruise or FBWB to indicate trim airspeed, 2:Disable attitude check for takeoff arming, 3:Force target airspeed to trim airspeed in Cruise or FBWB, 4: Climb to ALT_HOLD_RTL before turning for RTL, 5: Enable yaw damper in acro mode, 6: Surpress speed scaling during auto takeoffs to be 1 or less to prevent oscillations without airpseed sensor., 7:EnableDefaultAirspeed for takeoff, 8: Remove the TRIM_PITCH_CD on the GCS horizon, 9: Remove the TRIM_PITCH_CD on the OSD horizon, 10: Adjust mid-throttle to be TRIM_THROTTLE in non-auto throttle modes except MANUAL
+    // @Bitmask: 0:Rudder mixing in direct flight modes only (Manual / Stabilize / Acro),1:Use centered throttle in Cruise or FBWB to indicate trim airspeed, 2:Disable attitude check for takeoff arming, 3:Force target airspeed to trim airspeed in Cruise or FBWB, 4: Climb to ALT_HOLD_RTL before turning for RTL, 5: Enable yaw damper in acro mode, 6: Surpress speed scaling during auto takeoffs to be 1 or less to prevent oscillations without airpseed sensor., 7:EnableDefaultAirspeed for takeoff, 8: Remove the TRIM_PITCH_CD on the GCS horizon, 9: Remove the TRIM_PITCH_CD on the OSD horizon, 10: Adjust mid-throttle to be TRIM_THROTTLE in non-auto throttle modes except MANUAL, 11:Disable suppression of fixed wing rate gains in ground mode, 12: Enable FBWB style loiter altitude control
     // @User: Advanced
     AP_GROUPINFO("FLIGHT_OPTIONS", 13, ParametersG2, flight_options, 0),
 
-#ifdef ENABLE_SCRIPTING
+#if AP_SCRIPTING_ENABLED
     // @Group: SCR_
     // @Path: ../libraries/AP_Scripting/AP_Scripting.cpp
     AP_SUBGROUPINFO(scripting, "SCR_", 14, ParametersG2, AP_Scripting),
@@ -1149,11 +1156,8 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     // @User: Advanced
     AP_GROUPINFO("DSPOILER_AILMTCH", 21, ParametersG2, crow_flap_aileron_matching, 100),
 
-#if HAL_EFI_ENABLED
-    // @Group: EFI
-    // @Path: ../libraries/AP_EFI/AP_EFI.cpp
-    AP_SUBGROUPINFO(efi, "EFI", 22, ParametersG2, AP_EFI),
-#endif
+
+    // 22 was EFI
 
     // @Param: FWD_BAT_VOLT_MAX
     // @DisplayName: Forward throttle battery voltage compensation maximum voltage
@@ -1232,6 +1236,12 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     // @User: Advanced
     // @Bitmask: 0: Servo 1, 1: Servo 2, 2: Servo 3, 3: Servo 4, 4: Servo 5, 5: Servo 6, 6: Servo 7, 7: Servo 8, 8: Servo 9, 9: Servo 10, 10: Servo 11, 11: Servo 12, 12: Servo 13, 13: Servo 14, 14: Servo 15
     AP_GROUPINFO("ONESHOT_MASK", 32, ParametersG2, oneshot_mask, 0),
+
+#if AP_SCRIPTING_ENABLED
+    // @Group: FOLL
+    // @Path: ../libraries/AP_Follow/AP_Follow.cpp
+    AP_SUBGROUPINFO(follow, "FOLL", 33, ParametersG2, AP_Follow),
+#endif
     
     AP_GROUPEND
 };
@@ -1361,9 +1371,6 @@ void Plane::load_parameters(void)
         
     SRV_Channels::upgrade_parameters();
 
-    // possibly convert elevon and vtail mixers
-    convert_mixers();
-
 #if HAL_QUADPLANE_ENABLED
     if (quadplane.enable) {
         // quadplanes needs a higher loop rate
@@ -1476,115 +1483,49 @@ void Plane::load_parameters(void)
 
     g.use_reverse_thrust.convert_parameter_width(AP_PARAM_INT16);
 
-    hal.console->printf("load_all took %uus\n", (unsigned)(micros() - before));
-}
 
-/*
-  convert from old ELEVON_OUTPUT and VTAIL_OUTPUT mixers to function
-  based mixing
- */
-void Plane::convert_mixers(void)
-{
-    AP_Int8 elevon_output;
-    AP_Int8 vtail_output;
-    AP_Param::ConversionInfo elevon_info = {
-        Parameters::k_param_elevon_output,
-        0,
-        AP_PARAM_INT8,
-        nullptr
-    };
-    AP_Param::ConversionInfo vtail_info = {
-        Parameters::k_param_vtail_output,
-        0,
-        AP_PARAM_INT8,
-        nullptr
-    };
-    SRV_Channel *chan1 = SRV_Channels::srv_channel(CH_1);
-    SRV_Channel *chan2 = SRV_Channels::srv_channel(CH_2);
-    SRV_Channel *chan4 = SRV_Channels::srv_channel(CH_4);
+    // PARAMETER_CONVERSION - Added: Oct-2021
+#if HAL_EFI_ENABLED
+    {
+        // Find G2's Top Level Key
+        AP_Param::ConversionInfo info;
+        if (!AP_Param::find_top_level_key_by_pointer(&g2, info.old_key)) {
+            return;
+        }
 
-    if (AP_Param::find_old_parameter(&vtail_info, &vtail_output) &&
-        vtail_output.get() != 0 &&
-        chan2->get_function() == SRV_Channel::k_elevator &&
-        chan4->get_function() == SRV_Channel::k_rudder &&
-        !chan2->function_configured() &&
-        !chan4->function_configured()) {
-        hal.console->printf("Converting vtail_output %u\n", vtail_output.get());
-        switch (vtail_output) {
-        case MIXING_UPUP:
-        case MIXING_UPUP_SWP:
-            chan2->reversed_set_and_save_ifchanged(false);
-            chan4->reversed_set_and_save_ifchanged(false);
-            break;
-        case MIXING_UPDN:
-        case MIXING_UPDN_SWP:
-            chan2->reversed_set_and_save_ifchanged(false);
-            chan4->reversed_set_and_save_ifchanged(true);
-            break;
-        case MIXING_DNUP:
-        case MIXING_DNUP_SWP:
-            chan2->reversed_set_and_save_ifchanged(true);
-            chan4->reversed_set_and_save_ifchanged(false);
-            break;
-        case MIXING_DNDN:
-        case MIXING_DNDN_SWP:
-            chan2->reversed_set_and_save_ifchanged(true);
-            chan4->reversed_set_and_save_ifchanged(true);
-            break;
-        }
-        if (vtail_output < MIXING_UPUP_SWP) {
-            chan2->function_set_and_save(SRV_Channel::k_vtail_right);
-            chan4->function_set_and_save(SRV_Channel::k_vtail_left);
-        } else {
-            chan2->function_set_and_save(SRV_Channel::k_vtail_left);
-            chan4->function_set_and_save(SRV_Channel::k_vtail_right);
-        }
-    } else if (AP_Param::find_old_parameter(&elevon_info, &elevon_output) &&
-        elevon_output.get() != 0 &&
-        chan1->get_function() == SRV_Channel::k_aileron &&
-        chan2->get_function() == SRV_Channel::k_elevator &&
-        !chan1->function_configured() &&
-        !chan2->function_configured()) {
-        hal.console->printf("convert elevon_output %u\n", elevon_output.get());
-        switch (elevon_output) {
-        case MIXING_UPUP:
-        case MIXING_UPUP_SWP:
-            chan2->reversed_set_and_save_ifchanged(false);
-            chan1->reversed_set_and_save_ifchanged(false);
-            break;
-        case MIXING_UPDN:
-        case MIXING_UPDN_SWP:
-            chan2->reversed_set_and_save_ifchanged(false);
-            chan1->reversed_set_and_save_ifchanged(true);
-            break;
-        case MIXING_DNUP:
-        case MIXING_DNUP_SWP:
-            chan2->reversed_set_and_save_ifchanged(true);
-            chan1->reversed_set_and_save_ifchanged(false);
-            break;
-        case MIXING_DNDN:
-        case MIXING_DNDN_SWP:
-            chan2->reversed_set_and_save_ifchanged(true);
-            chan1->reversed_set_and_save_ifchanged(true);
-            break;
-        }
-        if (elevon_output < MIXING_UPUP_SWP) {
-            chan1->function_set_and_save(SRV_Channel::k_elevon_right);
-            chan2->function_set_and_save(SRV_Channel::k_elevon_left);
-        } else {
-            chan1->function_set_and_save(SRV_Channel::k_elevon_left);
-            chan2->function_set_and_save(SRV_Channel::k_elevon_right);
-        }
+        const uint16_t old_index = 22;       // Old parameter index in g2
+        const uint16_t old_top_element = 86; // Old group element in the tree for the first subgroup element (see AP_PARAM_KEY_DUMP)
+        AP_Param::convert_class(info.old_key, &efi, efi.var_info, old_index, old_top_element, false);
     }
+#endif
 
-    // convert any k_aileron_with_input to aileron and k_elevator_with_input to k_elevator
-    for (uint8_t i=0; i<NUM_SERVO_CHANNELS; i++) {
-        SRV_Channel *chan = SRV_Channels::srv_channel(i);
-        if (chan->get_function() == SRV_Channel::k_aileron_with_input) {
-            chan->function_set_and_save(SRV_Channel::k_aileron);
-        } else if (chan->get_function() == SRV_Channel::k_elevator_with_input) {
-            chan->function_set_and_save(SRV_Channel::k_elevator);
-        }
+#if AP_AIRSPEED_ENABLED
+    // PARAMETER_CONVERSION - Added: Jan-2022
+    {
+        const uint16_t old_key = g.k_param_airspeed;
+        const uint16_t old_index = 0;       // Old parameter index in the tree
+        const uint16_t old_top_element = 0; // Old group element in the tree for the first subgroup element (see AP_PARAM_KEY_DUMP)
+        AP_Param::convert_class(old_key, &airspeed, airspeed.var_info, old_index, old_top_element, true);
     }
+#endif
+
+#if HAL_INS_NUM_HARMONIC_NOTCH_FILTERS > 1
+    if (!ins.harmonic_notches[1].params.enabled()) {
+        // notch filter parameter conversions (moved to INS_HNTC2) for 4.2.x, converted from fixed notch
+        const AP_Param::ConversionInfo notchfilt_conversion_info[] {
+            { Parameters::k_param_ins, 101, AP_PARAM_INT8,  "INS_HNTC2_ENABLE" },
+            { Parameters::k_param_ins, 293, AP_PARAM_FLOAT, "INS_HNTC2_ATT" },
+            { Parameters::k_param_ins, 357, AP_PARAM_FLOAT, "INS_HNTC2_FREQ" },
+            { Parameters::k_param_ins, 421, AP_PARAM_FLOAT, "INS_HNTC2_BW" },
+        };
+        uint8_t notchfilt_table_size = ARRAY_SIZE(notchfilt_conversion_info);
+        for (uint8_t i=0; i<notchfilt_table_size; i++) {
+            AP_Param::convert_old_parameters(&notchfilt_conversion_info[i], 1.0f);
+        }
+        AP_Param::set_default_by_name("INS_HNTC2_MODE", 0);
+        AP_Param::set_default_by_name("INS_HNTC2_HMNCS", 1);
+    }
+#endif // HAL_INS_NUM_HARMONIC_NOTCH_FILTERS
     
+    hal.console->printf("load_all took %uus\n", (unsigned)(micros() - before));
 }

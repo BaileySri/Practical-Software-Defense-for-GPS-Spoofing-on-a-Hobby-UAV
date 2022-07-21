@@ -7,6 +7,8 @@
 #include <AP_ServoRelayEvents/AP_ServoRelayEvents.h>
 #include <AC_Sprayer/AC_Sprayer.h>
 #include <AP_Scripting/AP_Scripting.h>
+#include <RC_Channel/RC_Channel.h>
+#include <AP_Mount/AP_Mount.h>
 
 bool AP_Mission::start_command_do_aux_function(const AP_Mission::Mission_Command& cmd)
 {
@@ -190,7 +192,7 @@ bool AP_Mission::start_command_do_sprayer(const AP_Mission::Mission_Command& cmd
 
 bool AP_Mission::start_command_do_scripting(const AP_Mission::Mission_Command& cmd)
 {
-#ifdef ENABLE_SCRIPTING
+#if AP_SCRIPTING_ENABLED
     AP_Scripting *scripting = AP_Scripting::get_singleton();
     if (scripting == nullptr) {
         return false;
@@ -201,5 +203,46 @@ bool AP_Mission::start_command_do_scripting(const AP_Mission::Mission_Command& c
     return true;
 #else
     return false;
-#endif // ENABLE_SCRIPTING
+#endif // AP_SCRIPTING_ENABLED
+}
+
+bool AP_Mission::start_command_do_gimbal_manager_pitchyaw(const AP_Mission::Mission_Command& cmd)
+{
+#if HAL_MOUNT_ENABLED
+    AP_Mount *mount = AP::mount();
+    if (mount == nullptr) {
+        return false;
+    }
+    // check flags for change to RETRACT
+    if ((cmd.content.gimbal_manager_pitchyaw.flags & GIMBAL_MANAGER_FLAGS_RETRACT) > 0) {
+        mount->set_mode(MAV_MOUNT_MODE_RETRACT);
+        return true;
+    }
+    // check flags for change to NEUTRAL
+    if ((cmd.content.gimbal_manager_pitchyaw.flags & GIMBAL_MANAGER_FLAGS_NEUTRAL) > 0) {
+        mount->set_mode(MAV_MOUNT_MODE_NEUTRAL);
+        return true;
+    }
+
+    // To-Do: handle gimbal device id
+
+    // handle angle target
+    const bool pitch_angle_valid = !isnan(cmd.content.gimbal_manager_pitchyaw.pitch_angle_deg) && (fabsf(cmd.content.gimbal_manager_pitchyaw.pitch_angle_deg) <= 90);
+    const bool yaw_angle_valid = !isnan(cmd.content.gimbal_manager_pitchyaw.yaw_angle_deg) && (fabsf(cmd.content.gimbal_manager_pitchyaw.yaw_angle_deg) <= 360);
+    if (pitch_angle_valid && yaw_angle_valid) {
+        mount->set_angle_target(0, cmd.content.gimbal_manager_pitchyaw.pitch_angle_deg, cmd.content.gimbal_manager_pitchyaw.yaw_angle_deg, cmd.content.gimbal_manager_pitchyaw.flags & GIMBAL_MANAGER_FLAGS_YAW_LOCK);
+        return true;
+    }
+
+    // handle rate target
+    if (!isnan(cmd.content.gimbal_manager_pitchyaw.pitch_rate_degs) && !isnan(cmd.content.gimbal_manager_pitchyaw.yaw_rate_degs)) {
+        mount->set_rate_target(0, cmd.content.gimbal_manager_pitchyaw.pitch_rate_degs, cmd.content.gimbal_manager_pitchyaw.yaw_rate_degs, cmd.content.gimbal_manager_pitchyaw.flags & GIMBAL_MANAGER_FLAGS_YAW_LOCK);
+        return true;
+    }
+
+    // if we got this far then message is not handled
+    return false;
+#else
+    return false;
+#endif // HAL_MOUNT_ENABLED
 }

@@ -20,9 +20,13 @@
 #include "AP_GPS.h"
 #include "AP_GPS_ERB.h"
 
+#if AP_GPS_ERB_ENABLED
+
 #define ERB_DEBUGGING 0
 
 #define STAT_FIX_VALID 0x01
+
+#include <AP_HAL/AP_HAL.h>
 
 extern const AP_HAL::HAL& hal;
 
@@ -285,3 +289,4 @@ reset:
     }
     return false;
 }
+#endif

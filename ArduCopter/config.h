@@ -55,7 +55,6 @@
 #if FRAME_CONFIG == HELI_FRAME
   # define RC_FAST_SPEED                        125
   # define WP_YAW_BEHAVIOR_DEFAULT              WP_YAW_BEHAVIOR_LOOK_AHEAD
-  # define AUTOTUNE_ENABLED                     DISABLED
 #endif
 
 //////////////////////////////////////////////////////////////////////////////
@@ -146,10 +145,6 @@
  #define FS_TERRAIN_TIMEOUT_MS          5000     // 5 seconds of missing terrain data will trigger failsafe (RTL)
 #endif
 
-#ifndef PREARM_DISPLAY_PERIOD
-# define PREARM_DISPLAY_PERIOD 30
-#endif
-
 // pre-arm baro vs inertial nav max alt disparity
 #ifndef PREARM_MAX_ALT_DISPARITY_CM
  # define PREARM_MAX_ALT_DISPARITY_CM       100     // barometer and inertial nav altitude must be within this many centimeters
@@ -166,12 +161,6 @@
 
 #ifndef EKF_ORIGIN_MAX_ALT_KM
  # define EKF_ORIGIN_MAX_ALT_KM         50   // EKF origin and home must be within 50km vertically
-#endif
-
-//////////////////////////////////////////////////////////////////////////////
-//  OPTICAL_FLOW
-#ifndef OPTFLOW
- # define OPTFLOW       ENABLED
 #endif
 
 //////////////////////////////////////////////////////////////////////////////
@@ -303,7 +292,7 @@
 //////////////////////////////////////////////////////////////////////////////
 // Sport - fly vehicle in rate-controlled (earth-frame) mode
 #ifndef MODE_SPORT_ENABLED
-# define MODE_SPORT_ENABLED !HAL_MINIMIZE_FEATURES
+# define MODE_SPORT_ENABLED DISABLED
 #endif
 
 //////////////////////////////////////////////////////////////////////////////
@@ -427,6 +416,9 @@
 //
 #ifndef LAND_DETECTOR_TRIGGER_SEC
  # define LAND_DETECTOR_TRIGGER_SEC         1.0f    // number of seconds to detect a landing
+#endif
+#ifndef LAND_AIRMODE_DETECTOR_TRIGGER_SEC
+ # define LAND_AIRMODE_DETECTOR_TRIGGER_SEC 3.0f    // number of seconds to detect a landing in air mode
 #endif
 #ifndef LAND_DETECTOR_MAYBE_TRIGGER_SEC
  # define LAND_DETECTOR_MAYBE_TRIGGER_SEC   0.2f    // number of seconds that means we might be landed (used to reset horizontal position targets to prevent tipping over)
@@ -671,10 +663,6 @@
   #error ModeAuto requires ModeRTL which is disabled
 #endif
 
-#if AP_TERRAIN_AVAILABLE && !MODE_AUTO_ENABLED
-  #error Terrain requires ModeAuto which is disabled
-#endif
-
 #if FRAME_CONFIG == HELI_FRAME && !MODE_ACRO_ENABLED
   #error Helicopter frame requires acro mode support which is disabled
 #endif
@@ -698,11 +686,6 @@
 //////////////////////////////////////////////////////////////////////////////
 // Developer Items
 //
-
-//use this to completely disable FRSKY TELEM
-#ifndef FRSKY_TELEM_ENABLED
-  #  define FRSKY_TELEM_ENABLED          ENABLED
-#endif
 
 #ifndef ADVANCED_FAILSAFE
 # define ADVANCED_FAILSAFE DISABLED

@@ -115,7 +115,7 @@ void AP_SmartAudio::loop()
         }
 
         // nothing going on so give CPU to someone else
-        if (!_is_waiting_response && !_initialised) {
+        if (!_is_waiting_response || !_initialised) {
             hal.scheduler->delay(100);
         }
 
@@ -607,7 +607,7 @@ bool  AP_SmartAudio::parse_response_buffer(const uint8_t *buffer)
             vtx.set_configured_power_mw(vtx.get_power_mw());
             break;
         }
-        debug("Power was set to to %d", power);
+        debug("Power was set to %d", power);
     }
         break;
 

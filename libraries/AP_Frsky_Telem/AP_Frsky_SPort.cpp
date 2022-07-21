@@ -246,7 +246,7 @@ extern const AP_HAL::HAL& hal;
 bool AP_Frsky_SPortParser::should_process_packet(const uint8_t *packet, bool discard_duplicates)
 {
     // check for duplicate packets
-    if (discard_duplicates && _parse_state.last_packet != nullptr) {
+    if (discard_duplicates) {
         /*
           Note: the polling byte packet[0] should be ignored in the comparison
           because we might get the same packet with different polling bytes
@@ -323,10 +323,10 @@ bool AP_Frsky_SPortParser::get_packet(AP_Frsky_SPort::sport_packet_t &sport_pack
     }
 
     const AP_Frsky_SPort::sport_packet_t sp {
-        _parse_state.rx_buffer[0],
+        { _parse_state.rx_buffer[0],
         _parse_state.rx_buffer[1],
         le16toh_ptr(&_parse_state.rx_buffer[2]),
-        le32toh_ptr(&_parse_state.rx_buffer[4])
+        le32toh_ptr(&_parse_state.rx_buffer[4]) },
     };
 
     sport_packet = sp;
@@ -421,7 +421,7 @@ uint16_t AP_Frsky_SPort::prep_number(int32_t number, uint8_t digits, uint8_t pow
             res = abs_number<<1;
         } else if (abs_number < 10240) {
             res = ((uint16_t)roundf(abs_number * 0.1f)<<1)|0x1;
-        } else { // transmit max possible value (0x3FF x 10^1 = 10240)
+        } else { // transmit max possible value (0x3FF x 10^1 = 10230)
             res = 0x7FF;
         }
         if (number < 0) { // if number is negative, add sign bit in front
@@ -436,7 +436,7 @@ uint16_t AP_Frsky_SPort::prep_number(int32_t number, uint8_t digits, uint8_t pow
             res = ((uint16_t)roundf(abs_number * 0.01f)<<2)|0x2;
         } else if (abs_number < 1024000) {
             res = ((uint16_t)roundf(abs_number * 0.001f)<<2)|0x3;
-        } else { // transmit max possible value (0x3FF x 10^3 = 127000)
+        } else { // transmit max possible value (0x3FF x 10^3 = 1023000)
             res = 0xFFF;
         }
         if (number < 0) { // if number is negative, add sign bit in front

@@ -2,7 +2,9 @@
 
 #include <AP_HAL/AP_HAL.h>
 
-#ifndef HAL_WITH_ESC_TELEM
+#if defined(NUM_SERVO_CHANNELS) && NUM_SERVO_CHANNELS == 0
+#define HAL_WITH_ESC_TELEM 0
+#elif !defined(HAL_WITH_ESC_TELEM)
 #define HAL_WITH_ESC_TELEM HAL_SUPPORT_RCOUT_SERIAL || HAL_MAX_CAN_PROTOCOL_DRIVERS
 #endif
 
@@ -20,7 +22,7 @@ public:
         float consumption_mah;      // milli-Ampere.hours
         uint32_t usage_s;           // usage seconds
         int16_t  motor_temp_cdeg;   // centi-degrees C, negative values allowed
-        uint32_t last_update_ms;    // last update time in miliseconds, determines whether active
+        uint32_t last_update_ms;    // last update time in milliseconds, determines whether active
         uint16_t types;             // telemetry types present
         uint16_t count;             // number of times updated
     };

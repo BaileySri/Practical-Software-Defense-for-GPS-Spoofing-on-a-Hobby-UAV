@@ -16,7 +16,6 @@
 #include "AP_Proximity.h"
 
 #if HAL_PROXIMITY_ENABLED
-#include "AP_Proximity_LightWareSF40C_v09.h"
 #include "AP_Proximity_RPLidarA2.h"
 #include "AP_Proximity_TeraRangerTower.h"
 #include "AP_Proximity_TeraRangerTowerEvo.h"
@@ -26,6 +25,9 @@
 #include "AP_Proximity_LightWareSF45B.h"
 #include "AP_Proximity_SITL.h"
 #include "AP_Proximity_AirSimSITL.h"
+#include "AP_Proximity_Cygbot_D1.h"
+
+#include <AP_Logger/AP_Logger.h>
 
 extern const AP_HAL::HAL &hal;
 
@@ -36,7 +38,7 @@ const AP_Param::GroupInfo AP_Proximity::var_info[] = {
     // @Param: _TYPE
     // @DisplayName: Proximity type
     // @Description: What type of proximity sensor is connected
-    // @Values: 0:None,7:LightwareSF40c,1:LightWareSF40C-legacy,2:MAVLink,3:TeraRangerTower,4:RangeFinder,5:RPLidarA2,6:TeraRangerTowerEvo,8:LightwareSF45B,10:SITL,12:AirSimSITL
+    // @Values: 0:None,7:LightwareSF40c,2:MAVLink,3:TeraRangerTower,4:RangeFinder,5:RPLidarA2,6:TeraRangerTowerEvo,8:LightwareSF45B,10:SITL,12:AirSimSITL,13:CygbotD1
     // @RebootRequired: True
     // @User: Standard
     AP_GROUPINFO_FLAGS("_TYPE",   1, AP_Proximity, _type[0], 0, AP_PARAM_FLAG_ENABLE),
@@ -174,6 +176,22 @@ const AP_Param::GroupInfo AP_Proximity::var_info[] = {
     // @User: Advanced
     AP_GROUPINFO("_FILT", 18, AP_Proximity, _filt_freq, 0.25f),
 
+    // @Param: _MIN
+    // @DisplayName: Proximity minimum range
+    // @Description: Minimum expected range for Proximity Sensor. Setting this to 0 will set value to manufacturer reported range.
+    // @Units: m
+    // @Range: 0 500
+    // @User: Advanced
+    AP_GROUPINFO("_MIN", 19, AP_Proximity, _min_m, 0.0f),
+
+    // @Param: _MAX
+    // @DisplayName: Proximity maximum range
+    // @Description: Maximum expected range for Proximity Sensor. Setting this to 0 will set value to manufacturer reported range.
+    // @Units: m
+    // @Range: 0 500
+    // @User: Advanced
+    AP_GROUPINFO("_MAX", 20, AP_Proximity, _max_m, 0.0f),
+
     AP_GROUPEND
 };
 
@@ -280,13 +298,6 @@ void AP_Proximity::detect_instance(uint8_t instance)
     switch (get_type(instance)) {
     case Type::None:
         return;
-    case Type::SF40C_v09:
-        if (AP_Proximity_LightWareSF40C_v09::detect()) {
-            state[instance].instance = instance;
-            drivers[instance] = new AP_Proximity_LightWareSF40C_v09(*this, state[instance]);
-            return;
-        }
-        break;
     case Type::RPLidarA2:
         if (AP_Proximity_RPLidarA2::detect()) {
             state[instance].instance = instance;
@@ -335,6 +346,16 @@ void AP_Proximity::detect_instance(uint8_t instance)
         }
         break;
 
+    case Type::CYGBOT_D1:
+#if AP_PROXIMITY_CYGBOT_ENABLED
+    if (AP_Proximity_Cygbot_D1::detect()) {
+        state[instance].instance = instance;
+        drivers[instance] = new AP_Proximity_Cygbot_D1(*this, state[instance]);
+        return;
+    }
+# endif
+    break;
+
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
     case Type::SITL:
         state[instance].instance = instance;
@@ -345,6 +366,7 @@ void AP_Proximity::detect_instance(uint8_t instance)
         state[instance].instance = instance;
         drivers[instance] = new AP_Proximity_AirSimSITL(*this, state[instance]);
         return;
+
 #endif
     }
 }
@@ -502,6 +524,71 @@ void AP_Proximity::set_rangefinder_alt(bool use, bool healthy, float alt_cm)
     drivers[primary_instance]->set_rangefinder_alt(use, healthy, alt_cm);
 }
 
+#if HAL_LOGGING_ENABLED
+// Write proximity sensor distances
+void AP_Proximity::log()
+{
+    // exit immediately if not enabled
+    if (get_status() == AP_Proximity::Status::NotConnected) {
+        return;
+    }
+
+    Proximity_Distance_Array dist_array{}; // raw distances stored here
+    Proximity_Distance_Array filt_dist_array{}; //filtered distances stored here
+    auto &logger { AP::logger() };
+    for (uint8_t i = 0; i < get_num_layers(); i++) {
+        const bool active = get_active_layer_distances(i, dist_array, filt_dist_array);
+        if (!active) {
+            // nothing on this layer
+            continue;
+        }
+        float dist_up;
+        if (!get_upward_distance(dist_up)) {
+            dist_up = 0.0f;
+        }
+
+        float closest_ang = 0.0f;
+        float closest_dist = 0.0f;
+        get_closest_object(closest_ang, closest_dist);
+
+        const struct log_Proximity pkt_proximity{
+                LOG_PACKET_HEADER_INIT(LOG_PROXIMITY_MSG),
+                time_us         : AP_HAL::micros64(),
+                instance        : i,
+                health          : (uint8_t)get_status(),
+                dist0           : filt_dist_array.distance[0],
+                dist45          : filt_dist_array.distance[1],
+                dist90          : filt_dist_array.distance[2],
+                dist135         : filt_dist_array.distance[3],
+                dist180         : filt_dist_array.distance[4],
+                dist225         : filt_dist_array.distance[5],
+                dist270         : filt_dist_array.distance[6],
+                dist315         : filt_dist_array.distance[7],
+                distup          : dist_up,
+                closest_angle   : closest_ang,
+                closest_dist    : closest_dist
+        };
+        logger.WriteBlock(&pkt_proximity, sizeof(pkt_proximity));
+
+        if (_raw_log_enable) {
+            const struct log_Proximity_raw pkt_proximity_raw{
+                LOG_PACKET_HEADER_INIT(LOG_RAW_PROXIMITY_MSG),
+                time_us         : AP_HAL::micros64(),
+                instance        : i,
+                raw_dist0       : dist_array.distance[0],
+                raw_dist45      : dist_array.distance[1],
+                raw_dist90      : dist_array.distance[2],
+                raw_dist135     : dist_array.distance[3],
+                raw_dist180     : dist_array.distance[4],
+                raw_dist225     : dist_array.distance[5],
+                raw_dist270     : dist_array.distance[6],
+                raw_dist315     : dist_array.distance[7],
+            };
+            logger.WriteBlock(&pkt_proximity_raw, sizeof(pkt_proximity_raw));
+        }
+    }
+}
+#endif
 
 AP_Proximity *AP_Proximity::_singleton;
 

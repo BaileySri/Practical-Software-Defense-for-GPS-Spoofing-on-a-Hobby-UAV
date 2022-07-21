@@ -106,9 +106,6 @@ SPIBus *SPIDeviceManager::buses;
 
 SPIDeviceManager::SPIDeviceManager()
 {
-    for (uint8_t i=0; i<ARRAY_SIZE(buses); i++) {
-        buses[i].bus = i;
-    }
 }
 
 static const struct SPIDriverInfo {
@@ -123,6 +120,7 @@ static const struct SPIDriverInfo {
 // name, bus, cs_pin
 SPIDesc SPIDeviceManager::device_table[] = {
     { "ramtron", 0, 0 },
+    { "dataflash", 1, 0}
 };
 
 AP_HAL::OwnPtr<AP_HAL::SPIDevice>

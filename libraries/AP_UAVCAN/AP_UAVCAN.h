@@ -30,19 +30,11 @@
 #include <AP_ESC_Telem/AP_ESC_Telem_Backend.h>
 #include <uavcan/protocol/param/GetSet.hpp>
 #include <uavcan/protocol/param/ExecuteOpcode.hpp>
-#include <uavcan/helpers/heap_based_pool_allocator.hpp>
+#include <SRV_Channel/SRV_Channel.h>
 
-
-#ifndef UAVCAN_NODE_POOL_SIZE
-#define UAVCAN_NODE_POOL_SIZE 8192
-#endif
-
-#ifndef UAVCAN_NODE_POOL_BLOCK_SIZE
-#define UAVCAN_NODE_POOL_BLOCK_SIZE 64
-#endif
 
 #ifndef UAVCAN_SRV_NUMBER
-#define UAVCAN_SRV_NUMBER 18
+#define UAVCAN_SRV_NUMBER NUM_SERVO_CHANNELS
 #endif
 
 #define AP_UAVCAN_SW_VERS_MAJOR 1
@@ -61,6 +53,7 @@ class ESCStatusCb;
 class DebugCb;
 class ParamGetSetCb;
 class ParamExecuteOpcodeCb;
+class AP_PoolAllocator;
 
 #if defined(__GNUC__) && (__GNUC__ > 8)
 #define DISABLE_W_CAST_FUNCTION_TYPE_PUSH \
@@ -71,6 +64,11 @@ class ParamExecuteOpcodeCb;
 #else
 #define DISABLE_W_CAST_FUNCTION_TYPE_PUSH
 #define DISABLE_W_CAST_FUNCTION_TYPE_POP
+#endif
+#if defined(__GNUC__) && (__GNUC__ >= 11)
+#define DISABLE_W_CAST_FUNCTION_TYPE_WITH_VOID (void*)
+#else
+#define DISABLE_W_CAST_FUNCTION_TYPE_WITH_VOID
 #endif
 
 /*
@@ -84,7 +82,7 @@ class ParamExecuteOpcodeCb;
             ClassName_() : RegistryBinder() {} \
             DISABLE_W_CAST_FUNCTION_TYPE_PUSH \
             ClassName_(AP_UAVCAN* uc,  CN_Registry ffunc) : \
-                RegistryBinder(uc, (Registry)ffunc) {} \
+                RegistryBinder(uc, (Registry)DISABLE_W_CAST_FUNCTION_TYPE_WITH_VOID ffunc) {} \
             DISABLE_W_CAST_FUNCTION_TYPE_POP \
     }
 
@@ -95,7 +93,7 @@ class ParamExecuteOpcodeCb;
             ClassName_() : ClientCallRegistryBinder() {} \
             DISABLE_W_CAST_FUNCTION_TYPE_PUSH \
             ClassName_(AP_UAVCAN* uc,  CN_Registry ffunc) : \
-                ClientCallRegistryBinder(uc, (ClientCallRegistry)ffunc) {} \
+                ClientCallRegistryBinder(uc, (ClientCallRegistry)DISABLE_W_CAST_FUNCTION_TYPE_WITH_VOID ffunc) {} \
             DISABLE_W_CAST_FUNCTION_TYPE_POP \
     }
 
@@ -111,7 +109,7 @@ public:
 
     void init(uint8_t driver_index, bool enable_filters) override;
     bool add_interface(AP_HAL::CANIface* can_iface) override;
-    
+
     uavcan::Node<0>* get_node() { return _node; }
     uint8_t get_driver_index() const { return _driver_index; }
 
@@ -201,6 +199,7 @@ public:
     enum class Options : uint16_t {
         DNA_CLEAR_DATABASE        = (1U<<0),
         DNA_IGNORE_DUPLICATE_NODE = (1U<<1),
+        CANFD_ENABLED             = (1U<<2),
     };
 
     // check if a option is set
@@ -212,11 +211,11 @@ public:
     // 0. return true if it was set
     bool check_and_reset_option(Options option);
 
-private:
     // This will be needed to implement if UAVCAN is used with multithreading
     // Such cases will be firmware update, etc.
     class RaiiSynchronizer {};
 
+private:
     void loop(void);
 
     ///// SRV output /////
@@ -257,16 +256,17 @@ private:
     HAL_Semaphore _param_save_sem;
     uint8_t param_save_request_node_id;
 
-    uavcan::PoolAllocator<UAVCAN_NODE_POOL_SIZE, UAVCAN_NODE_POOL_BLOCK_SIZE, AP_UAVCAN::RaiiSynchronizer> _node_allocator;
-
     // UAVCAN parameters
     AP_Int8 _uavcan_node;
     AP_Int32 _servo_bm;
     AP_Int32 _esc_bm;
+    AP_Int8 _esc_offset;
     AP_Int16 _servo_rate_hz;
     AP_Int16 _options;
     AP_Int16 _notify_state_hz;
+    AP_Int16 _pool_size;
 
+    AP_PoolAllocator *_allocator;
     uavcan::Node<0> *_node;
 
     uint8_t _driver_index;

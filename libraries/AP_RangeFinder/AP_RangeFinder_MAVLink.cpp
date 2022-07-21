@@ -14,6 +14,9 @@
  */
 
 #include "AP_RangeFinder_MAVLink.h"
+
+#if AP_RANGEFINDER_MAVLINK_ENABLED
+
 #include <AP_HAL/AP_HAL.h>
 
 /*
@@ -67,9 +70,11 @@ void AP_RangeFinder_MAVLink::update(void)
     //data in 500ms, dump it
     if (AP_HAL::millis() - state.last_reading_ms > AP_RANGEFINDER_MAVLINK_TIMEOUT_MS) {
         set_status(RangeFinder::Status::NoData);
-        state.distance_cm = 0;
+        state.distance_m = 0.0f;
     } else {
-        state.distance_cm = distance_cm;
+        state.distance_m = distance_cm * 0.01f;
         update_status();
     }
 }
+
+#endif

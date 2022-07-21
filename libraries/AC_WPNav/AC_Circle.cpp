@@ -3,6 +3,8 @@
 #include <AP_Terrain/AP_Terrain.h>
 #include "AC_Circle.h"
 
+#include <AP_Logger/AP_Logger.h>
+
 extern const AP_HAL::HAL& hal;
 
 const AP_Param::GroupInfo AC_Circle::var_info[] = {
@@ -114,7 +116,7 @@ void AC_Circle::set_center(const Location& center)
             set_center(Vector3f(center_xy.x, center_xy.y, terr_alt_cm), true);
         } else {
             // failed to convert location so set to current position and log error
-            set_center(_inav.get_position(), false);
+            set_center(_inav.get_position_neu_cm(), false);
             AP::logger().Write_Error(LogErrorSubsystem::NAVIGATION, LogErrorCode::FAILED_CIRCLE_INIT);
         }
     } else {
@@ -122,7 +124,7 @@ void AC_Circle::set_center(const Location& center)
         Vector3f circle_center_neu;
         if (!center.get_vector_from_origin_NEU(circle_center_neu)) {
             // default to current position and log error
-            circle_center_neu = _inav.get_position();
+            circle_center_neu = _inav.get_position_neu_cm();
             AP::logger().Write_Error(LogErrorSubsystem::NAVIGATION, LogErrorCode::FAILED_CIRCLE_INIT);
         }
         set_center(circle_center_neu, false);
@@ -138,7 +140,7 @@ void AC_Circle::set_rate(float deg_per_sec)
 }
 
 /// set_circle_rate - set circle rate in degrees per second
-void AC_Circle::set_radius(float radius_cm)
+void AC_Circle::set_radius_cm(float radius_cm)
 {
     _radius = constrain_float(radius_cm, 0, AC_CIRCLE_RADIUS_MAX);
 }
@@ -200,7 +202,7 @@ bool AC_Circle::update(float climb_rate_cms)
         target.y += - _radius * sinf(-_angle);
 
         // heading is from vehicle to center of circle
-        _yaw = get_bearing_cd(_inav.get_position(), _center.tofloat());
+        _yaw = get_bearing_cd(_inav.get_position_xy_cm(), _center.tofloat().xy());
 
         if ((_options.get() & CircleOptions::FACE_DIRECTION_OF_TRAVEL) != 0) {
             _yaw += is_positive(_rate)?-9000.0f:9000.0f;
@@ -313,7 +315,7 @@ void AC_Circle::init_start_angle(bool use_heading)
         _angle = wrap_PI(_ahrs.yaw-M_PI);
     } else {
         // if we are exactly at the center of the circle, init angle to directly behind vehicle (so vehicle will backup but not change heading)
-        const Vector3f &curr_pos = _inav.get_position();
+        const Vector3f &curr_pos = _inav.get_position_neu_cm();
         if (is_equal(curr_pos.x,float(_center.x)) && is_equal(curr_pos.y,float(_center.y))) {
             _angle = wrap_PI(_ahrs.yaw-M_PI);
         } else {
@@ -352,7 +354,7 @@ bool AC_Circle::get_terrain_offset(float& offset_cm)
         return false;
     case AC_Circle::TerrainSource::TERRAIN_FROM_RANGEFINDER:
         if (_rangefinder_healthy) {
-            offset_cm = _inav.get_altitude() - _rangefinder_alt_cm;
+            offset_cm = _inav.get_position_z_up_cm() - _rangefinder_alt_cm;
             return true;
         }
         return false;
@@ -361,7 +363,7 @@ bool AC_Circle::get_terrain_offset(float& offset_cm)
         float terr_alt = 0.0f;
         AP_Terrain *terrain = AP_Terrain::get_singleton();
         if (terrain != nullptr && terrain->height_above_terrain(terr_alt, true)) {
-            offset_cm = _inav.get_altitude() - (terr_alt * 100.0f);
+            offset_cm = _inav.get_position_z_up_cm() - (terr_alt * 100.0);
             return true;
         }
 #endif

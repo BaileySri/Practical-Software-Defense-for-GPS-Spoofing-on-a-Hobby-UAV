@@ -7,8 +7,15 @@
 #include <AP_Scheduler/AP_Scheduler.h>
 #include <AP_Baro/AP_Baro.h>
 #include <AP_AHRS/AP_AHRS.h>
+#include <AP_Compass/AP_Compass.h>
 #include <AP_GPS/AP_GPS.h>
 #include <AP_Arming/AP_Arming.h>
+#include <AP_VisualOdom/AP_VisualOdom.h>
+#include <AP_Notify/AP_Notify.h>
+
+#include "MissionItemProtocol_Waypoints.h"
+#include "MissionItemProtocol_Rally.h"
+#include "MissionItemProtocol_Fence.h"
 
 extern const AP_HAL::HAL& hal;
 
@@ -113,6 +120,17 @@ void GCS::send_named_float(const char *name, float value) const
                                   (const char *)&packet);
 }
 
+#if HAL_HIGH_LATENCY2_ENABLED
+void GCS::enable_high_latency_connections(bool enabled)
+{
+    for (uint8_t i=0; i<num_gcs(); i++) {
+        GCS_MAVLINK &c = *chan(i);
+        c.high_latency_link_enabled = enabled && c.is_high_latency_link;
+    } 
+    gcs().send_text(MAV_SEVERITY_NOTICE, "High Latency %s", enabled ? "enabled" : "disabled");
+}
+#endif // HAL_HIGH_LATENCY2_ENABLED
+
 /*
   install an alternative protocol handler. This allows another
   protocol to take over the link if MAVLink goes idle. It is used to
@@ -210,18 +228,27 @@ void GCS::update_sensor_status_flags()
     }
 #endif
 
-#if !defined(HAL_BUILD_AP_PERIPH) || (defined(HAL_LOGGING_ENABLED) && (HAL_LOGGING_ENABLED == 1) && defined(HAL_PERIPH_ENABLE_GPS))
+#if HAL_LOGGING_ENABLED
     const AP_Logger &logger = AP::logger();
-    if (logger.logging_present() || gps.logging_present()) {  // primary logging only (usually File)
+    bool logging_present = logger.logging_present();
+    bool logging_enabled = logger.logging_enabled();
+    bool logging_healthy = !logger.logging_failed();
+#if !defined(HAL_BUILD_AP_PERIPH) || defined(HAL_PERIPH_ENABLE_GPS)
+    // some GPS units do logging, so they have to be healthy too:
+    logging_present |= gps.logging_present();
+    logging_enabled |= gps.logging_enabled();
+    logging_healthy &= !gps.logging_failed();
+#endif
+    if (logging_present) {
         control_sensors_present |= MAV_SYS_STATUS_LOGGING;
     }
-    if (logger.logging_enabled() || gps.logging_enabled()) {
+    if (logging_enabled) {
         control_sensors_enabled |= MAV_SYS_STATUS_LOGGING;
     }
-    if (!logger.logging_failed() && !gps.logging_failed()) {
+    if (logging_healthy) {
         control_sensors_health |= MAV_SYS_STATUS_LOGGING;
     }
-#endif
+#endif  // HAL_LOGGING_ENABLED
 
     // set motors outputs as enabled if safety switch is not disarmed (i.e. either NONE or ARMED)
 #if !defined(HAL_BUILD_AP_PERIPH)
@@ -251,6 +278,22 @@ void GCS::update_sensor_status_flags()
         }
         if (!fence->sys_status_failed()) {
             control_sensors_health |= MAV_SYS_STATUS_GEOFENCE;
+        }
+    }
+#endif
+
+    // airspeed
+#if AP_AIRSPEED_ENABLED
+    const AP_Airspeed *airspeed = AP_Airspeed::get_singleton();
+    if (airspeed && airspeed->enabled()) {
+        control_sensors_present |= MAV_SYS_STATUS_SENSOR_DIFFERENTIAL_PRESSURE;
+        const bool use = airspeed->use();
+        const bool enabled = AP::ahrs().airspeed_sensor_enabled();
+        if (use) {
+            control_sensors_enabled |= MAV_SYS_STATUS_SENSOR_DIFFERENTIAL_PRESSURE;
+        }
+        if (airspeed->all_healthy() && (!use || enabled)) {
+            control_sensors_health |= MAV_SYS_STATUS_SENSOR_DIFFERENTIAL_PRESSURE;
         }
     }
 #endif
@@ -305,7 +348,7 @@ bool GCS::out_of_time() const
     return true;
 }
 
-void gcs_out_of_space_to_send_count(mavlink_channel_t chan)
+void gcs_out_of_space_to_send(mavlink_channel_t chan)
 {
     gcs().chan(chan)->out_of_space_to_send();
 }

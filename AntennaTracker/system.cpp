@@ -27,14 +27,18 @@ void Tracker::init_ardupilot()
 
     // setup telem slots with serial ports
     gcs().setup_uarts();
+    // update_send so that if the first packet we receive happens to
+    // be an arm message we don't trigger an internal error when we
+    // try to initialise stream rates in the main loop.
+    gcs().update_send();
 
 #if LOGGING_ENABLED == ENABLED
     log_init();
 #endif
 
-#ifdef ENABLE_SCRIPTING
+#if AP_SCRIPTING_ENABLED
     scripting.init();
-#endif // ENABLE_SCRIPTING
+#endif // AP_SCRIPTING_ENABLED
 
     // initialise compass
     AP::compass().set_log_bit(MASK_LOG_COMPASS);

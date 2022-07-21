@@ -20,31 +20,47 @@
  */
 #pragma once
 
+#include <AP_HAL/AP_HAL_Boards.h>
+
 #ifndef HAL_SCHEDULER_ENABLED
 #define HAL_SCHEDULER_ENABLED 1
 #endif
 
 #include <AP_Param/AP_Param.h>
+#include <AP_HAL/Semaphores.h>
 #include <AP_HAL/Util.h>
-#include <AP_HAL/AP_HAL.h>
 #include <AP_Math/AP_Math.h>
 #include "PerfInfo.h"       // loop perf monitoring
 
 #if HAL_MINIMIZE_FEATURES
 #define AP_SCHEDULER_NAME_INITIALIZER(_clazz,_name) .name = #_name,
+#define AP_FAST_NAME_INITIALIZER(_clazz,_name) .name = #_name "*",
 #else
 #define AP_SCHEDULER_NAME_INITIALIZER(_clazz,_name) .name = #_clazz "::" #_name,
+#define AP_FAST_NAME_INITIALIZER(_clazz,_name) .name = #_clazz "::" #_name "*",
 #endif
 #define LOOP_RATE 0
 
 /*
   useful macro for creating scheduler task table
  */
-#define SCHED_TASK_CLASS(classname, classptr, func, _rate_hz, _max_time_micros) { \
+#define SCHED_TASK_CLASS(classname, classptr, func, _rate_hz, _max_time_micros, _priority) { \
     .function = FUNCTOR_BIND(classptr, &classname::func, void),\
     AP_SCHEDULER_NAME_INITIALIZER(classname, func)\
     .rate_hz = _rate_hz,\
-    .max_time_micros = _max_time_micros\
+    .max_time_micros = _max_time_micros,        \
+    .priority = _priority \
+}
+
+/*
+  useful macro for creating the fastloop task table
+ */
+#define FAST_TASK_CLASS(classname, classptr, func) { \
+    .function = FUNCTOR_BIND(classptr, &classname::func, void),\
+    AP_FAST_NAME_INITIALIZER(classname, func)\
+    .rate_hz = 0,\
+    .max_time_micros = 0,\
+    .priority = AP_Scheduler::FAST_TASK_PRI0 \
 }
 
 /*
@@ -57,15 +73,10 @@
   the scheduler is allowed to use before it must return
  */
 
-#include <AP_HAL/AP_HAL.h>
-
 class AP_Scheduler
 {
 public:
-
-    FUNCTOR_TYPEDEF(scheduler_fastloop_fn_t, void);
-
-    AP_Scheduler(scheduler_fastloop_fn_t fastloop_fn = nullptr);
+    AP_Scheduler();
 
     /* Do not allow copies */
     AP_Scheduler(const AP_Scheduler &other) = delete;
@@ -81,10 +92,18 @@ public:
         const char *name;
         float rate_hz;
         uint16_t max_time_micros;
+        uint8_t priority; // task priority
     };
 
     enum class Options : uint8_t {
         RECORD_TASK_INFO = 1 << 0
+    };
+
+    enum FastTaskPriorities {
+        FAST_TASK_PRI0 = 0,
+        FAST_TASK_PRI1 = 1,
+        FAST_TASK_PRI2 = 2,
+        MAX_FAST_TASK_PRIORITIES = 3
     };
 
     // initialise scheduler
@@ -168,9 +187,6 @@ public:
     AP::PerfInfo perf_info;
 
 private:
-    // function that is called before anything in the scheduler table:
-    scheduler_fastloop_fn_t _fastloop_fn;
-
     // used to enable scheduler debugging
     AP_Int8 _debug;
 
@@ -189,17 +205,16 @@ private:
     // calculated loop period in seconds
     float _loop_period_s;
     
-    // progmem list of tasks to run
-    const struct Task *_tasks;
+    // list of tasks to run
+    const struct Task *_vehicle_tasks;
+    uint8_t _num_vehicle_tasks;
 
-    // progmem list of common tasks to run
+    // list of common tasks to run
     const struct Task *_common_tasks;
+    uint8_t _num_common_tasks;
 
     // total number of tasks in _tasks and _common_tasks list
     uint8_t _num_tasks;
-
-    // number of tasks in _tasks list
-    uint8_t _num_unshared_tasks;
 
     // number of 'ticks' that have passed (number of times that
     // tick() has been called

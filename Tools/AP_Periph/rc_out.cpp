@@ -21,7 +21,7 @@
 // Raw ESC command normalized into [-8192, 8191]
 #define UAVCAN_ESC_MAX_VALUE    8191
 
-#define SERVO_OUT_RCIN_MAX      16  // SRV_Channel::k_rcin1 ... SRV_Channel::k_rcin16
+#define SERVO_OUT_RCIN_MAX      32  // note that we allow for more than is in the enum
 #define SERVO_OUT_MOTOR_MAX     12  // SRV_Channel::k_motor1 ... SRV_Channel::k_motor8, SRV_Channel::k_motor9 ... SRV_Channel::k_motor12
 
 extern const AP_HAL::HAL &hal;
@@ -30,6 +30,14 @@ void AP_Periph_FW::rcout_init()
 {
     // start up with safety enabled. This disables the pwm output until we receive an packet from the rempte system
     hal.rcout->force_safety_on();
+
+#if HAL_WITH_ESC_TELEM && !HAL_GCS_ENABLED
+    if (g.esc_telem_port >= 0) {
+        serial_manager.set_protocol_and_baud(g.esc_telem_port, AP_SerialManager::SerialProtocol_ESCTelemetry, 115200);
+    }
+#endif
+
+    SRV_Channels::init();
 
 #if HAL_PWM_COUNT > 0
     for (uint8_t i=0; i<HAL_PWM_COUNT; i++) {
@@ -41,7 +49,7 @@ void AP_Periph_FW::rcout_init()
         SRV_Channels::set_angle(SRV_Channel::Aux_servo_function_t(SRV_Channel::k_rcin1 + i), 1000);
     }
 
-    uint16_t esc_mask = 0;
+    uint32_t esc_mask = 0;
     for (uint8_t i=0; i<SERVO_OUT_MOTOR_MAX; i++) {
         SRV_Channels::set_range(SRV_Channels::get_motor_function(i), UAVCAN_ESC_MAX_VALUE);
         uint8_t chan;
@@ -51,7 +59,13 @@ void AP_Periph_FW::rcout_init()
     }
 
     // setup ESCs with the desired PWM type, allowing for DShot
-    hal.rcout->set_output_mode(esc_mask, (AP_HAL::RCOutput::output_mode)g.esc_pwm_type.get());
+    const auto esc_type = (AP_HAL::RCOutput::output_mode)g.esc_pwm_type.get();
+    hal.rcout->set_output_mode(esc_mask, esc_type);
+
+    if (esc_type >= AP_HAL::RCOutput::MODE_PWM_DSHOT150 &&
+        esc_type <= AP_HAL::RCOutput::MODE_PWM_DSHOT1200) {
+        SRV_Channels::set_digital_outputs(esc_mask, 0);
+    }
 
     // run this once and at 1Hz to configure aux and esc ranges
     rcout_init_1Hz();
@@ -88,11 +102,6 @@ void AP_Periph_FW::rcout_esc(int16_t *rc, uint8_t num_channels)
 void AP_Periph_FW::rcout_srv(uint8_t actuator_id, const float command_value)
 {
 #if HAL_PWM_COUNT > 0
-    if ((actuator_id == 0) || (actuator_id > HAL_PWM_COUNT)) {
-        // not supported or out of range
-        return;
-    }
-
     const SRV_Channel::Aux_servo_function_t function = SRV_Channel::Aux_servo_function_t(SRV_Channel::k_rcin1 + actuator_id - 1);
     SRV_Channels::set_output_norm(function, command_value);
 
@@ -121,6 +130,13 @@ void AP_Periph_FW::rcout_update()
     SRV_Channels::cork();
     SRV_Channels::output_ch_all();
     SRV_Channels::push();
+#if HAL_WITH_ESC_TELEM
+    uint32_t now_ms = AP_HAL::millis();
+    if (now_ms - last_esc_telem_update_ms >= 20) {
+        last_esc_telem_update_ms = now_ms;
+        esc_telem_update();
+    }
+#endif
 }
 
 #endif // HAL_PERIPH_ENABLE_RC_OUT

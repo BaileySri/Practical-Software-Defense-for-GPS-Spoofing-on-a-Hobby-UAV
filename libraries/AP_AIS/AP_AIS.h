@@ -14,15 +14,17 @@
  */
 #pragma once
 
+#include "AP_AIS_config.h"
+
+#if AP_AIS_ENABLED
+// 0 fully disabled and compiled out
+// 1 compiled in and enabled
+// 2 compiled in with dummy methods, none functional, except rover which never uses dummy methods functionality
+
 #include <AP_Param/AP_Param.h>
 #include <AP_SerialManager/AP_SerialManager.h>
 #include <AP_Common/AP_ExpandingArray.h>
-
-#ifndef HAL_AIS_ENABLED
-#define HAL_AIS_ENABLED !HAL_MINIMIZE_FEATURES
-#endif
-
-#if HAL_AIS_ENABLED
+#include <GCS_MAVLink/GCS_MAVLink.h>
 
 #define AIVDM_BUFFER_SIZE 10
 #define AIVDM_PAYLOAD_SIZE 65
@@ -32,12 +34,13 @@ class AP_AIS
 public:
     AP_AIS();
 
-    /* Do not allow copies */
-    AP_AIS(const AP_AIS &other) = delete;
-    AP_AIS &operator=(const AP_AIS&) = delete;
+    CLASS_NO_COPY(AP_AIS);
+
+    // get singleton instance
+    static AP_AIS *get_singleton();
 
     // return true if AIS is enabled
-    bool enabled() const { return AISType(_type.get()) != AISType::NONE; }
+    bool enabled() const;
 
     // Initialize the AIS object and prepare it for use
     void init();
@@ -123,9 +126,6 @@ private:
     // decode each term
     bool decode_latest_term() WARN_IF_UNUSED;
 
-    // convert from char to hex value for checksum
-    int16_t char_to_hex(char a);
-
     // varables for decoding NMEA sentence
     char _term[AIVDM_PAYLOAD_SIZE]; // buffer for the current term within the current sentence
     uint8_t _term_offset;           // offset within the _term buffer where the next character should be placed
@@ -134,6 +134,8 @@ private:
     bool _term_is_checksum;         // current term is the checksum
     bool _sentence_valid;           // is current sentence valid so far
     bool _sentence_done;            // true if this sentence has already been decoded
+
+    static AP_AIS *_singleton;
 };
 
-#endif  // HAL_AIS_ENABLED
+#endif  // AP_AIS_ENABLED

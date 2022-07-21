@@ -25,6 +25,8 @@
 #include <GCS_MAVLink/GCS.h>
 #include <AP_GPS/AP_GPS.h>
 #include <AP_Baro/AP_Baro.h>
+#include <AP_Compass/AP_Compass.h>
+#include <AP_Logger/AP_Logger.h>
 
 extern const AP_HAL::HAL& hal;
 
@@ -263,7 +265,10 @@ AP_AHRS_DCM::check_matrix(void)
         normalize();
 
         if (_dcm_matrix.is_nan() ||
-                fabsf(_dcm_matrix.c.x) > 10) {
+                fabsf(_dcm_matrix.c.x) > 10.0) {
+            // See Issue #20284: regarding the selection of 10.0 for DCM reset
+            // This won't be lowered without evidence of an issue or mathematical proof & testing of a lower bound
+
             // normalisation didn't fix the problem! We're
             // in real trouble. All we can do is reset
             //Serial.printf("ERROR: DCM matrix error. _dcm_matrix.c.x=%f\n",
@@ -639,7 +644,7 @@ Vector3f AP_AHRS_DCM::ra_delayed(uint8_t instance, const Vector3f &ra)
  */
 bool AP_AHRS_DCM::should_correct_centrifugal() const
 {
-#if APM_BUILD_COPTER_OR_HELI() || APM_BUILD_TYPE(APM_BUILD_ArduSub) || APM_BUILD_TYPE(APM_BUILD_Blimp)
+#if APM_BUILD_COPTER_OR_HELI || APM_BUILD_TYPE(APM_BUILD_ArduSub) || APM_BUILD_TYPE(APM_BUILD_Blimp)
     return hal.util->get_soft_armed();
 #endif
 
@@ -724,12 +729,14 @@ AP_AHRS_DCM::drift_correction(float deltat)
             // not enough time has accumulated
             return;
         }
-        float airspeed;
+
+        float airspeed = _last_airspeed;
+#if AP_AIRSPEED_ENABLED
         if (airspeed_sensor_enabled()) {
             airspeed = AP::airspeed()->get_airspeed();
-        } else {
-            airspeed = _last_airspeed;
         }
+#endif
+
         // use airspeed to estimate our ground velocity in
         // earth frame by subtracting the wind
         velocity = _dcm_matrix.colx() * airspeed;
@@ -1036,18 +1043,24 @@ void AP_AHRS_DCM::estimate_wind(void)
         }
 
         _last_wind_time = now;
-    } else if (now - _last_wind_time > 2000 && airspeed_sensor_enabled()) {
+
+        return;
+    }
+
+#if AP_AIRSPEED_ENABLED
+    if (now - _last_wind_time > 2000 && airspeed_sensor_enabled()) {
         // when flying straight use airspeed to get wind estimate if available
         const Vector3f airspeed = _dcm_matrix.colx() * AP::airspeed()->get_airspeed();
         const Vector3f wind = velocity - (airspeed * get_EAS2TAS());
         _wind = _wind * 0.92f + wind * 0.08f;
     }
+#endif
 }
 
 
 // return our current position estimate using
 // dead-reckoning or GPS
-bool AP_AHRS_DCM::get_position(struct Location &loc) const
+bool AP_AHRS_DCM::get_location(struct Location &loc) const
 {
     loc.lat = _last_lat;
     loc.lng = _last_lng;
@@ -1075,13 +1088,15 @@ bool AP_AHRS_DCM::get_position(struct Location &loc) const
 
 bool AP_AHRS_DCM::airspeed_estimate(float &airspeed_ret) const
 {
+#if AP_AIRSPEED_ENABLED
     const auto *airspeed = AP::airspeed();
-    if (airspeed == nullptr) {
-        // airspeed_estimate will also make this nullptr check and act
-        // appropriately when we call it with a dummy sensor ID.
-        return airspeed_estimate(0, airspeed_ret);
+    if (airspeed != nullptr) {
+        return airspeed_estimate(airspeed->get_primary(), airspeed_ret);
     }
-    return airspeed_estimate(airspeed->get_primary(), airspeed_ret);
+#endif
+    // airspeed_estimate will also make this nullptr check and act
+    // appropriately when we call it with a dummy sensor ID.
+    return airspeed_estimate(0, airspeed_ret);
 }
 
 // return an airspeed estimate:
@@ -1090,15 +1105,12 @@ bool AP_AHRS_DCM::airspeed_estimate(float &airspeed_ret) const
 //  - otherwise from a cached wind-triangle estimate value (but returning false)
 bool AP_AHRS_DCM::airspeed_estimate(uint8_t airspeed_index, float &airspeed_ret) const
 {
-    if (airspeed_sensor_enabled(airspeed_index)) {
-        airspeed_ret = AP::airspeed()->get_airspeed(airspeed_index);
-    } else if (AP::ahrs().get_wind_estimation_enabled() && have_gps()) {
-        // estimate it via GPS speed and wind
-        airspeed_ret = _last_airspeed;
-    } else {
-        // give the last estimate, but return false. This is used by
-        // dead-reckoning code
-        airspeed_ret = _last_airspeed;
+    // airspeed_ret: will always be filled-in by get_unconstrained_airspeed_estimate which fills in airspeed_ret in this order:
+    //               airspeed as filled-in by an enabled airsped sensor
+    //               if no airspeed sensor: airspeed estimated using the GPS speed & wind_speed_estimation
+    //               Or if none of the above, fills-in using the previous airspeed estimate
+    // Return false: if we are using the previous airspeed estimate
+    if (!get_unconstrained_airspeed_estimate(airspeed_index, airspeed_ret)) {
         return false;
     }
 
@@ -1115,6 +1127,32 @@ bool AP_AHRS_DCM::airspeed_estimate(uint8_t airspeed_index, float &airspeed_ret)
     }
 
     return true;
+}
+
+// airspeed_ret: will always be filled-in by get_unconstrained_airspeed_estimate which fills in airspeed_ret in this order:
+//               airspeed as filled-in by an enabled airsped sensor
+//               if no airspeed sensor: airspeed estimated using the GPS speed & wind_speed_estimation
+//               Or if none of the above, fills-in using the previous airspeed estimate
+// Return false: if we are using the previous airspeed estimate
+bool AP_AHRS_DCM::get_unconstrained_airspeed_estimate(uint8_t airspeed_index, float &airspeed_ret) const
+{
+#if AP_AIRSPEED_ENABLED
+    if (airspeed_sensor_enabled(airspeed_index)) {
+        airspeed_ret = AP::airspeed()->get_airspeed(airspeed_index);
+        return true;
+    }
+#endif
+
+    if (AP::ahrs().get_wind_estimation_enabled() && have_gps()) {
+        // estimated via GPS speed and wind
+        airspeed_ret = _last_airspeed;
+        return true;
+    }
+
+    // Else give the last estimate, but return false.
+    // This is used by the dead-reckoning code
+    airspeed_ret = _last_airspeed;
+    return false;
 }
 
 bool AP_AHRS::set_home(const Location &loc)
@@ -1134,6 +1172,13 @@ bool AP_AHRS::set_home(const Location &loc)
     if (!tmp.change_alt_frame(Location::AltFrame::ABSOLUTE)) {
         return false;
     }
+
+#if !APM_BUILD_TYPE(APM_BUILD_UNKNOWN)
+    if (!_home_is_set) {
+        // record home is set
+        AP::logger().Write_Event(LogEvent::SET_HOME);
+    }
+#endif
 
     _home = tmp;
     _home_is_set = true;
@@ -1217,7 +1262,7 @@ bool AP_AHRS_DCM::get_relative_position_NED_origin(Vector3f &posNED) const
         return false;
     }
     Location loc;
-    if (!AP_AHRS_DCM::get_position(loc)) {
+    if (!AP_AHRS_DCM::get_location(loc)) {
         return false;
     }
     posNED = origin.get_distance_NED(loc);

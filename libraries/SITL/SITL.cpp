@@ -17,15 +17,18 @@
     SITL.cpp - software in the loop state
 */
 
+#define ALLOW_DOUBLE_MATH_FUNCTIONS
+
 #include "SITL.h"
+
+#if AP_SIM_ENABLED
 
 #include <AP_Common/AP_Common.h>
 #include <AP_HAL/AP_HAL.h>
 
-#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
-
 #include <GCS_MAVLink/GCS_MAVLink.h>
 #include <AP_Logger/AP_Logger.h>
+#include <AP_InertialSensor/AP_InertialSensor.h>
 
 #ifdef SFML_JOYSTICK
   #ifdef HAVE_SFML_GRAPHICS_HPP
@@ -51,6 +54,7 @@ const AP_Param::GroupInfo SIM::var_info[] = {
     AP_GROUPINFO("WIND_DIR",      10, SIM,  wind_direction,  180),
     AP_GROUPINFO("WIND_TURB",     11, SIM,  wind_turbulance,  0),
     AP_GROUPINFO("SERVO_SPEED",   16, SIM,  servo_speed,  0.14),
+    AP_GROUPINFO("SONAR_ROT",     17, SIM,  sonar_rot, Rotation::ROTATION_PITCH_270),
     AP_GROUPINFO("BATT_VOLTAGE",  19, SIM,  batt_voltage,  12.6f),
     AP_GROUPINFO("BATT_CAP_AH",   20, SIM,  batt_capacity_ah,  0),
     AP_GROUPINFO("SONAR_GLITCH",  23, SIM,  sonar_glitch, 0),
@@ -62,7 +66,6 @@ const AP_Param::GroupInfo SIM::var_info[] = {
     AP_GROUPINFO("TERRAIN",       34, SIM,  terrain_enable, 1),
     AP_GROUPINFO("FLOW_RATE",     35, SIM,  flow_rate, 10),
     AP_GROUPINFO("FLOW_DELAY",    36, SIM,  flow_delay, 0),
-    AP_GROUPINFO("WIND_DELAY",    40, SIM,  wind_delay, 0),
     AP_GROUPINFO("ADSB_COUNT",    45, SIM,  adsb_plane_count, -1),
     AP_GROUPINFO("ADSB_RADIUS",   46, SIM,  adsb_radius_m, 10000),
     AP_GROUPINFO("ADSB_ALT",      47, SIM,  adsb_altitude_m, 1000),
@@ -74,9 +77,13 @@ const AP_Param::GroupInfo SIM::var_info[] = {
     AP_GROUPINFO("SONAR_POS",     55, SIM,  rngfnd_pos_offset, 0),
     AP_GROUPINFO("FLOW_POS",      56, SIM,  optflow_pos_offset, 0),
     AP_GROUPINFO("ENGINE_FAIL",   58, SIM,  engine_fail,  0),
+#if AP_SIM_SHIP_ENABLED
     AP_SUBGROUPINFO(shipsim, "SHIP_", 59, SIM, ShipSim),
+#endif
     AP_SUBGROUPEXTENSION("",      60, SIM,  var_mag),
+#if HAL_SIM_GPS_ENABLED
     AP_SUBGROUPEXTENSION("",      61, SIM,  var_gps),
+#endif
     AP_SUBGROUPEXTENSION("",      62, SIM,  var_info3),
     AP_SUBGROUPEXTENSION("",      63, SIM,  var_info2),
     AP_GROUPEND
@@ -164,12 +171,16 @@ const AP_Param::GroupInfo SIM::var_info2[] = {
 
     AP_GROUPINFO("SAFETY_STATE",    59, SIM,  _safety_switch_state, 0),
 
+    // motor harmonics
+    AP_GROUPINFO("VIB_MOT_HMNC", 60, SIM,  vibe_motor_harmonics, 1),
+
     // max motor vibration frequency
     AP_GROUPINFO("VIB_MOT_MAX", 61, SIM,  vibe_motor, 0.0f),
     // minimum throttle for simulated ins noise
     AP_GROUPINFO("INS_THR_MIN", 62, SIM,  ins_noise_throttle_min, 0.1f),
     // amplitude scaling of motor noise relative to gyro/accel noise
     AP_GROUPINFO("VIB_MOT_MULT", 63, SIM,  vibe_motor_scale, 1.0f),
+
 
     AP_GROUPEND
 
@@ -274,22 +285,11 @@ const AP_Param::GroupInfo SIM::var_info3[] = {
 
     AP_GROUPINFO("ESC_TELEM", 40, SIM, esc_telem, 1),
 
-    // user settable parameters for the 1st airspeed sensor
-    AP_GROUPINFO("ARSPD_RND",     50, SIM,  arspd_noise[0], 2.0),
-    AP_GROUPINFO("ARSPD_OFS",     51, SIM,  arspd_offset[0], 2013),
-    AP_GROUPINFO("ARSPD_FAIL",    52, SIM,  arspd_fail[0], 0),
-    AP_GROUPINFO("ARSPD_FAILP",   53, SIM,  arspd_fail_pressure[0], 0),
-    AP_GROUPINFO("ARSPD_PITOT",   54, SIM,  arspd_fail_pitot_pressure[0], 0),
+    AP_SUBGROUPINFO(airspeed[0], "ARSPD_", 50, SIM, SIM::AirspeedParm),
+#if AIRSPEED_MAX_SENSORS > 1
+    AP_SUBGROUPINFO(airspeed[1], "ARSPD2_", 51, SIM, SIM::AirspeedParm),
+#endif
 
-    // user settable parameters for the 2nd airspeed sensor
-    AP_GROUPINFO("ARSPD2_RND",    56, SIM,  arspd_noise[1], 2.0),
-    AP_GROUPINFO("ARSPD2_OFS",    57, SIM,  arspd_offset[1], 2013),
-    AP_GROUPINFO("ARSPD2_FAIL",   58, SIM,  arspd_fail[1], 0),
-    AP_GROUPINFO("ARSPD2_FAILP",  59, SIM,  arspd_fail_pressure[1], 0),
-    AP_GROUPINFO("ARSPD2_PITOT",  60, SIM,  arspd_fail_pitot_pressure[1], 0),
-
-    // user settable common airspeed parameters
-    AP_GROUPINFO("ARSPD_SIGN",    62, SIM,  arspd_signflip, 0),
 
 #ifdef SFML_JOYSTICK
     AP_SUBGROUPEXTENSION("",      63, SIM,  var_sfml_joystick),
@@ -314,12 +314,26 @@ const AP_Param::GroupInfo SIM::BaroParm::var_info[] = {
     AP_GROUPINFO("WCF_LFT", 10, SIM::BaroParm, wcof_yn, 0.0),
     AP_GROUPEND
 };
-    
+
+// user settable parameters for airspeed sensors
+const AP_Param::GroupInfo SIM::AirspeedParm::var_info[] = {
+        // user settable parameters for the 1st airspeed sensor
+    AP_GROUPINFO("RND",     1, SIM::AirspeedParm,  noise, 2.0),
+    AP_GROUPINFO("OFS",     2, SIM::AirspeedParm,  offset, 2013),
+    AP_GROUPINFO("FAIL",    3, SIM::AirspeedParm,  fail, 0),
+    AP_GROUPINFO("FAILP",   4, SIM::AirspeedParm,  fail_pressure, 0),
+    AP_GROUPINFO("PITOT",   5, SIM::AirspeedParm,  fail_pitot_pressure, 0),
+    AP_GROUPINFO("SIGN",    6, SIM::AirspeedParm,  signflip, 0),
+    AP_GROUPINFO("RATIO",   7, SIM::AirspeedParm,  ratio, 1.99),
+    AP_GROUPEND
+};
+
+#if HAL_SIM_GPS_ENABLED
 // GPS SITL parameters
 const AP_Param::GroupInfo SIM::var_gps[] = {
     AP_GROUPINFO("GPS_DISABLE",    1, SIM,  gps_disable[0], 0),
-    AP_GROUPINFO("GPS_DELAY",      2, SIM,  gps_delay[0],   1),
-    AP_GROUPINFO("GPS_TYPE",       3, SIM,  gps_type[0],  SIM::GPS_TYPE_UBLOX),
+    AP_GROUPINFO("GPS_LAG_MS",     2, SIM,  gps_delay_ms[0], 100),
+    AP_GROUPINFO("GPS_TYPE",       3, SIM,  gps_type[0],  GPS::Type::UBLOX),
     AP_GROUPINFO("GPS_BYTELOSS",   4, SIM,  gps_byteloss[0],  0),
     AP_GROUPINFO("GPS_NUMSATS",    5, SIM,  gps_numsats[0],   10),
     AP_GROUPINFO("GPS_GLITCH",     6, SIM,  gps_glitch[0],  0),
@@ -334,8 +348,8 @@ const AP_Param::GroupInfo SIM::var_gps[] = {
     AP_GROUPINFO("GPS_VERR",      15, SIM,  gps_vel_err[0], 0),
 
     AP_GROUPINFO("GPS2_DISABLE",  30, SIM,  gps_disable[1], 1),
-    AP_GROUPINFO("GPS2_DELAY",    31, SIM,  gps_delay[1],   1),
-    AP_GROUPINFO("GPS2_TYPE",     32, SIM,  gps_type[1],  SIM::GPS_TYPE_UBLOX),
+    AP_GROUPINFO("GPS2_LAG_MS",   31, SIM,  gps_delay_ms[1], 100),
+    AP_GROUPINFO("GPS2_TYPE",     32, SIM,  gps_type[1],  GPS::Type::UBLOX),
     AP_GROUPINFO("GPS2_BYTELOS",  33, SIM,  gps_byteloss[1],  0),
     AP_GROUPINFO("GPS2_NUMSATS",  34, SIM,  gps_numsats[1],   10),
     AP_GROUPINFO("GPS2_GLTCH",    35, SIM,  gps_glitch[1],  0),
@@ -362,6 +376,7 @@ const AP_Param::GroupInfo SIM::var_gps[] = {
     AP_GROUPINFO("PDLK_GYRO", 51, SIM, pdlk_gyro_noise, 0.00384 ), //rad/s, L3GD20H
     AP_GROUPEND
 };
+#endif  // HAL_SIM_GPS_ENABLED
 
 // Mag SITL parameters
 const AP_Param::GroupInfo SIM::var_mag[] = {
@@ -377,12 +392,24 @@ const AP_Param::GroupInfo SIM::var_mag[] = {
     AP_GROUPINFO("MAG1_SCALING",  10, SIM,  mag_scaling[0], 1),
     AP_GROUPINFO("MAG1_DEVID",    11, SIM,  mag_devid[0], 97539),
     AP_GROUPINFO("MAG2_DEVID",    12, SIM,  mag_devid[1], 131874),
+#if MAX_CONNECTED_MAGS > 2
     AP_GROUPINFO("MAG3_DEVID",    13, SIM,  mag_devid[2], 263178),
+#endif
+#if MAX_CONNECTED_MAGS > 3
     AP_GROUPINFO("MAG4_DEVID",    14, SIM,  mag_devid[3], 97283),
+#endif
+#if MAX_CONNECTED_MAGS > 4
     AP_GROUPINFO("MAG5_DEVID",    15, SIM,  mag_devid[4], 97795),
+#endif
+#if MAX_CONNECTED_MAGS > 5
     AP_GROUPINFO("MAG6_DEVID",    16, SIM,  mag_devid[5], 98051),
+#endif
+#if MAX_CONNECTED_MAGS > 6
     AP_GROUPINFO("MAG7_DEVID",    17, SIM,  mag_devid[6], 0),
+#endif
+#if MAX_CONNECTED_MAGS > 7
     AP_GROUPINFO("MAG8_DEVID",    18, SIM,  mag_devid[7], 0),
+#endif
     AP_GROUPINFO("MAG1_FAIL",     26, SIM,  mag_fail[0], 0),
 #if HAL_COMPASS_MAX_SENSORS > 1
     AP_GROUPINFO("MAG2_OFS",      19, SIM,  mag_ofs[1], 0),
@@ -420,30 +447,56 @@ const AP_Param::GroupInfo SIM::var_sfml_joystick[] = {
 
 // INS SITL parameters
 const AP_Param::GroupInfo SIM::var_ins[] = {
+#if HAL_INS_TEMPERATURE_CAL_ENABLE
     AP_GROUPINFO("IMUT_START",    1, SIM, imu_temp_start,  25),
     AP_GROUPINFO("IMUT_END",      2, SIM, imu_temp_end, 45),
     AP_GROUPINFO("IMUT_TCONST",   3, SIM, imu_temp_tconst, 300),
     AP_GROUPINFO("IMUT_FIXED",    4, SIM, imu_temp_fixed, 0),
+#endif
     AP_GROUPINFO("ACC1_BIAS",     5, SIM, accel_bias[0], 0),
+#if INS_MAX_INSTANCES > 1
     AP_GROUPINFO("ACC2_BIAS",     6, SIM, accel_bias[1], 0),
+#endif
+#if INS_MAX_INSTANCES > 2
     AP_GROUPINFO("ACC3_BIAS",     7, SIM, accel_bias[2], 0),
+#endif
     AP_GROUPINFO("GYR1_RND",      8, SIM, gyro_noise[0],  0),
+#if INS_MAX_INSTANCES > 1
     AP_GROUPINFO("GYR2_RND",      9, SIM, gyro_noise[1],  0),
+#endif
+#if INS_MAX_INSTANCES > 2
     AP_GROUPINFO("GYR3_RND",     10, SIM, gyro_noise[2],  0),
+#endif
     AP_GROUPINFO("ACC1_RND",     11, SIM, accel_noise[0], 0),
+#if INS_MAX_INSTANCES > 1
     AP_GROUPINFO("ACC2_RND",     12, SIM, accel_noise[1], 0),
+#endif
+#if INS_MAX_INSTANCES > 2
     AP_GROUPINFO("ACC3_RND",     13, SIM, accel_noise[2], 0),
+#endif
     AP_GROUPINFO("GYR1_SCALE",   14, SIM, gyro_scale[0], 0),
+#if INS_MAX_INSTANCES > 1
     AP_GROUPINFO("GYR2_SCALE",   15, SIM, gyro_scale[1], 0),
+#endif
+#if INS_MAX_INSTANCES > 2
     AP_GROUPINFO("GYR3_SCALE",   16, SIM, gyro_scale[2], 0),
+#endif
     AP_GROUPINFO("ACCEL1_FAIL",  17, SIM, accel_fail[0],  0),
+#if INS_MAX_INSTANCES > 1
     AP_GROUPINFO("ACCEL2_FAIL",  18, SIM, accel_fail[1],  0),
+#endif
+#if INS_MAX_INSTANCES > 2
     AP_GROUPINFO("ACCEL3_FAIL",  19, SIM, accel_fail[2],  0),
+#endif
     AP_GROUPINFO("GYR_FAIL_MSK", 20, SIM, gyro_fail_mask,  0),
     AP_GROUPINFO("ACC_FAIL_MSK", 21, SIM, accel_fail_mask,  0),
     AP_GROUPINFO("ACC1_SCAL",    22, SIM, accel_scale[0], 0),
+#if INS_MAX_INSTANCES > 1
     AP_GROUPINFO("ACC2_SCAL",    23, SIM, accel_scale[1], 0),
+#endif
+#if INS_MAX_INSTANCES > 2
     AP_GROUPINFO("ACC3_SCAL",    24, SIM, accel_scale[2], 0),
+#endif
     AP_GROUPINFO("ACC_TRIM",     25, SIM, accel_trim, 0),
 
     // @Param: SAIL_TYPE
@@ -456,13 +509,31 @@ const AP_Param::GroupInfo SIM::var_ins[] = {
     // @Description: the instance number to  take servos from
     AP_GROUPINFO("JSON_MASTER",     27, SIM, ride_along_master, 0),
 
+    // @Param: OH_MASK
+    // @DisplayName: SIM-on_hardware Output Enable Mask
+    // @Description: channels which are passed through to actual hardware when running on actual hardware
+    AP_GROUPINFO("OH_MASK",     28, SIM, on_hardware_output_enable_mask, 0),
+
     // the IMUT parameters must be last due to the enable parameters
+#if HAL_INS_TEMPERATURE_CAL_ENABLE
     AP_SUBGROUPINFO(imu_tcal[0], "IMUT1_", 61, SIM, AP_InertialSensor::TCal),
+#if INS_MAX_INSTANCES > 1
     AP_SUBGROUPINFO(imu_tcal[1], "IMUT2_", 62, SIM, AP_InertialSensor::TCal),
+#endif
+#if INS_MAX_INSTANCES > 2
     AP_SUBGROUPINFO(imu_tcal[2], "IMUT3_", 63, SIM, AP_InertialSensor::TCal),
+#endif
+#endif  // HAL_INS_TEMPERATURE_CAL_ENABLE
     AP_GROUPEND
 };
-    
+
+const Location post_origin {
+    518752066,
+    146487830,
+    0,
+    Location::AltFrame::ABSOLUTE
+};
+
 /* report SITL state via MAVLink SIMSTATE*/
 void SIM::simstate_send(mavlink_channel_t chan) const
 {
@@ -605,8 +676,113 @@ float SIM::get_rangefinder(uint8_t instance) {
     return -1;
 };
 
-} // namespace SITL
+float SIM::measure_distance_at_angle_bf(const Location &location, float angle) const
+{
+    // should we populate state.rangefinder_m[...] from this?
+    Vector2f vehicle_pos_cm;
+    if (!location.get_vector_xy_from_origin_NE(vehicle_pos_cm)) {
+        // should probably use SITL variables...
+        return 0.0f;
+    }
 
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
+    static uint64_t count = 0;
+
+    if (count == 0) {
+        unlink("/tmp/rayfile.scr");
+        unlink("/tmp/intersectionsfile.scr");
+    }
+
+    count++;
+
+    // the 1000 here is so the files don't grow unbounded
+    const bool write_debug_files = count < 1000;
+
+    FILE *rayfile = nullptr;
+    if (write_debug_files) {
+        rayfile = fopen("/tmp/rayfile.scr", "a");
+    }
+#endif
+
+    // cast a ray from location out 200m...
+    Location location2 = location;
+    location2.offset_bearing(wrap_180(angle + state.yawDeg), 200);
+    Vector2f ray_endpos_cm;
+    if (!location2.get_vector_xy_from_origin_NE(ray_endpos_cm)) {
+        // should probably use SITL variables...
+        return 0.0f;
+    }
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
+    if (rayfile != nullptr) {
+        ::fprintf(rayfile, "map icon %f %f barrell\n", location2.lat*1e-7, location2.lng*1e-7);
+        fclose(rayfile);
+    }
+
+    // setup a grid of posts
+    FILE *postfile = nullptr;
+    FILE *intersectionsfile = nullptr;
+    if (write_debug_files) {
+        static bool postfile_written;
+        if (!postfile_written) {
+            ::fprintf(stderr, "Writing /tmp/post-locations.scr\n");
+            postfile_written = true;
+            postfile = fopen("/tmp/post-locations.scr", "w");
+        }
+        intersectionsfile = fopen("/tmp/intersections.scr", "a");
+    }
+#endif
+
+    const float radius_cm = 100.0f;
+    float min_dist_cm = 1000000.0;
+    const uint8_t num_post_offset = 10;
+    for (int8_t x=-num_post_offset; x<num_post_offset; x++) {
+        for (int8_t y=-num_post_offset; y<num_post_offset; y++) {
+            Location post_location = post_origin;
+            post_location.offset(x*10+3, y*10+2);
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
+            if (postfile != nullptr) {
+                ::fprintf(postfile, "map circle %f %f %f blue\n", post_location.lat*1e-7, post_location.lng*1e-7, radius_cm/100.0);
+            }
+#endif
+            Vector2f post_position_cm;
+            if (!post_location.get_vector_xy_from_origin_NE(post_position_cm)) {
+                // should probably use SITL variables...
+                return 0.0f;
+            }
+            Vector2f intersection_point_cm;
+            if (Vector2f::circle_segment_intersection(ray_endpos_cm, vehicle_pos_cm, post_position_cm, radius_cm, intersection_point_cm)) {
+                float dist_cm = (intersection_point_cm-vehicle_pos_cm).length();
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
+                if (intersectionsfile != nullptr) {
+                    Location intersection_point = location;
+                    intersection_point.offset(intersection_point_cm.x/100.0,
+                                              intersection_point_cm.y/100.0);
+                    ::fprintf(intersectionsfile,
+                              "map icon %f %f barrell\n",
+                              intersection_point.lat*1e-7,
+                              intersection_point.lng*1e-7);
+                }
+#endif
+                if (dist_cm < min_dist_cm) {
+                    min_dist_cm = dist_cm;
+                }
+            }
+        }
+    }
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
+    if (postfile != nullptr) {
+        fclose(postfile);
+    }
+    if (intersectionsfile != nullptr) {
+        fclose(intersectionsfile);
+    }
+#endif
+
+    // ::fprintf(stderr, "Distance @%f = %fm\n", angle, min_dist_cm/100.0f);
+    return min_dist_cm / 100.0f;
+}
+
+} // namespace SITL
 
 namespace AP {
 
@@ -617,4 +793,4 @@ SITL::SIM *sitl()
 
 };
 
-#endif // CONFIG_HAL_BOARD
+#endif // AP_SIM_ENABLED

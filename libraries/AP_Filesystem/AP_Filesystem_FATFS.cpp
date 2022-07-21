@@ -9,7 +9,9 @@
 
 #if HAVE_FILESYSTEM_SUPPORT && CONFIG_HAL_BOARD == HAL_BOARD_CHIBIOS
 
+#include <ff.h>
 #include <AP_HAL_ChibiOS/sdcard.h>
+#include <GCS_MAVLink/GCS.h>
 
 #if 0
 #define debug(fmt, args ...)  do {printf("%s:%d: " fmt "\n", __FUNCTION__, __LINE__, ## args); } while(0)
@@ -63,7 +65,7 @@ static int new_file_descriptor(const char *pathname)
         if (isatty_(i)) {
             continue;
         }
-        if ( file_table[i] == NULL) {
+        if (file_table[i] == NULL) {
             stream = (FAT_FILE *) calloc(sizeof(FAT_FILE),1);
             if (stream == NULL) {
                 errno = ENOMEM;
@@ -122,7 +124,7 @@ static int free_file_descriptor(int fileno)
 
     // checks if fileno out of bounds
     stream = fileno_to_stream(fileno);
-    if (stream == NULL) {
+    if (stream == nullptr) {
         return -1;
     }
 
@@ -145,14 +147,14 @@ static FIL *fileno_to_fatfs(int fileno)
     FAT_FILE *stream;
     FIL *fh;
 
-    if (isatty_( fileno )) {
+    if (isatty_(fileno)) {
         errno = EBADF;
         return nullptr;
     }
 
     // checks if fileno out of bounds
     stream = fileno_to_stream(fileno);
-    if ( stream == NULL ) {
+    if (stream == nullptr) {
         return nullptr;
     }
 
@@ -164,9 +166,9 @@ static FIL *fileno_to_fatfs(int fileno)
     return fh;
 }
 
-static int fatfs_to_errno( FRESULT Result )
+static int fatfs_to_errno(FRESULT Result)
 {
-    switch ( Result ) {
+    switch (Result) {
     case FR_OK:              /* FatFS (0) Succeeded */
         return 0;          /* POSIX OK */
     case FR_DISK_ERR:        /* FatFS (1) A hard error occurred in the low level disk I/O layer */
@@ -277,7 +279,7 @@ static bool remount_file_system(void)
     return true;
 }
 
-int AP_Filesystem_FATFS::open(const char *pathname, int flags)
+int AP_Filesystem_FATFS::open(const char *pathname, int flags, bool allow_absolute_path)
 {
     int fileno;
     int fatfs_modes;
@@ -313,14 +315,14 @@ int AP_Filesystem_FATFS::open(const char *pathname, int flags)
 
     // checks if fileno out of bounds
     stream = fileno_to_stream(fileno);
-    if (stream == NULL) {
+    if (stream == nullptr) {
         free_file_descriptor(fileno);
         return -1;
     }
 
     // fileno_to_fatfs checks for fileno out of bounds
     fh = fileno_to_fatfs(fileno);
-    if (fh == NULL) {
+    if (fh == nullptr) {
         free_file_descriptor(fileno);
         errno = EBADF;
         return -1;
@@ -367,13 +369,13 @@ int AP_Filesystem_FATFS::close(int fileno)
 
     // checks if fileno out of bounds
     stream = fileno_to_stream(fileno);
-    if (stream == NULL) {
+    if (stream == nullptr) {
         return -1;
     }
 
     // fileno_to_fatfs checks for fileno out of bounds
     fh = fileno_to_fatfs(fileno);
-    if (fh == NULL) {
+    if (fh == nullptr) {
         return -1;
     }
     res = f_close(fh);
@@ -404,7 +406,7 @@ int32_t AP_Filesystem_FATFS::read(int fd, void *buf, uint32_t count)
 
     // fileno_to_fatfs checks for fd out of bounds
     fh = fileno_to_fatfs(fd);
-    if ( fh == NULL ) {
+    if (fh == nullptr) {
         errno = EBADF;
         return -1;
     }
@@ -449,7 +451,7 @@ int32_t AP_Filesystem_FATFS::write(int fd, const void *buf, uint32_t count)
 
     // fileno_to_fatfs checks for fd out of bounds
     fh = fileno_to_fatfs(fd);
-    if ( fh == NULL ) {
+    if (fh == nullptr) {
         errno = EBADF;
         return -1;
     }
@@ -497,13 +499,13 @@ int AP_Filesystem_FATFS::fsync(int fileno)
 
     // checks if fileno out of bounds
     stream = fileno_to_stream(fileno);
-    if (stream == NULL) {
+    if (stream == nullptr) {
         return -1;
     }
 
     // fileno_to_fatfs checks for fileno out of bounds
     fh = fileno_to_fatfs(fileno);
-    if (fh == NULL) {
+    if (fh == nullptr) {
         return -1;
     }
     res = f_sync(fh);
@@ -525,7 +527,7 @@ off_t AP_Filesystem_FATFS::lseek(int fileno, off_t position, int whence)
 
     // fileno_to_fatfs checks for fd out of bounds
     fh = fileno_to_fatfs(fileno);
-    if (fh == NULL) {
+    if (fh == nullptr) {
         errno = EMFILE;
         return -1;
     }
@@ -610,7 +612,7 @@ int AP_Filesystem_FATFS::stat(const char *name, struct stat *buf)
 
     // We only handle read only case
     mode = (FATFS_R | FATFS_X);
-    if ( !(info.fattrib & AM_RDO)) {
+    if (!(info.fattrib & AM_RDO)) {
         mode |= (FATFS_W);    // enable write if NOT read only
     }
 
@@ -849,6 +851,52 @@ void AP_Filesystem_FATFS::unmount(void)
 {
     WITH_SEMAPHORE(sem);
     return sdcard_stop();
+}
+
+/*
+  format sdcard
+*/
+bool AP_Filesystem_FATFS::format(void)
+{
+#if FF_USE_MKFS
+    WITH_SEMAPHORE(sem);
+    hal.scheduler->register_io_process(FUNCTOR_BIND_MEMBER(&AP_Filesystem_FATFS::format_handler, void));
+    // the format is handled asyncronously, we inform user of success
+    // via a text message
+    format_pending = true;
+    return true;
+#else
+    return false;
+#endif
+}
+
+/*
+  format sdcard
+*/
+void AP_Filesystem_FATFS::format_handler(void)
+{
+#if FF_USE_MKFS
+    if (!format_pending) {
+        return;
+    }
+    WITH_SEMAPHORE(sem);
+    format_pending = false;
+    GCS_SEND_TEXT(MAV_SEVERITY_NOTICE, "Formatting SDCard");
+    uint8_t *buf = (uint8_t *)hal.util->malloc_type(FF_MAX_SS, AP_HAL::Util::MEM_DMA_SAFE);
+    if (buf == nullptr) {
+        return;
+    }
+    // format first disk
+    auto ret = f_mkfs("0:", 0, buf, FF_MAX_SS);
+    hal.util->free_type(buf, FF_MAX_SS, AP_HAL::Util::MEM_DMA_SAFE);
+    if (ret == FR_OK) {
+        GCS_SEND_TEXT(MAV_SEVERITY_NOTICE, "Format: OK");
+    } else {
+        GCS_SEND_TEXT(MAV_SEVERITY_NOTICE, "Format: Failed (%d)", int(ret));
+    }
+    sdcard_stop();
+    sdcard_retry();
+#endif
 }
 
 /*

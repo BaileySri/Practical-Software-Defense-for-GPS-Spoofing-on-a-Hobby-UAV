@@ -17,10 +17,12 @@
 #include <AP_Baro/AP_Baro.h>
 #include <AP_Airspeed/AP_Airspeed.h>
 #include <AP_BattMonitor/AP_BattMonitor.h>
+#include <AP_Compass/AP_Compass.h>
 #include <AP_ESC_Telem/AP_ESC_Telem.h>
 #include <RC_Channel/RC_Channel.h>
 #include <AP_Common/AP_FWVersion.h>
 #include <AP_GPS/AP_GPS.h>
+#include <AP_Notify/AP_Notify.h>
 #include <AP_OpticalFlow/AP_OpticalFlow.h>
 #include <AP_RangeFinder/AP_RangeFinder.h>
 #include <AP_RCMapper/AP_RCMapper.h>
@@ -180,7 +182,7 @@ void AP_MSP_Telem_Backend::update_home_pos(home_state_t &home_state)
     WITH_SEMAPHORE(_ahrs.get_semaphore());
     Location loc;
     float alt;
-    if (_ahrs.get_position(loc) && _ahrs.home_is_set()) {
+    if (_ahrs.get_location(loc) && _ahrs.home_is_set()) {
         const Location &home_loc = _ahrs.get_home();
         home_state.home_distance_m = home_loc.get_distance(loc);
         home_state.home_bearing_cd = loc.get_bearing_to(home_loc);
@@ -560,14 +562,14 @@ void AP_MSP_Telem_Backend::msp_handle_compass(const MSP::msp_compass_data_messag
 
 void AP_MSP_Telem_Backend::msp_handle_baro(const MSP::msp_baro_data_message_t &pkt)
 {
-#if HAL_MSP_BARO_ENABLED
+#if AP_BARO_MSP_ENABLED
     AP::baro().handle_msp(pkt);
 #endif
 }
 
 void AP_MSP_Telem_Backend::msp_handle_airspeed(const MSP::msp_airspeed_data_message_t &pkt)
 {
-#if HAL_MSP_AIRSPEED_ENABLED
+#if AP_AIRSPEED_MSP_ENABLED && AP_AIRSPEED_ENABLED
     auto *airspeed = AP::airspeed();
     if (airspeed) {
         airspeed->handle_msp(pkt);

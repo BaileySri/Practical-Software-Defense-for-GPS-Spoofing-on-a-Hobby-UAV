@@ -16,7 +16,7 @@
 #include <stdio.h>
 #include <StorageManager/StorageManager.h>
 #include <AP_Notify/AP_Notify.h>
-#include <GCS_MAVLink/GCS_MAVLink.h>
+#include <GCS_MAVLink/GCS.h>
 #include <AP_Math/crc.h>
 #include <AP_Param/AP_Param.h>
 
@@ -1113,7 +1113,7 @@ void AP_Radio_cc2500::irq_handler_thd(void *arg)
         switch (evt) {
         case EVT_IRQ:
             if (radio_singleton->protocolState == STATE_FCCTEST) {
-                hal.console->printf("IRQ FCC\n");
+                DEV_PRINTF("IRQ FCC\n");
             }
             radio_singleton->irq_handler();
             break;

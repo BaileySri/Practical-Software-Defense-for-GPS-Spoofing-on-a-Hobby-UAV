@@ -20,15 +20,23 @@ void Plane::Log_Write_Attitude(void)
         quadplane.attitude_control->get_attitude_target_quat().to_euler(targets.x, targets.y, targets.z);
         targets *= degrees(100.0f);
         quadplane.ahrs_view->Write_AttitudeView(targets);
-    } else {
+    } else
+#endif
+            {
         ahrs.Write_Attitude(targets);
     }
-    if (quadplane.in_vtol_mode() || quadplane.in_assisted_flight()) {
+
+#if HAL_QUADPLANE_ENABLED
+    if (AP_HAL::millis() - quadplane.last_att_control_ms < 100) {
         // log quadplane PIDs separately from fixed wing PIDs
         logger.Write_PID(LOG_PIQR_MSG, quadplane.attitude_control->get_rate_roll_pid().get_pid_info());
         logger.Write_PID(LOG_PIQP_MSG, quadplane.attitude_control->get_rate_pitch_pid().get_pid_info());
         logger.Write_PID(LOG_PIQY_MSG, quadplane.attitude_control->get_rate_yaw_pid().get_pid_info());
         logger.Write_PID(LOG_PIQA_MSG, quadplane.pos_control->get_accel_z_pid().get_pid_info() );
+    }
+    if (quadplane.in_vtol_mode() && quadplane.pos_control->is_active_xy()) {
+        logger.Write_PID(LOG_PIDN_MSG, quadplane.pos_control->get_vel_xy_pid().get_pid_info_x());
+        logger.Write_PID(LOG_PIDE_MSG, quadplane.pos_control->get_vel_xy_pid().get_pid_info_y());
     }
 #endif
 
@@ -38,12 +46,6 @@ void Plane::Log_Write_Attitude(void)
     logger.Write_PID(LOG_PIDS_MSG, steerController.get_pid_info());
 
     AP::ahrs().Log_Write();
-    ahrs.Write_AHRS2();
-
-#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
-    sitl.Log_Write_SIMSTATE();
-#endif
-    ahrs.Write_POS();
 }
 
 // do fast logging for plane
@@ -63,24 +65,6 @@ void Plane::Log_Write_Fast(void)
 }
 
 
-struct PACKED log_Startup {
-    LOG_PACKET_HEADER;
-    uint64_t time_us;
-    uint8_t startup_type;
-    uint16_t command_total;
-};
-
-void Plane::Log_Write_Startup(uint8_t type)
-{
-    struct log_Startup pkt = {
-        LOG_PACKET_HEADER_INIT(LOG_STARTUP_MSG),
-        time_us         : AP_HAL::micros64(),
-        startup_type    : type,
-        command_total   : mission.num_commands()
-    };
-    logger.WriteCriticalBlock(&pkt, sizeof(pkt));
-}
-
 struct PACKED log_Control_Tuning {
     LOG_PACKET_HEADER;
     uint64_t time_us;
@@ -88,9 +72,9 @@ struct PACKED log_Control_Tuning {
     int16_t roll;
     int16_t nav_pitch_cd;
     int16_t pitch;
-    int16_t throttle_out;
-    int16_t rudder_out;
-    int16_t throttle_dem;
+    float throttle_out;
+    float rudder_out;
+    float throttle_dem;
     float airspeed_estimate;
     float synthetic_airspeed;
     float EAS2TAS;
@@ -115,9 +99,9 @@ void Plane::Log_Write_Control_Tuning()
         roll            : (int16_t)ahrs.roll_sensor,
         nav_pitch_cd    : (int16_t)nav_pitch_cd,
         pitch           : (int16_t)ahrs.pitch_sensor,
-        throttle_out    : (int16_t)SRV_Channels::get_output_scaled(SRV_Channel::k_throttle),
-        rudder_out      : (int16_t)SRV_Channels::get_output_scaled(SRV_Channel::k_rudder),
-        throttle_dem    : (int16_t)SpdHgt_Controller->get_throttle_demand(),
+        throttle_out    : SRV_Channels::get_output_scaled(SRV_Channel::k_throttle),
+        rudder_out      : SRV_Channels::get_output_scaled(SRV_Channel::k_rudder),
+        throttle_dem    : TECS_controller.get_throttle_demand(),
         airspeed_estimate : est_airspeed,
         synthetic_airspeed : synthetic_airspeed,
         EAS2TAS            : ahrs.get_EAS2TAS(),
@@ -228,11 +212,11 @@ void Plane::Log_Write_Status()
 struct PACKED log_AETR {
     LOG_PACKET_HEADER;
     uint64_t time_us;
-    int16_t aileron;
-    int16_t elevator;
-    int16_t throttle;
-    int16_t rudder;
-    int16_t flap;
+    float aileron;
+    float elevator;
+    float throttle;
+    float rudder;
+    float flap;
     float speed_scaler;
 };
 
@@ -245,7 +229,7 @@ void Plane::Log_Write_AETR()
         ,elevator : SRV_Channels::get_output_scaled(SRV_Channel::k_elevator)
         ,throttle : SRV_Channels::get_output_scaled(SRV_Channel::k_throttle)
         ,rudder   : SRV_Channels::get_output_scaled(SRV_Channel::k_rudder)
-        ,flap     : SRV_Channels::get_output_scaled(SRV_Channel::k_flap_auto)
+        ,flap     : SRV_Channels::get_slew_limited_output_scaled(SRV_Channel::k_flap_auto)
         ,speed_scaler : get_speed_scaler(),
         };
 
@@ -303,8 +287,6 @@ struct PACKED log_CMDI {
 // units and "Format characters" for field type information
 const struct LogStructure Plane::log_structure[] = {
     LOG_COMMON_STRUCTURES,
-    { LOG_STARTUP_MSG, sizeof(log_Startup),         
-      "STRT", "QBH",         "TimeUS,SType,CTot", "s--", "F--" },
 
 // @LoggerMessage: CTUN
 // @Description: Control Tuning information
@@ -322,7 +304,7 @@ const struct LogStructure Plane::log_structure[] = {
 // @Field: GU: groundspeed undershoot when flying with minimum groundspeed
 
     { LOG_CTUN_MSG, sizeof(log_Control_Tuning),     
-      "CTUN", "Qcccchhhfffi",    "TimeUS,NavRoll,Roll,NavPitch,Pitch,ThO,RdrOut,ThD,As,SAs,E2T,GU", "sdddd---nn-n", "FBBBB---00-B" , true },
+      "CTUN", "Qccccffffffi",    "TimeUS,NavRoll,Roll,NavPitch,Pitch,ThO,RdrOut,ThD,As,SAs,E2T,GU", "sdddd---nn-n", "FBBBB---00-B" , true },
 
 // @LoggerMessage: NTUN
 // @Description: Navigation Tuning information - e.g. vehicle destination
@@ -444,7 +426,7 @@ const struct LogStructure Plane::log_structure[] = {
 // @Field: Flap: Pre-mixer value for flaps output (between -4500 to 4500)
 // @Field: SS: Surface movement / airspeed scaling value
     { LOG_AETR_MSG, sizeof(log_AETR),
-      "AETR", "Qhhhhhf",  "TimeUS,Ail,Elev,Thr,Rudd,Flap,SS", "s------", "F------" , true },
+      "AETR", "Qffffff",  "TimeUS,Ail,Elev,Thr,Rudd,Flap,SS", "s------", "F------" , true },
 
 // @LoggerMessage: OFG
 // @Description: OFfboard-Guided - an advanced version of GUIDED for companion computers that includes rate/s.  
@@ -527,11 +509,11 @@ void Plane::Log_Write_MavCmdI(const mavlink_command_int_t &mav_cmd)
 void Plane::Log_Write_Vehicle_Startup_Messages()
 {
     // only 200(?) bytes are guaranteed by AP_Logger
-    Log_Write_Startup(TYPE_GROUNDSTART_MSG);
 #if HAL_QUADPLANE_ENABLED
     if (quadplane.initialised) {
-        logger.Write_MessageF("QuadPlane Frame: %s/%s", quadplane.motors->get_frame_string(),
-                                                        quadplane.motors->get_type_string());
+        char frame_and_type_string[30];
+        quadplane.motors->get_frame_and_type_string(frame_and_type_string, ARRAY_SIZE(frame_and_type_string));
+        logger.Write_MessageF("QuadPlane %s", frame_and_type_string);
     }
 #endif
     logger.Write_Mode(control_mode->mode_number(), control_mode_reason);
@@ -551,7 +533,6 @@ void Plane::log_init(void)
 
 void Plane::Log_Write_Attitude(void) {}
 void Plane::Log_Write_Fast(void) {}
-void Plane::Log_Write_Startup(uint8_t type) {}
 void Plane::Log_Write_Control_Tuning() {}
 void Plane::Log_Write_OFG_Guided() {}
 void Plane::Log_Write_Nav_Tuning() {}

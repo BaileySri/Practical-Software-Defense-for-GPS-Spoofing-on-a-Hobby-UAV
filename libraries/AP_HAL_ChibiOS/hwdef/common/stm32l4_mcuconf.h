@@ -37,6 +37,15 @@
 #define STM32_PLLM_VALUE                    1
 #define STM32_PLLSRC                        STM32_PLLSRC_HSE
 
+#elif STM32_HSECLK == 12000000U
+#define STM32_HSE_ENABLED                   TRUE
+#define STM32_HSI16_ENABLED                 FALSE
+#define STM32_PLLM_VALUE                    3
+#define STM32_PLLN_VALUE                    40
+#define STM32_PLLSAI1N_VALUE                24
+#define STM32_PLLSAI2N_VALUE                16
+#define STM32_PLLSRC                        STM32_PLLSRC_HSE
+
 #elif STM32_HSECLK == 16000000U
 #define STM32_HSE_ENABLED                   TRUE
 #define STM32_HSI16_ENABLED                 FALSE
@@ -67,7 +76,9 @@
 #define STM32_MSIRANGE                      STM32_MSIRANGE_4M
 #define STM32_MSISRANGE                     STM32_MSISRANGE_4M
 #define STM32_SW                            STM32_SW_PLL
+#ifndef STM32_PLLN_VALUE
 #define STM32_PLLN_VALUE                    20
+#endif
 #define STM32_PLLPDIV_VALUE                 0
 #define STM32_PLLP_VALUE                    7
 #define STM32_PLLQ_VALUE                    2
@@ -79,12 +90,16 @@
 #define STM32_MCOSEL                        STM32_MCOSEL_NOCLOCK
 #define STM32_MCOPRE                        STM32_MCOPRE_DIV1
 #define STM32_LSCOSEL                       STM32_LSCOSEL_NOCLOCK
+#ifndef STM32_PLLSAI1N_VALUE
 #define STM32_PLLSAI1N_VALUE                12
+#endif
 #define STM32_PLLSAI1PDIV_VALUE             0
 #define STM32_PLLSAI1P_VALUE                7
 #define STM32_PLLSAI1Q_VALUE                2
 #define STM32_PLLSAI1R_VALUE                2
+#ifndef STM32_PLLSAI2N_VALUE
 #define STM32_PLLSAI2N_VALUE                8
+#endif
 #define STM32_PLLSAI2PDIV_VALUE             0
 #define STM32_PLLSAI2P_VALUE                7
 #define STM32_PLLSAI2R_VALUE                2
@@ -205,7 +220,7 @@
 #define STM32_I2C_I2C2_DMA_PRIORITY         3
 #define STM32_I2C_I2C3_DMA_PRIORITY         3
 #define STM32_I2C_I2C4_DMA_PRIORITY         3
-#define STM32_I2C_DMA_ERROR_HOOK(i2cp)      osalSysHalt("DMA failure")
+#define STM32_I2C_DMA_ERROR_HOOK(i2cp)      STM32_DMA_ERROR_HOOK(i2cp)
 
 /*
  * PWM driver system settings.
@@ -223,9 +238,6 @@
 /*
  * SDC driver system settings.
  */
-#ifndef STM32_SDC_USE_SDMMC1
-#define STM32_SDC_USE_SDMMC1                FALSE
-#endif
 #define STM32_SDC_SDMMC_UNALIGNED_SUPPORT   TRUE
 #define STM32_SDC_SDMMC_WRITE_TIMEOUT       1000
 #define STM32_SDC_SDMMC_READ_TIMEOUT        1000
@@ -254,7 +266,7 @@
 #define STM32_SPI_SPI1_IRQ_PRIORITY         10
 #define STM32_SPI_SPI2_IRQ_PRIORITY         10
 #define STM32_SPI_SPI3_IRQ_PRIORITY         10
-#define STM32_SPI_DMA_ERROR_HOOK(spip)      osalSysHalt("DMA failure")
+#define STM32_SPI_DMA_ERROR_HOOK(spip)      STM32_DMA_ERROR_HOOK(spip)
 
 /*
  * ST driver system settings.
@@ -282,7 +294,7 @@
 #define STM32_UART_USART3_DMA_PRIORITY      0
 #define STM32_UART_UART4_DMA_PRIORITY       0
 #define STM32_UART_UART5_DMA_PRIORITY       0
-#define STM32_UART_DMA_ERROR_HOOK(uartp)    osalSysHalt("DMA failure")
+#define STM32_UART_DMA_ERROR_HOOK(uartp)    STM32_DMA_ERROR_HOOK(uartp)
 
 /*
  * USB driver system settings.

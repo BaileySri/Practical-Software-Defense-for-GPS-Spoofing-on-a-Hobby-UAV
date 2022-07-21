@@ -34,7 +34,6 @@
 #include <StorageManager/StorageManager.h>
 
 // Application dependencies
-#include <GCS_MAVLink/GCS.h>
 #include <AP_Logger/AP_Logger.h>          // ArduPilot Mega Flash Memory Library
 #include <AP_Math/AP_Math.h>            // ArduPilot Mega Vector/Matrix math Library
 // #include <AP_AccelCal/AP_AccelCal.h>                // interface and maths for accelerometer calibration
@@ -42,9 +41,8 @@
 #include <AP_AHRS/AP_AHRS.h>
 #include <AP_Stats/AP_Stats.h>     // statistics library
 #include <Filter/Filter.h>             // Filter library
-#include <AP_Airspeed/AP_Airspeed.h>        // needed for AHRS build
 #include <AP_Vehicle/AP_Vehicle.h>         // needed for AHRS build
-#include <AP_InertialNav/AP_InertialNav_NavEKF.h>     // ArduPilot Mega inertial navigation library
+#include <AP_InertialNav/AP_InertialNav.h>     // inertial navigation library
 #include <AP_RCMapper/AP_RCMapper.h>        // RC input mapping library
 #include <AP_BattMonitor/AP_BattMonitor.h>     // Battery monitor library
 #include <AP_Arming/AP_Arming.h>
@@ -71,11 +69,6 @@
 // Local modules
 
 #include "Parameters.h"
-
-
-#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
-#include <SITL/SITL.h>
-#endif
 
 #include "mode.h"
 
@@ -121,10 +114,6 @@ private:
     // flight modes convenience array
     AP_Int8 *flight_modes;
     const uint8_t num_flight_modes = 6;
-
-#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
-    SITL::SIM sitl;
-#endif
 
     // Arming/Disarming management class
     AP_Arming_Blimp arming;
@@ -198,12 +187,6 @@ private:
         return failsafe.radio || battery.has_failsafed() || failsafe.gcs || failsafe.ekf;
     }
 
-    // sensor health for logging
-    struct {
-        uint8_t baro        : 1;    // true if baro is healthy
-        uint8_t compass     : 1;    // true if compass is healthy
-    } sensor_health;
-
     // Motor Output
     Fins *motors;
 
@@ -220,7 +203,6 @@ private:
 
     // Altitude
     int32_t baro_alt;            // barometer altitude in cm above home
-    LowPassFilterVector3f land_accel_ef_filter; // accelerations for land and crash detector tests
 
     // filtered pilot's throttle input used to cancel landing if throttle held high
     LowPassFilterFloat rc_throttle_control_in_filter;
@@ -239,7 +221,7 @@ private:
     NotchFilterFloat vel_yaw_filter;
 
     // Inertial Navigation
-    AP_InertialNav_NavEKF inertial_nav;
+    AP_InertialNav inertial_nav;
 
     // Vel & pos PIDs
     AC_PID_2D pid_vel_xy{3, 0.2, 0, 0, 0.2, 3, 3, 0.02}; //These are the defaults - P I D FF IMAX FiltHz FiltDHz DT
@@ -309,7 +291,6 @@ private:
     void get_scheduler_tasks(const AP_Scheduler::Task *&tasks,
                              uint8_t &task_count,
                              uint32_t &log_bit) override;
-    void fast_loop() override;
     void rc_loop();
     void throttle_loop();
     void update_batt_compass(void);
@@ -370,14 +351,12 @@ private:
     void Log_Write_Attitude();
     void Log_Write_PIDs();
     void Log_Write_EKF_POS();
-    void Log_Write_MotBatt();
     void Log_Write_Data(LogDataID id, int32_t value);
     void Log_Write_Data(LogDataID id, uint32_t value);
     void Log_Write_Data(LogDataID id, int16_t value);
     void Log_Write_Data(LogDataID id, uint16_t value);
     void Log_Write_Data(LogDataID id, float value);
     void Log_Write_Parameter_Tuning(uint8_t param, float tuning_val, float tune_min, float tune_max);
-    void Log_Sensor_Health();
     void Log_Write_GuidedTarget(uint8_t target_type, const Vector3f& pos_target, const Vector3f& vel_target);
     void Log_Write_SysID_Setup(uint8_t systemID_axis, float waveform_magnitude, float frequency_start, float frequency_stop, float time_fade_in, float time_const_freq, float time_record, float time_fade_out);
     void Log_Write_SysID_Data(float waveform_time, float waveform_sample, float waveform_freq, float angle_x, float angle_y, float angle_z, float accel_x, float accel_y, float accel_z);
@@ -425,10 +404,6 @@ private:
     void read_rangefinder(void);
     bool rangefinder_alt_ok();
     bool rangefinder_up_ok();
-    void rpm_update();
-    void update_optical_flow(void);
-    void init_proximity();
-    void update_proximity();
 
     // RC_Channel.cpp
     void save_trim();

@@ -29,14 +29,8 @@ public:
     // set_update_rate - set update rate to motors
     void set_update_rate( uint16_t speed_hz ) override;
 
-    // output_test_seq - spin a motor at the pwm value specified
-    virtual void output_test_seq(uint8_t motor_seq, int16_t pwm) override;
-
     // output_to_motors - sends values out to the motors
     void output_to_motors() override;
-
-    // set_rpm - for rotor speed governor
-    void set_rpm(float rotor_rpm) override;
 
     // set_desired_rotor_speed - sets target rotor speed as a number from 0 ~ 1000
     void set_desired_rotor_speed(float desired_speed) override;
@@ -49,10 +43,10 @@ public:
 
     // rotor_speed_above_critical - return true if rotor speed is above that critical for flight
     bool rotor_speed_above_critical() const  override { return _main_rotor.get_rotor_speed() > _main_rotor.get_critical_speed(); }
-    
+
     // get_governor_output
     float get_governor_output() const override { return _main_rotor.get_governor_output(); }
-    
+
     // get_control_output
     float get_control_output() const override { return _main_rotor.get_control_output(); }
 
@@ -63,7 +57,7 @@ public:
     void calculate_armed_scalars() override;
 
     // get_motor_mask - returns a bitmask of which outputs are being used for motors or servos (1 means being used)
-    uint16_t get_motor_mask() override;
+    uint32_t get_motor_mask() override;
 
     // has_flybar - returns true if we have a mechanical flybar
     bool has_flybar() const  override { return AP_MOTORS_HELI_NOFLYBAR; }
@@ -76,8 +70,6 @@ public:
 
     // var_info for holding Parameter information
     static const struct AP_Param::GroupInfo var_info[];
-
-    const char* get_frame_string() const override { return "HELI_QUAD"; }
 
 protected:
 
@@ -92,6 +84,11 @@ protected:
 
     // move_actuators - moves swash plate to attitude of parameters passed in
     void move_actuators(float roll_out, float pitch_out, float coll_in, float yaw_out)  override;
+
+    // output_test_seq - spin a motor at the pwm value specified
+    virtual void _output_test_seq(uint8_t motor_seq, int16_t pwm) override;
+
+    const char* _get_frame_string() const override { return "HELI_QUAD"; }
 
     // rate factors
     float _rollFactor[AP_MOTORS_HELI_QUAD_NUM_MOTORS];

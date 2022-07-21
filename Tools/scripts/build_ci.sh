@@ -13,8 +13,9 @@ cxx_compiler=${CXX:-g++}
 
 export BUILDROOT=/tmp/ci.build
 rm -rf $BUILDROOT
-export GIT_VERSION="ci_test"
-export CHIBIOS_GIT_VERSION="ci_test"
+export GIT_VERSION="abcdef"
+export GIT_VERSION_INT="15"
+export CHIBIOS_GIT_VERSION="12345667"
 export CCACHE_SLOPPINESS="include_file_ctime,include_file_mtime"
 autotest_args=""
 
@@ -170,9 +171,17 @@ for t in $CI_BUILD_TARGET; do
 
     if [ "$t" == "revo-bootloader" ]; then
         echo "Building revo bootloader"
-        $waf configure --board revo-mini --bootloader
+        if [ -f ~/alternate_build/revo-mini/bin/AP_Bootloader.bin ]; then
+            rm -r ~/alternate_build
+        fi
+        $waf configure --board revo-mini --bootloader --out ~/alternate_build
         $waf clean
         $waf bootloader
+        # check if bootloader got built under alternate_build
+        if [ ! -f ~/alternate_build/revo-mini/bin/AP_Bootloader.bin ]; then
+            echo "alternate build output directory Test failed"
+            exit 1
+        fi
         continue
     fi
 
@@ -245,6 +254,8 @@ for t in $CI_BUILD_TARGET; do
         # test bi-directional dshot build
         echo "Building KakuteF7Mini"
         $waf configure --Werror --board KakuteF7Mini
+        $waf clean
+        $waf copter
 
         # test bi-directional dshot build and smallest flash
         echo "Building KakuteF7"
@@ -257,6 +268,12 @@ for t in $CI_BUILD_TARGET; do
     if [ "$t" == "stm32h7" ]; then
         echo "Building Durandal"
         $waf configure --board Durandal
+        $waf clean
+        $waf copter
+
+        # test external flash build
+        echo "Building SPRacingH7"
+        $waf configure --Werror --board SPRacingH7
         $waf clean
         $waf copter
         continue
@@ -290,6 +307,7 @@ for t in $CI_BUILD_TARGET; do
         echo "Building navigator"
         $waf configure --board navigator --toolchain=arm-linux-musleabihf
         $waf sub --static
+        ./Tools/scripts/firmware_version_decoder.py -f build/navigator/bin/ardusub --expected-hash $GIT_VERSION
         continue
     fi
 
@@ -339,6 +357,7 @@ python Tools/autotest/param_metadata/param_parse.py --vehicle AntennaTracker
 python Tools/autotest/param_metadata/param_parse.py --vehicle ArduCopter
 python Tools/autotest/param_metadata/param_parse.py --vehicle ArduPlane
 python Tools/autotest/param_metadata/param_parse.py --vehicle ArduSub
+python Tools/autotest/param_metadata/param_parse.py --vehicle Blimp
 
 echo build OK
 exit 0

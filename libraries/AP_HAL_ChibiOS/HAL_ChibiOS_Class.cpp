@@ -19,6 +19,7 @@
 
 #include <assert.h>
 
+#include <hal.h>
 #include "HAL_ChibiOS_Class.h"
 #include <AP_HAL_Empty/AP_HAL_Empty_Private.h>
 #include <AP_HAL_ChibiOS/AP_HAL_ChibiOS_Private.h>
@@ -33,6 +34,7 @@
 #include <AP_Logger/AP_Logger.h>
 #endif
 #include <AP_Vehicle/AP_Vehicle_Type.h>
+#include <AP_HAL/SIMState.h>
 
 #include <hwdef.h>
 
@@ -46,6 +48,7 @@ static HAL_UARTF_DRIVER;
 static HAL_UARTG_DRIVER;
 static HAL_UARTH_DRIVER;
 static HAL_UARTI_DRIVER;
+static HAL_UARTJ_DRIVER;
 #else
 static Empty::UARTDriver uartADriver;
 static Empty::UARTDriver uartBDriver;
@@ -56,6 +59,7 @@ static Empty::UARTDriver uartFDriver;
 static Empty::UARTDriver uartGDriver;
 static Empty::UARTDriver uartHDriver;
 static Empty::UARTDriver uartIDriver;
+static Empty::UARTDriver uartJDriver;
 #endif
 
 #if HAL_USE_I2C == TRUE && defined(HAL_I2C_DEVICE_LIST)
@@ -94,6 +98,10 @@ static ChibiOS::Scheduler schedulerInstance;
 static ChibiOS::Util utilInstance;
 static Empty::OpticalFlow opticalFlowDriver;
 
+#if AP_SIM_ENABLED
+static AP_HAL::SIMState xsimstate;
+#endif
+
 #if HAL_WITH_DSP
 static ChibiOS::DSP dspDriver;
 #else
@@ -131,6 +139,7 @@ HAL_ChibiOS::HAL_ChibiOS() :
         &uartGDriver,
         &uartHDriver,
         &uartIDriver,
+        &uartJDriver,
         &i2cDeviceManager,
         &spiDeviceManager,
 #if HAL_USE_WSPI == TRUE && defined(HAL_QSPI_DEVICE_LIST)
@@ -148,6 +157,9 @@ HAL_ChibiOS::HAL_ChibiOS() :
         &utilInstance,
         &opticalFlowDriver,
         &flashDriver,
+#if AP_SIM_ENABLED
+        &xsimstate,
+#endif
         &dspDriver,
 #if HAL_NUM_CAN_IFACES
         (AP_HAL::CANIface**)canDrivers
@@ -201,7 +213,7 @@ static void main_loop()
     ChibiOS::I2CBus::clear_all();
 #endif
 
-#ifndef HAL_NO_SHARED_DMA
+#if AP_HAL_SHARED_DMA_ENABLED
     ChibiOS::Shared_DMA::init();
 #endif
 
@@ -237,6 +249,16 @@ static void main_loop()
     utilInstance.apply_persistent_params();
 #endif
 
+#ifdef HAL_FLASH_PROTECTION
+    if (AP_BoardConfig::unlock_flash()) {
+        stm32_flash_unprotect_flash();
+    } else {
+        stm32_flash_protect_flash(false, AP_BoardConfig::protect_flash());
+        stm32_flash_protect_flash(true, AP_BoardConfig::protect_bootloader());
+    }
+#endif
+
+#if !defined(DISABLE_WATCHDOG)
 #ifdef IOMCU_FW
     stm32_watchdog_init();
 #elif !defined(HAL_BOOTLOADER_BUILD)
@@ -249,6 +271,7 @@ static void main_loop()
         INTERNAL_ERROR(AP_InternalError::error_t::watchdog_reset);
     }
 #endif // IOMCU_FW
+#endif // DISABLE_WATCHDOG
 
     schedulerInstance.watchdog_pat();
 

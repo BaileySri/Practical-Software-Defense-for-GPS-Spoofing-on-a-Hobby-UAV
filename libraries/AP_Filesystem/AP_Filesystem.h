@@ -24,30 +24,51 @@
 
 #include "AP_Filesystem_Available.h"
 
+#ifndef MAX_NAME_LEN
+#define MAX_NAME_LEN 255
+#endif
+
 #if CONFIG_HAL_BOARD == HAL_BOARD_CHIBIOS
 #if HAVE_FILESYSTEM_SUPPORT
 #include "AP_Filesystem_FATFS.h"
 #endif
 #define DT_REG 0
 #define DT_DIR 1
-#if defined(FF_MAX_LFN) && FF_USE_LFN != 0
-#define MAX_NAME_LEN FF_MAX_LFN 
-#else
-#define MAX_NAME_LEN 13
-#endif
+#define DT_LNK 10
+
 struct dirent {
    char    d_name[MAX_NAME_LEN]; /* filename */
    uint8_t d_type;
 };
+
+#endif // HAL_BOARD_CHIBIOS
+
 #include <fcntl.h>
 #include <errno.h>
 #include <unistd.h>
-#endif // HAL_BOARD_CHIBIOS
+
+#ifndef AP_FILESYSTEM_FORMAT_ENABLED
+// only enable for SDMMC filesystems for now as other types can't query
+// block size
+#ifndef HAL_USE_SDMMC
+#define HAL_USE_SDMMC 0
+#endif
+#define AP_FILESYSTEM_FORMAT_ENABLED HAL_USE_SDMMC
+#endif
+
 #if CONFIG_HAL_BOARD == HAL_BOARD_LINUX || CONFIG_HAL_BOARD == HAL_BOARD_SITL
 #include "AP_Filesystem_posix.h"
 #endif
 
+#if CONFIG_HAL_BOARD == HAL_BOARD_ESP32
+#include "AP_Filesystem_ESP32.h"
+#endif
+
 #include "AP_Filesystem_backend.h"
+
+#ifndef AP_FILESYSTEM_FORMAT_ENABLED
+#define AP_FILESYSTEM_FORMAT_ENABLED 0
+#endif
 
 class AP_Filesystem {
 private:
@@ -60,7 +81,7 @@ public:
     AP_Filesystem() {}
 
     // functions that closely match the equivalent posix calls
-    int open(const char *fname, int flags);
+    int open(const char *fname, int flags, bool allow_absolute_paths = false);
     int close(int fd);
     int32_t read(int fd, void *buf, uint32_t count);
     int32_t write(int fd, const void *buf, uint32_t count);
@@ -92,6 +113,9 @@ public:
     // returns null-terminated string; cr or lf terminates line
     bool fgets(char *buf, uint8_t buflen, int fd);
 
+    // format filesystem
+    bool format(void);
+    
     /*
       load a full file. Use delete to free the data
      */

@@ -17,6 +17,7 @@
 #include <AP_HAL/AP_HAL.h>
 #include <SRV_Channel/SRV_Channel.h>
 #include <GCS_MAVLink/GCS.h>
+#include <AP_Notify/AP_Notify.h>
 
 extern const AP_HAL::HAL& hal;
 
@@ -53,7 +54,11 @@ void AP_Motors::get_frame_and_type_string(char *buffer, uint8_t buflen) const
 {
     const char *frame_str = get_frame_string();
     const char *type_str = get_type_string();
-    if (type_str != nullptr && strlen(type_str)) {
+    if (type_str != nullptr && strlen(type_str)
+#if AP_SCRIPTING_ENABLED
+        && custom_frame_string == nullptr
+#endif
+    ) {
         hal.util->snprintf(buffer, buflen, "Frame: %s/%s", frame_str, type_str);
     } else {
         hal.util->snprintf(buffer, buflen, "Frame: %s", frame_str);
@@ -113,14 +118,15 @@ void AP_Motors::rc_write_angle(uint8_t chan, int16_t angle_cd)
 /*
   set frequency of a set of channels
  */
-void AP_Motors::rc_set_freq(uint32_t mask, uint16_t freq_hz)
+void AP_Motors::rc_set_freq(uint32_t motor_mask, uint16_t freq_hz)
 {
     if (freq_hz > 50) {
-        _motor_fast_mask |= mask;
+        _motor_fast_mask |= motor_mask;
     }
 
-    mask = motor_mask_to_srv_channel_mask(mask);
+    const uint32_t mask = motor_mask_to_srv_channel_mask(motor_mask);
     hal.rcout->set_freq(mask, freq_hz);
+    hal.rcout->set_dshot_esc_type(SRV_Channels::get_dshot_esc_type());
 
     switch (pwm_type(_pwm_type.get())) {
     case PWM_TYPE_ONESHOT:
@@ -153,9 +159,9 @@ void AP_Motors::rc_set_freq(uint32_t mask, uint16_t freq_hz)
           this is a motor output type for multirotors which honours
           the SERVOn_MIN/MAX values per channel
          */
-        _motor_pwm_range_mask |= mask;
+        _motor_pwm_range_mask |= motor_mask;
         for (uint8_t i=0; i<16; i++) {
-            if ((1U<<i) & mask) {
+            if ((1U<<i) & motor_mask) {
                 SRV_Channels::set_range(SRV_Channels::get_motor_function(i), 1000);
             }
         }
@@ -196,7 +202,7 @@ void AP_Motors::add_motor_num(int8_t motor_num)
         SRV_Channel::Aux_servo_function_t function = SRV_Channels::get_motor_function(motor_num);
         SRV_Channels::set_aux_channel_default(function, motor_num);
         if (!SRV_Channels::find_channel(function, chan)) {
-            gcs().send_text(MAV_SEVERITY_ERROR, "Motors: unable to setup motor %u", motor_num);
+            gcs().send_text(MAV_SEVERITY_ERROR, "Motors: no SERVOx_FUNCTION set to Motor%u", motor_num + 1);
         }
     }
 }
@@ -226,6 +232,41 @@ bool AP_Motors::is_digital_pwm_type() const
             break;
     }
     return false;
+}
+
+// return string corresponding to frame_class
+const char* AP_Motors::get_frame_string() const
+{
+#if AP_SCRIPTING_ENABLED
+    if (custom_frame_string != nullptr) {
+        return custom_frame_string;
+    }
+#endif
+    return _get_frame_string();
+}
+
+#if AP_SCRIPTING_ENABLED
+// set custom frame string
+void AP_Motors::set_frame_string(const char * str) {
+    if (custom_frame_string != nullptr) {
+        return;
+    }
+    const size_t len = strlen(str)+1;
+    custom_frame_string = new char[len];
+    if (custom_frame_string != nullptr) {
+        strncpy(custom_frame_string, str, len);
+    }
+}
+#endif
+
+// output_test_seq - spin a motor at the pwm value specified
+//  motor_seq is the motor's sequence number from 1 to the number of motors on the frame
+//  pwm value is an actual pwm value that will be output, normally in the range of 1000 ~ 2000
+void AP_Motors::output_test_seq(uint8_t motor_seq, int16_t pwm)
+{
+    if (armed() && _interlock) {
+        _output_test_seq(motor_seq, pwm);
+    }
 }
 
 namespace AP {

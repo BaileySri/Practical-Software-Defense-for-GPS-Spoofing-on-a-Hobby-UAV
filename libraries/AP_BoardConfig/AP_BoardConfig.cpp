@@ -32,9 +32,6 @@
 #endif
 
 #if CONFIG_HAL_BOARD == HAL_BOARD_CHIBIOS
-#ifndef BOARD_SAFETY_ENABLE_DEFAULT
-# define BOARD_SAFETY_ENABLE_DEFAULT 1
-#endif
 #ifndef BOARD_SER1_RTSCTS_DEFAULT
 # define BOARD_SER1_RTSCTS_DEFAULT 2
 #endif
@@ -43,8 +40,24 @@
 #endif
 #endif
 
+#ifndef BOARD_SAFETY_ENABLE_DEFAULT
+#if defined(HAL_GPIO_PIN_SAFETY_IN)
+  // have safety startup enabled if we have a safety pin
+  # define BOARD_SAFETY_ENABLE_DEFAULT 1
+#elif defined(HAL_WITH_IO_MCU)
+  // if we have an IOMCU then enable by default
+  # define BOARD_SAFETY_ENABLE_DEFAULT HAL_WITH_IO_MCU
+#else
+  # define BOARD_SAFETY_ENABLE_DEFAULT 0
+#endif
+#endif
+
 #ifndef HAL_IMU_TEMP_DEFAULT
 #define HAL_IMU_TEMP_DEFAULT       -1 // disabled
+#endif
+
+#ifndef HAL_IMU_TEMP_MARGIN_LOW_DEFAULT
+#define HAL_IMU_TEMP_MARGIN_LOW_DEFAULT 0 // disabled
 #endif
 
 #ifndef BOARD_SAFETY_OPTION_DEFAULT
@@ -72,6 +85,18 @@
 
 extern const AP_HAL::HAL& hal;
 AP_BoardConfig *AP_BoardConfig::_singleton;
+
+// constructor
+AP_BoardConfig::AP_BoardConfig()
+#if HAL_HAVE_IMU_HEATER
+    // initialise heater PI controller. Note we do this in the cpp file
+    // for ccache efficiency
+    : heater{{HAL_IMUHEAT_P_DEFAULT, HAL_IMUHEAT_I_DEFAULT, 70},}
+#endif
+{
+    _singleton = this;
+    AP_Param::setup_object_defaults(this, var_info);
+};
 
 // table of user settable parameters
 const AP_Param::GroupInfo AP_BoardConfig::var_info[] = {
@@ -130,7 +155,6 @@ const AP_Param::GroupInfo AP_BoardConfig::var_info[] = {
 #endif
 #endif
 
-#if HAL_HAVE_SAFETY_SWITCH
     // @Param: SAFETYENABLE
     // @DisplayName: Enable use of safety arming switch
     // @Description: This controls the default state of the safety switch at startup. When set to 1 the safety switch will start in the safe state (flashing) at boot. When set to zero the safety switch will start in the unsafe state (solid) at startup. Note that if a safety switch is fitted the user can still control the safety state after startup using the switch. The safety state can also be controlled in software using a MAVLink message.
@@ -138,7 +162,6 @@ const AP_Param::GroupInfo AP_BoardConfig::var_info[] = {
     // @RebootRequired: True
     // @User: Standard
     AP_GROUPINFO("SAFETYENABLE",   3, AP_BoardConfig, state.safety_enable, BOARD_SAFETY_ENABLE_DEFAULT),
-#endif
 
 #if AP_FEATURE_SBUS_OUT
     // @Param: SBUS_OUT
@@ -153,11 +176,10 @@ const AP_Param::GroupInfo AP_BoardConfig::var_info[] = {
     // @Param: SERIAL_NUM
     // @DisplayName: User-defined serial number
     // @Description: User-defined serial number of this vehicle, it can be any arbitrary number you want and has no effect on the autopilot
-    // @Range: -32768 32767
+    // @Range: -8388608 8388607
     // @User: Standard
     AP_GROUPINFO("SERIAL_NUM", 5, AP_BoardConfig, vehicleSerialNumber, 0),
 
-#if HAL_HAVE_SAFETY_SWITCH
     // @Param: SAFETY_MASK
     // @DisplayName: Outputs which ignore the safety switch state
     // @Description: A bitmask which controls what outputs can move while the safety switch has not been pressed
@@ -165,16 +187,15 @@ const AP_Param::GroupInfo AP_BoardConfig::var_info[] = {
     // @RebootRequired: True
     // @User: Advanced
     AP_GROUPINFO("SAFETY_MASK", 7, AP_BoardConfig, state.ignore_safety_channels, 0),
-#endif
 
 #if HAL_HAVE_IMU_HEATER
-    // @Param: IMU_TARGTEMP
-    // @DisplayName: Target IMU temperature
-    // @Description: This sets the target IMU temperature for boards with controllable IMU heating units. DO NOT SET to -1 on the Cube. Set to -1 to disable the heater, please reboot after setting to -1.
+    // @Param: HEAT_TARG
+    // @DisplayName: Board heater temperature target
+    // @Description: Board heater target temperature for boards with controllable heating units. DO NOT SET to -1 on the Cube. Set to -1 to disable the heater, please reboot after setting to -1.
     // @Range: -1 80
     // @Units: degC
     // @User: Advanced
-    AP_GROUPINFO("IMU_TARGTEMP", 8, AP_BoardConfig, heater.imu_target_temperature, HAL_IMU_TEMP_DEFAULT),
+    AP_GROUPINFO("HEAT_TARG", 8, AP_BoardConfig, heater.imu_target_temperature, HAL_IMU_TEMP_DEFAULT),
 #endif
 
 #if AP_FEATURE_BOARD_DETECT
@@ -259,7 +280,7 @@ const AP_Param::GroupInfo AP_BoardConfig::var_info[] = {
     // @Param: OPTIONS
     // @DisplayName: Board options
     // @Description: Board specific option flags
-    // @Bitmask: 0:Enable hardware watchdog, 1:Disable MAVftp, 2:Enable set of internal parameters
+    // @Bitmask: 0:Enable hardware watchdog, 1:Disable MAVftp, 2:Enable set of internal parameters, 3:Enable Debug Pins, 4:Unlock flash on reboot, 5:Write protect firmware flash on reboot, 6:Write protect bootloader flash on reboot
     // @User: Advanced
     AP_GROUPINFO("OPTIONS", 19, AP_BoardConfig, _options, HAL_BRD_OPTIONS_DEFAULT),
 
@@ -272,27 +293,27 @@ const AP_Param::GroupInfo AP_BoardConfig::var_info[] = {
     AP_GROUPINFO("BOOT_DELAY", 20, AP_BoardConfig, _boot_delay_ms, HAL_DEFAULT_BOOT_DELAY),
 
 #if HAL_HAVE_IMU_HEATER
-    // @Param: IMUHEAT_P
-    // @DisplayName: IMU Heater P gain
-    // @Description: IMU Heater P gain
+    // @Param: HEAT_P
+    // @DisplayName: Board Heater P gain
+    // @Description: Board Heater P gain
     // @Range: 1 500
     // @Increment: 1
     // @User: Advanced
 
-    // @Param: IMUHEAT_I
-    // @DisplayName: IMU Heater I gain
-    // @Description: IMU Heater integrator gain
+    // @Param: HEAT_I
+    // @DisplayName: Board Heater I gain
+    // @Description: Board Heater integrator gain
     // @Range: 0 1
     // @Increment: 0.1
     // @User: Advanced
 
-    // @Param: IMUHEAT_IMAX
-    // @DisplayName: IMU Heater IMAX
-    // @Description: IMU Heater integrator maximum
+    // @Param: HEAT_IMAX
+    // @DisplayName: Board Heater IMAX
+    // @Description: Board Heater integrator maximum
     // @Range: 0 100
     // @Increment: 1
     // @User: Advanced
-    AP_SUBGROUPINFO(heater.pi_controller, "IMUHEAT_",  21, AP_BoardConfig, AC_PI),
+    AP_SUBGROUPINFO(heater.pi_controller, "HEAT_",  21, AP_BoardConfig, AC_PI),
 #endif
 
 #ifdef HAL_PIN_ALT_CONFIG
@@ -306,11 +327,24 @@ const AP_Param::GroupInfo AP_BoardConfig::var_info[] = {
     AP_GROUPINFO("ALT_CONFIG", 22, AP_BoardConfig, _alt_config, 0),
 #endif // HAL_PIN_ALT_CONFIG
 
+#if HAL_HAVE_IMU_HEATER
+    // @Param: HEAT_LOWMGN
+    // @DisplayName: Board heater temp lower margin
+    // @Description: Arming check will fail if temp is lower than this margin below BRD_HEAT_TARG. 0 disables the low temperature check
+    // @Range: 0 20
+    // @Units: degC
+    // @User: Advanced
+    AP_GROUPINFO("HEAT_LOWMGN", 23, AP_BoardConfig, heater.imu_arming_temperature_margin_low, HAL_IMU_TEMP_MARGIN_LOW_DEFAULT),
+#endif
+
     AP_GROUPEND
 };
 
 void AP_BoardConfig::init()
 {
+    // PARAMETER_CONVERSION - Added: APR-2022
+    vehicleSerialNumber.convert_parameter_width(AP_PARAM_INT16);
+
     board_setup();
 
     AP::rtc().set_utc_usec(hal.util->get_hw_rtc(), AP_RTC::SOURCE_HW);
@@ -344,16 +378,15 @@ void AP_BoardConfig::init()
 }
 
 // set default value for BRD_SAFETY_MASK
-void AP_BoardConfig::set_default_safety_ignore_mask(uint16_t mask)
+void AP_BoardConfig::set_default_safety_ignore_mask(uint32_t mask)
 {
-#if HAL_HAVE_SAFETY_SWITCH
     state.ignore_safety_channels.set_default(mask);
-#endif
 }
 
 void AP_BoardConfig::init_safety()
 {
     board_init_safety();
+    board_init_debug();
 }
 
 /*
@@ -377,13 +410,23 @@ void AP_BoardConfig::throw_error(const char *err_type, const char *fmt, va_list 
             last_print_ms = now;
             char printfmt[MAVLINK_MSG_STATUSTEXT_FIELD_TEXT_LEN+2];
             hal.util->snprintf(printfmt, sizeof(printfmt), "%s: %s\n", err_type, fmt);
-            vprintf(printfmt, arg);
-#if !APM_BUILD_TYPE(APM_BUILD_UNKNOWN) && !defined(HAL_BUILD_AP_PERIPH)
+            {
+                va_list arg_copy;
+                va_copy(arg_copy, arg);
+                vprintf(printfmt, arg_copy);
+                va_end(arg_copy);
+            }
+#if HAL_GCS_ENABLED
             hal.util->snprintf(printfmt, sizeof(printfmt), "%s: %s", err_type, fmt);
-            gcs().send_textv(MAV_SEVERITY_CRITICAL, printfmt, arg);
+            {
+                va_list arg_copy;
+                va_copy(arg_copy, arg);
+                gcs().send_textv(MAV_SEVERITY_CRITICAL, printfmt, arg_copy);
+                va_end(arg_copy);
+            }
 #endif
         }
-#if !APM_BUILD_TYPE(APM_BUILD_UNKNOWN) && !defined(HAL_BUILD_AP_PERIPH)
+#if HAL_GCS_ENABLED
         gcs().update_receive();
         gcs().update_send();
 #endif

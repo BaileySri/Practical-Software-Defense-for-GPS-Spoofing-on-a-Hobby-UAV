@@ -52,7 +52,7 @@ void ModeCircle::run()
         const float radius_new = MAX(radius_current + radius_pilot_change,0);   // new radius target
 
         if (!is_equal(radius_current, radius_new)) {
-            copter.circle_nav->set_radius(radius_new);
+            copter.circle_nav->set_radius_cm(radius_new);
         }
 
         // update the orbicular rate target based on pilot roll stick inputs
@@ -89,6 +89,9 @@ void ModeCircle::run()
 
     // get pilot desired climb rate (or zero if in radio failsafe)
     float target_climb_rate = get_pilot_desired_climb_rate(channel_throttle->get_control_in());
+
+    // get avoidance adjusted climb rate
+    target_climb_rate = get_avoidance_adjusted_climbrate(target_climb_rate);
 
     // if not armed set throttle to zero and exit immediately
     if (is_disarmed_or_landed()) {

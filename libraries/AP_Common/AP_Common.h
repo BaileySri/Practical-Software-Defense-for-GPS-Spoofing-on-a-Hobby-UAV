@@ -33,6 +33,13 @@
 // used to mark a function that may be unused in some builds
 #define UNUSED_FUNCTION __attribute__((unused))
 
+// used to mark an attribute that may be unused in some builds
+#ifdef __clang__
+#define UNUSED_PRIVATE_MEMBER __attribute__((unused))
+#else
+#define UNUSED_PRIVATE_MEMBER
+#endif
+
 // this can be used to optimize individual functions
 #define OPTIMIZE(level) __attribute__((optimize(level)))
 
@@ -89,7 +96,7 @@
 #define ARRAY_SIZE(_arr) (sizeof(_arr) / sizeof(_arr[0]))
 
 #define UINT16_VALUE(hbyte, lbyte) (static_cast<uint16_t>(((hbyte)<<8)|(lbyte)))
-#define UINT32_VALUE(b3, b2, b1, b0) (static_cast<uint32_t>(((b3)<<23)|((b2)<<16)|((b1)<<8)|(b0)))
+#define UINT32_VALUE(b3, b2, b1, b0) (static_cast<uint32_t>(((b3)<<24)|((b2)<<16)|((b1)<<8)|(b0)))
 
 /*
  * See UNUSED_RESULT. The difference is that it receives @uniq_ as the name to
@@ -114,6 +121,9 @@
 
 // @}
 
+// STR_VALUE returns the string equivalent for the passed cpp macro, so e.g.
+// printf("%s", STR_VALUE(EINVAL)); will print "EINVAL"
+#define STR_VALUE(x) #x
 
 // assert_storage_size template: assert that the memory used to store an
 // item is of a specific size.
@@ -148,6 +158,9 @@ bool hex_to_uint8(uint8_t a, uint8_t &res);  // return the uint8 value of an asc
   strncpy without the warning for not leaving room for nul termination
  */
 void strncpy_noterm(char *dest, const char *src, size_t n);
+
+// return the numeric value of an ascii hex character
+int16_t char_to_hex(char a);
 
 /*
   Bit manipulation

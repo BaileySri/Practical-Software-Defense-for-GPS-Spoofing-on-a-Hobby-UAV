@@ -281,7 +281,7 @@ const AP_Param::Info Tracker::var_info[] = {
     // @Path: ../libraries/AP_AHRS/AP_AHRS.cpp
     GOBJECT(ahrs,                   "AHRS_",    AP_AHRS),
 
-#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
+#if AP_SIM_ENABLED
     // @Group: SIM_
     // @Path: ../libraries/SITL/SITL.cpp
     GOBJECT(sitl, "SIM_", SITL::SIM),
@@ -456,7 +456,7 @@ const AP_Param::Info Tracker::var_info[] = {
 
     GGROUP(pidYaw2Srv,         "YAW2SRV_", AC_PID),
 
-#ifdef ENABLE_SCRIPTING
+#if AP_SCRIPTING_ENABLED
     // @Group: SCR_
     // @Path: ../libraries/AP_Scripting/AP_Scripting.cpp
     GOBJECT(scripting, "SCR_", AP_Scripting),

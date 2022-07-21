@@ -17,6 +17,8 @@
 #include <AP_RCTelemetry/AP_CRSF_Telem.h>
 #include <GCS_MAVLink/GCS.h>
 
+#include <AP_HAL/AP_HAL.h>
+
 extern const AP_HAL::HAL& hal;
 
 AP_VideoTX *AP_VideoTX::singleton;
@@ -161,7 +163,7 @@ void AP_VideoTX::set_power_dbm(uint8_t power) {
         _current_power = 800;
         break;
     default:
-        _current_power = uint16_t(roundf(powf(10, power / 10.0f)));
+        _current_power = uint16_t(roundf(powf(10, power * 0.1f)));
         break;
     }
 }
@@ -215,7 +217,7 @@ void AP_VideoTX::set_power_level(uint8_t level) {
 // set the current channel
 void AP_VideoTX::set_enabled(bool enabled) {
     _current_enabled = enabled;
-    if (!_enabled.configured_in_storage()) {
+    if (!_enabled.configured()) {
         _enabled.set_and_save(enabled);
     }
 }

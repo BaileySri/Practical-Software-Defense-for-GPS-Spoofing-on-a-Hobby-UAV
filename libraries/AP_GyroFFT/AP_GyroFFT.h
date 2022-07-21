@@ -26,7 +26,6 @@
 #if HAL_GYROFFT_ENABLED
 
 #include <AP_Common/AP_Common.h>
-#include <AP_HAL/AP_HAL.h>
 #include <AP_HAL/utility/RingBuffer.h>
 #include <AP_Param/AP_Param.h>
 #include <AP_Math/AP_Math.h>
@@ -48,7 +47,7 @@ public:
     AP_GyroFFT(const AP_GyroFFT &other) = delete;
     AP_GyroFFT &operator=(const AP_GyroFFT&) = delete;
 
-    void init(uint32_t target_looptime);
+    void init(uint16_t loop_rate_hz);
 
     // cycle through the FFT steps - runs in the FFT thread
     uint16_t run_cycle();
@@ -57,11 +56,13 @@ public:
     // update the engine state - runs at 400Hz
     void update();
     // update calculated values of dynamic parameters - runs at 1Hz
-    void update_parameters();
+    void update_parameters() { update_parameters(false); }
     // thread for processing gyro data via FFT
     void update_thread();
     // start the update thread
     bool start_update_thread();
+    // is the subsystem enabled
+    bool enabled() const { return _enable; }
 
     // check at startup that standard frequencies can be detected
     bool pre_arm_check(char *failure_msg, const uint8_t failure_msg_len);
@@ -73,6 +74,9 @@ public:
     void save_params_on_disarm();
     // dynamically enable or disable the analysis through the aux switch
     void set_analysis_enabled(bool enabled) { _analysis_enabled = enabled; };
+    // notch tuning
+    void start_notch_tune();
+    void stop_notch_tune();
 
     // detected peak frequency filtered at 1/3 the update rate
     const Vector3f& get_noise_center_freq_hz() const { return get_noise_center_freq_hz(FrequencyPeak::CENTER); }
@@ -176,7 +180,7 @@ private:
         return (_thread_state._center_bandwidth_hz_filtered[peak][axis] = _center_bandwidth_filter[peak].apply(axis, value));
     }
     // write single log mesages
-    void log_noise_peak(uint8_t id, FrequencyPeak peak, float notch_freq) const;
+    void log_noise_peak(uint8_t id, FrequencyPeak peak) const;
     // calculate the peak noise frequency
     void calculate_noise(bool calibrating, const EngineConfig& config);
     // calculate noise peaks based on energy and history
@@ -207,6 +211,7 @@ private:
     uint16_t get_available_samples(uint8_t axis) {
         return _sample_mode == 0 ?_ins->get_raw_gyro_window(axis).available() : _downsampled_gyro_data[axis].available();
     }
+    void update_parameters(bool force);
     // semaphore for access to shared FFT data
     HAL_Semaphore _sem;
 
@@ -277,12 +282,14 @@ private:
     uint8_t _current_sample_mode : 3;
     // harmonic multiplier for two highest peaks
     float _harmonic_multiplier;
-    // searched harmonics - inferred from harmonic notch harmonics
-    uint8_t _harmonics;
+    // number of tracked peaks
+    uint8_t _tracked_peaks;
     // engine health in tracked peaks
     uint8_t _health;
     // engine health on roll/pitch/yaw
     Vector3<uint8_t> _rpy_health;
+    // averaged throttle output over averaging period
+    float _avg_throttle_out;
 
     // smoothing filter on the output
     MedianLowPassFilter3dFloat _center_freq_filter[FrequencyPeak::MAX_TRACKED_PEAKS];
@@ -334,6 +341,8 @@ private:
     AP_Int8 _harmonic_fit;
     // harmonic peak target
     AP_Int8 _harmonic_peak;
+    // number of output frames to retain for averaging
+    AP_Int8 _num_frames;
     AP_InertialSensor* _ins;
 #if DEBUG_FFT
     uint32_t _last_output_ms;

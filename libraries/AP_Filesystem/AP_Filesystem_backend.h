@@ -43,7 +43,7 @@ class AP_Filesystem_Backend {
 
 public:
     // functions that closely match the equivalent posix calls
-    virtual int open(const char *fname, int flags) {
+    virtual int open(const char *fname, int flags, bool allow_absolute_paths = false) {
         return -1;
     }
     virtual int close(int fd) { return -1; }
@@ -73,6 +73,9 @@ public:
     // unmount filesystem for reboot
     virtual void unmount(void) {}
 
+    // format sdcard
+    virtual bool format(void) { return false; }
+    
     /*
       load a full file. Use delete to free the data
      */

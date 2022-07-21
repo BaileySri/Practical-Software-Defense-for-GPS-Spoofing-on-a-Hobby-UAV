@@ -82,7 +82,7 @@ enum RTLState {
     RTL_Land
 };
 
-//  Logging parameters
+//  Logging parameters - only 32 messages are available to the vehicle here.
 enum LoggingParameters {
     LOG_CONTROL_TUNING_MSG,
     LOG_DATA_INT16_MSG,
@@ -90,7 +90,6 @@ enum LoggingParameters {
     LOG_DATA_INT32_MSG,
     LOG_DATA_UINT32_MSG,
     LOG_DATA_FLOAT_MSG,
-    LOG_MOTBATT_MSG,
     LOG_GUIDEDTARGET_MSG
 };
 
@@ -187,6 +186,7 @@ enum LoggingParameters {
 #define FS_TERRAIN_RECOVER_TIMEOUT_MS 10000
 
 // for mavlink SET_POSITION_TARGET messages
+#define MAVLINK_SET_POS_TYPE_MASK_Z_IGNORE        (1<<2)
 #define MAVLINK_SET_POS_TYPE_MASK_POS_IGNORE      ((1<<0) | (1<<1) | (1<<2))
 #define MAVLINK_SET_POS_TYPE_MASK_VEL_IGNORE      ((1<<3) | (1<<4) | (1<<5))
 #define MAVLINK_SET_POS_TYPE_MASK_ACC_IGNORE      ((1<<6) | (1<<7) | (1<<8))

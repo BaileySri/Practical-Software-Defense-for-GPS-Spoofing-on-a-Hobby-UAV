@@ -33,6 +33,9 @@ public:
 protected:
     bool ins_checks(bool report) override;
 
+    bool quadplane_checks(bool display_failure);
+    bool mission_checks(bool report) override;
+
 private:
     void change_arm_state(void);
 

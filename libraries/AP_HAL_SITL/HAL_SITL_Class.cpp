@@ -63,6 +63,7 @@ static UARTDriver sitlUart5Driver(5, &sitlState);
 static UARTDriver sitlUart6Driver(6, &sitlState);
 static UARTDriver sitlUart7Driver(7, &sitlState);
 static UARTDriver sitlUart8Driver(8, &sitlState);
+static UARTDriver sitlUart9Driver(9, &sitlState);
 
 #if defined(HAL_BUILD_AP_PERIPH)
 static Empty::I2CDeviceManager i2c_mgr_instance;
@@ -90,6 +91,7 @@ HAL_SITL::HAL_SITL() :
         &sitlUart6Driver,   /* uartG */
         &sitlUart7Driver,   /* uartH */
         &sitlUart8Driver,   /* uartI */
+        &sitlUart9Driver,   /* uartJ */
         &i2c_mgr_instance,
         &spi_mgr_instance,  /* spi */
         &qspi_mgr_instance,
@@ -168,6 +170,12 @@ void HAL_SITL::setup_signal_handlers() const
     sa.sa_flags = SA_NOCLDSTOP;
     sa.sa_handler = HAL_SITL::exit_signal_handler;
     sigaction(SIGTERM, &sa, NULL);
+#if defined(HAL_COVERAGE_BUILD) && HAL_COVERAGE_BUILD == 1
+    sigaction(SIGINT, &sa, NULL);
+    sigaction(SIGHUP, &sa, NULL);
+    sigaction(SIGQUIT, &sa, NULL);
+#endif
+
 }
 
 /*
@@ -178,6 +186,11 @@ static void fill_stack_nan(void)
 {
     float stk[2048];
     fill_nanf(stk, ARRAY_SIZE(stk));
+}
+
+uint8_t HAL_SITL::get_instance() const
+{
+    return _sitl_state->get_instance();
 }
 
 void HAL_SITL::run(int argc, char * const argv[], Callbacks* callbacks) const

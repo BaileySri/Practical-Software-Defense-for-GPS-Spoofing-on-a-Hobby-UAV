@@ -15,11 +15,9 @@
 
 #pragma once
 
-
-
 #include <AP_Common/AP_Common.h>
 #include <AP_Param/AP_Param.h>
-#include <GCS_MAVLink/GCS.h>
+#include <GCS_MAVLink/GCS_MAVLink.h>
 
 #ifndef HAL_EFI_ENABLED
 #define HAL_EFI_ENABLED !HAL_MINIMIZE_FEATURES && BOARD_FLASH_SIZE > 1024
@@ -66,6 +64,14 @@ public:
 
     bool is_healthy() const;
 
+    // return timestamp of last update
+    uint32_t get_last_update_ms(void) const {
+        return state.last_updated_ms;
+    }
+
+    // get a copy of state structure
+    void get_state(EFI_State &state);
+
     // Parameter info
     static const struct AP_Param::GroupInfo var_info[];
 
@@ -74,6 +80,9 @@ public:
         NONE       = 0,
         MegaSquirt = 1,
         NWPMU     = 2,
+        Lutan     = 3,
+        // LOWEHEISER = 4,
+        DroneCAN = 5,
     };
 
     static AP_EFI *get_singleton(void) {
@@ -98,6 +107,9 @@ private:
     // Tracking backends
     AP_EFI_Backend *backend;
     static AP_EFI *singleton;
+
+    // Semaphore for access to shared frontend data
+    HAL_Semaphore sem;
 
     // write to log
     void log_status();

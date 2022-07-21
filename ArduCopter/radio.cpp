@@ -51,7 +51,7 @@ void Copter::init_rc_out()
     motors->set_update_rate(g.rc_speed);
 
 #if FRAME_CONFIG != HELI_FRAME
-    if (channel_throttle->configured_in_storage()) {
+    if (channel_throttle->configured()) {
         // throttle inputs setup, use those to set motor PWM min and max if not already configured
         motors->convert_pwm_min_max_param(channel_throttle->get_radio_min(), channel_throttle->get_radio_max());
     } else {
@@ -114,7 +114,7 @@ void Copter::read_radio()
     }
 
     const uint32_t elapsed = tnow_ms - last_radio_update_ms;
-    // turn on throttle failsafe if no update from the RC Radio for 500ms or 2000ms if we are using RC_OVERRIDE
+    // turn on throttle failsafe if no update from the RC Radio for 500ms or 1000ms if we are using RC_OVERRIDE
     const uint32_t timeout = RC_Channels::has_active_overrides() ? FS_RADIO_RC_OVERRIDE_TIMEOUT_MS : FS_RADIO_TIMEOUT_MS;
     if (elapsed < timeout) {
         // not timed out yet

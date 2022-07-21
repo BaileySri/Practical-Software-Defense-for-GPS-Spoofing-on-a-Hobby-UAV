@@ -16,6 +16,7 @@
 #include "AP_Beacon_Backend.h"
 // debug
 #include <stdio.h>
+#include <AP_SerialManager/AP_SerialManager.h>
 
 /*
   base class constructor. 
@@ -24,6 +25,13 @@
 AP_Beacon_Backend::AP_Beacon_Backend(AP_Beacon &frontend) :
     _frontend(frontend)
 {
+    const AP_SerialManager &serialmanager = AP::serialmanager();
+    uart = serialmanager.find_serial(AP_SerialManager::SerialProtocol_Beacon, 0);
+    if (uart == nullptr) {
+        return;
+    }
+
+    uart->begin(serialmanager.find_baudrate(AP_SerialManager::SerialProtocol_Beacon, 0));
 }
 
 // set vehicle position

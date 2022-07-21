@@ -7,6 +7,7 @@
 #include <AP_Logger/AP_Logger.h>
 #include <AP_Vehicle/AP_Vehicle_Type.h>
 #include <AP_ExternalAHRS/AP_ExternalAHRS.h>
+#include <AP_CustomRotations/AP_CustomRotations.h>
 
 #include "AP_Compass_SITL.h"
 #include "AP_Compass_AK8963.h"
@@ -38,6 +39,10 @@
 #include <stdio.h>
 
 extern const AP_HAL::HAL& hal;
+
+#ifndef AP_COMPASS_ENABLE_DEFAULT
+ #define AP_COMPASS_ENABLE_DEFAULT 1
+#endif
 
 #ifndef COMPASS_LEARN_DEFAULT
 #define COMPASS_LEARN_DEFAULT Compass::LEARN_NONE
@@ -157,7 +162,7 @@ const AP_Param::GroupInfo Compass::var_info[] = {
     // @Param: ORIENT
     // @DisplayName: Compass orientation
     // @Description: The orientation of the first external compass relative to the vehicle frame. This value will be ignored unless this compass is set as an external compass. When set correctly in the northern hemisphere, pointing the nose and right side down should increase the MagX and MagY values respectively. Rolling the vehicle upside down should decrease the MagZ value. For southern hemisphere, switch increase and decrease. NOTE: For internal compasses, AHRS_ORIENT is used. The label for each option is specified in the order of rotations for that orientation.
-    // @Values: 0:None,1:Yaw45,2:Yaw90,3:Yaw135,4:Yaw180,5:Yaw225,6:Yaw270,7:Yaw315,8:Roll180,9:Yaw45Roll180,10:Yaw90Roll180,11:Yaw135Roll180,12:Pitch180,13:Yaw225Roll180,14:Yaw270Roll180,15:Yaw315Roll180,16:Roll90,17:Yaw45Roll90,18:Yaw90Roll90,19:Yaw135Roll90,20:Roll270,21:Yaw45Roll270,22:Yaw90Roll270,23:Yaw135Roll270,24:Pitch90,25:Pitch270,26:Yaw90Pitch180,27:Yaw270Pitch180,28:Pitch90Roll90,29:Pitch90Roll180,30:Pitch90Roll270,31:Pitch180Roll90,32:Pitch180Roll270,33:Pitch270Roll90,34:Pitch270Roll180,35:Pitch270Roll270,36:Yaw90Pitch180Roll90,37:Yaw270Roll90,38:Yaw293Pitch68Roll180,39:Pitch315,40:Pitch315Roll90,42:Roll45,43:Roll315,100:Custom
+    // @Values: 0:None,1:Yaw45,2:Yaw90,3:Yaw135,4:Yaw180,5:Yaw225,6:Yaw270,7:Yaw315,8:Roll180,9:Yaw45Roll180,10:Yaw90Roll180,11:Yaw135Roll180,12:Pitch180,13:Yaw225Roll180,14:Yaw270Roll180,15:Yaw315Roll180,16:Roll90,17:Yaw45Roll90,18:Yaw90Roll90,19:Yaw135Roll90,20:Roll270,21:Yaw45Roll270,22:Yaw90Roll270,23:Yaw135Roll270,24:Pitch90,25:Pitch270,26:Yaw90Pitch180,27:Yaw270Pitch180,28:Pitch90Roll90,29:Pitch90Roll180,30:Pitch90Roll270,31:Pitch180Roll90,32:Pitch180Roll270,33:Pitch270Roll90,34:Pitch270Roll180,35:Pitch270Roll270,36:Yaw90Pitch180Roll90,37:Yaw270Roll90,38:Yaw293Pitch68Roll180,39:Pitch315,40:Pitch315Roll90,42:Roll45,43:Roll315,100:Custom 4.1 and older,101:Custom 1,102:Custom 2
     // @User: Advanced
     AP_GROUPINFO("ORIENT", 8, Compass, _state._priv_instance[0].orientation, ROTATION_NONE),
 
@@ -317,7 +322,7 @@ const AP_Param::GroupInfo Compass::var_info[] = {
     // @Param: ORIENT2
     // @DisplayName: Compass2 orientation
     // @Description: The orientation of a second external compass relative to the vehicle frame. This value will be ignored unless this compass is set as an external compass. When set correctly in the northern hemisphere, pointing the nose and right side down should increase the MagX and MagY values respectively. Rolling the vehicle upside down should decrease the MagZ value. For southern hemisphere, switch increase and decrease. NOTE: For internal compasses, AHRS_ORIENT is used.
-    // @Values: 0:None,1:Yaw45,2:Yaw90,3:Yaw135,4:Yaw180,5:Yaw225,6:Yaw270,7:Yaw315,8:Roll180,9:Roll180Yaw45,10:Roll180Yaw90,11:Roll180Yaw135,12:Pitch180,13:Roll180Yaw225,14:Roll180Yaw270,15:Roll180Yaw315,16:Roll90,17:Roll90Yaw45,18:Roll90Yaw90,19:Roll90Yaw135,20:Roll270,21:Roll270Yaw45,22:Roll270Yaw90,23:Roll270Yaw135,24:Pitch90,25:Pitch270,26:Pitch180Yaw90,27:Pitch180Yaw270,28:Roll90Pitch90,29:Roll180Pitch90,30:Roll270Pitch90,31:Roll90Pitch180,32:Roll270Pitch180,33:Roll90Pitch270,34:Roll180Pitch270,35:Roll270Pitch270,36:Roll90Pitch180Yaw90,37:Roll90Yaw270,38:Yaw293Pitch68Roll180,39:Pitch315,40:Roll90Pitch315,42:Roll45,43:Roll315,100:Custom
+    // @Values: 0:None,1:Yaw45,2:Yaw90,3:Yaw135,4:Yaw180,5:Yaw225,6:Yaw270,7:Yaw315,8:Roll180,9:Yaw45Roll180,10:Yaw90Roll180,11:Yaw135Roll180,12:Pitch180,13:Yaw225Roll180,14:Yaw270Roll180,15:Yaw315Roll180,16:Roll90,17:Yaw45Roll90,18:Yaw90Roll90,19:Yaw135Roll90,20:Roll270,21:Yaw45Roll270,22:Yaw90Roll270,23:Yaw135Roll270,24:Pitch90,25:Pitch270,26:Yaw90Pitch180,27:Yaw270Pitch180,28:Pitch90Roll90,29:Pitch90Roll180,30:Pitch90Roll270,31:Pitch180Roll90,32:Pitch180Roll270,33:Pitch270Roll90,34:Pitch270Roll180,35:Pitch270Roll270,36:Yaw90Pitch180Roll90,37:Yaw270Roll90,38:Yaw293Pitch68Roll180,39:Pitch315,40:Pitch315Roll90,42:Roll45,43:Roll315,100:Custom 4.1 and older,101:Custom 1,102:Custom 2
     // @User: Advanced
     AP_GROUPINFO("ORIENT2", 19, Compass, _state._priv_instance[1].orientation, ROTATION_NONE),
 
@@ -340,7 +345,7 @@ const AP_Param::GroupInfo Compass::var_info[] = {
     // @Param: ORIENT3
     // @DisplayName: Compass3 orientation
     // @Description: The orientation of a third external compass relative to the vehicle frame. This value will be ignored unless this compass is set as an external compass. When set correctly in the northern hemisphere, pointing the nose and right side down should increase the MagX and MagY values respectively. Rolling the vehicle upside down should decrease the MagZ value. For southern hemisphere, switch increase and decrease. NOTE: For internal compasses, AHRS_ORIENT is used.
-    // @Values: 0:None,1:Yaw45,2:Yaw90,3:Yaw135,4:Yaw180,5:Yaw225,6:Yaw270,7:Yaw315,8:Roll180,9:Roll180Yaw45,10:Roll180Yaw90,11:Roll180Yaw135,12:Pitch180,13:Roll180Yaw225,14:Roll180Yaw270,15:Roll180Yaw315,16:Roll90,17:Roll90Yaw45,18:Roll90Yaw90,19:Roll90Yaw135,20:Roll270,21:Roll270Yaw45,22:Roll270Yaw90,23:Roll270Yaw135,24:Pitch90,25:Pitch270,26:Pitch180Yaw90,27:Pitch180Yaw270,28:Roll90Pitch90,29:Roll180Pitch90,30:Roll270Pitch90,31:Roll90Pitch180,32:Roll270Pitch180,33:Roll90Pitch270,34:Roll180Pitch270,35:Roll270Pitch270,36:Roll90Pitch180Yaw90,37:Roll90Yaw270,38:Yaw293Pitch68Roll180,39:Pitch315,40:Roll90Pitch315,42:Roll45,43:Roll315,100:Custom
+    // @Values: 0:None,1:Yaw45,2:Yaw90,3:Yaw135,4:Yaw180,5:Yaw225,6:Yaw270,7:Yaw315,8:Roll180,9:Yaw45Roll180,10:Yaw90Roll180,11:Yaw135Roll180,12:Pitch180,13:Yaw225Roll180,14:Yaw270Roll180,15:Yaw315Roll180,16:Roll90,17:Yaw45Roll90,18:Yaw90Roll90,19:Yaw135Roll90,20:Roll270,21:Yaw45Roll270,22:Yaw90Roll270,23:Yaw135Roll270,24:Pitch90,25:Pitch270,26:Yaw90Pitch180,27:Yaw270Pitch180,28:Pitch90Roll90,29:Pitch90Roll180,30:Pitch90Roll270,31:Pitch180Roll90,32:Pitch180Roll270,33:Pitch270Roll90,34:Pitch270Roll180,35:Pitch270Roll270,36:Yaw90Pitch180Roll90,37:Yaw270Roll90,38:Yaw293Pitch68Roll180,39:Pitch315,40:Pitch315Roll90,42:Roll45,43:Roll315,100:Custom 4.1 and older,101:Custom 1,102:Custom 2
     // @User: Advanced
     AP_GROUPINFO("ORIENT3", 22, Compass, _state._priv_instance[2].orientation, ROTATION_NONE),
 
@@ -496,7 +501,7 @@ const AP_Param::GroupInfo Compass::var_info[] = {
     // @Param: TYPEMASK
     // @DisplayName: Compass disable driver type mask
     // @Description: This is a bitmask of driver types to disable. If a driver type is set in this mask then that driver will not try to find a sensor at startup
-    // @Bitmask: 0:HMC5883,1:LSM303D,2:AK8963,3:BMM150,4:LSM9DS1,5:LIS3MDL,6:AK09916,7:IST8310,8:ICM20948,9:MMC3416,11:UAVCAN,12:QMC5883,14:MAG3110,15:IST8308,16:RM3100,17:MSP,18:ExternalAHRS
+    // @Bitmask: 0:HMC5883,1:LSM303D,2:AK8963,3:BMM150,4:LSM9DS1,5:LIS3MDL,6:AK09916,7:IST8310,8:ICM20948,9:MMC3416,11:DroneCAN,12:QMC5883,14:MAG3110,15:IST8308,16:RM3100,17:MSP,18:ExternalAHRS
     // @User: Advanced
     AP_GROUPINFO("TYPEMASK", 33, Compass, _driver_type_mask, 0),
 
@@ -547,7 +552,7 @@ const AP_Param::GroupInfo Compass::var_info[] = {
     // @User: Standard
     // @RebootRequired: True
     // @Values: 0:Disabled,1:Enabled
-    AP_GROUPINFO("ENABLE", 39, Compass, _enabled, 1),
+    AP_GROUPINFO("ENABLE", 39, Compass, _enabled, AP_COMPASS_ENABLE_DEFAULT),
 
 #ifndef HAL_BUILD_AP_PERIPH
     // @Param: SCALE
@@ -628,7 +633,6 @@ const AP_Param::GroupInfo Compass::var_info[] = {
     AP_GROUPINFO("DEV_ID8", 48, Compass, extra_dev_id[4], 0),
 #endif // COMPASS_MAX_UNREG_DEV
 
-#if !APM_BUILD_TYPE(APM_BUILD_AP_Periph)
     // @Param: CUS_ROLL
     // @DisplayName: Custom orientation roll offset
     // @Description: Compass mounting position roll offset. Positive values = roll right, negative values = roll left. This parameter is only used when COMPASS_ORIENT/2/3 is set to CUSTOM.
@@ -637,7 +641,8 @@ const AP_Param::GroupInfo Compass::var_info[] = {
     // @Increment: 1
     // @RebootRequired: True
     // @User: Advanced
-    AP_GROUPINFO("CUS_ROLL", 49, Compass, _custom_roll, 0),
+
+    // index 49
 
     // @Param: CUS_PIT
     // @DisplayName: Custom orientation pitch offset
@@ -647,7 +652,8 @@ const AP_Param::GroupInfo Compass::var_info[] = {
     // @Increment: 1
     // @RebootRequired: True
     // @User: Advanced
-    AP_GROUPINFO("CUS_PIT", 50, Compass, _custom_pitch, 0),
+
+    // index 50
 
     // @Param: CUS_YAW
     // @DisplayName: Custom orientation yaw offset
@@ -657,8 +663,9 @@ const AP_Param::GroupInfo Compass::var_info[] = {
     // @Increment: 1
     // @RebootRequired: True
     // @User: Advanced
-    AP_GROUPINFO("CUS_YAW", 51, Compass, _custom_yaw, 0),
-#endif
+
+    // index 51
+
     AP_GROUPEND
 };
 
@@ -686,9 +693,33 @@ void Compass::init()
         return;
     }
 
+    // convert to new custom rotation method
+    // PARAMETER_CONVERSION - Added: Nov-2021
+#if !APM_BUILD_TYPE(APM_BUILD_AP_Periph)
+    for (StateIndex i(0); i<COMPASS_MAX_INSTANCES; i++) {
+        if (_state[i].orientation != ROTATION_CUSTOM_OLD) {
+            continue;
+        }
+        _state[i].orientation.set_and_save(ROTATION_CUSTOM_2);
+        AP_Param::ConversionInfo info;
+        if (AP_Param::find_top_level_key_by_pointer(this, info.old_key)) {
+            info.type = AP_PARAM_FLOAT;
+            float rpy[3] = {};
+            AP_Float rpy_param;
+            for (info.old_group_element=49; info.old_group_element<=51; info.old_group_element++) {
+                if (AP_Param::find_old_parameter(&info, &rpy_param)) {
+                    rpy[info.old_group_element-49] = rpy_param.get();
+                }
+            }
+            AP::custom_rotations().convert(ROTATION_CUSTOM_2, rpy[0], rpy[1], rpy[2]);
+        }
+        break;
+    }
+#endif // !APM_BUILD_TYPE(APM_BUILD_AP_Periph)
+
 #if COMPASS_MAX_INSTANCES > 1
     // Look if there was a primary compass setup in previous version
-    // if so and the the primary compass is not set in current setup
+    // if so and the primary compass is not set in current setup
     // make the devid as primary.
     if (_priority_did_stored_list[Priority(0)] == 0) {
         uint16_t k_param_compass;
@@ -1141,10 +1172,12 @@ void Compass::_probe_external_i2c_compasses(void)
                 ADD_BACKEND(DRIVER_IST8310, AP_Compass_IST8310::probe(GET_I2C_DEVICE(i, ist8310_addr[a]),
                             true, default_rotation));
             }
+#ifndef HAL_COMPASS_DISABLE_IST8310_INTERNAL_PROBE
             FOREACH_I2C_INTERNAL(i) {
                 ADD_BACKEND(DRIVER_IST8310, AP_Compass_IST8310::probe(GET_I2C_DEVICE(i, ist8310_addr[a]),
                             all_external, default_rotation));
             }
+#endif
         }
     }
 #endif
@@ -1227,7 +1260,7 @@ void Compass::_detect_backends(void)
     }
 #endif
 
-#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
+#if AP_SIM_COMPASS_ENABLED
     ADD_BACKEND(DRIVER_SITL, new AP_Compass_SITL());
 #endif
 
@@ -1353,11 +1386,6 @@ void Compass::_detect_backends(void)
     default:
         break;
     }
-
-#elif HAL_COMPASS_DEFAULT == HAL_COMPASS_NONE
-    // no compass, or only external probe
-#else
-#error Unrecognised HAL_COMPASS_TYPE setting
 #endif
 
 
@@ -1435,7 +1463,7 @@ void Compass::_detect_backends(void)
 
     if (_backend_count == 0 ||
         _compass_count == 0) {
-        hal.console->printf("No Compass backends available\n");
+        DEV_PRINTF("No Compass backends available\n");
     }
 }
 
@@ -1554,6 +1582,10 @@ Compass::read(void)
         return false;
     }
 
+#if HAL_LOGGING_ENABLED
+    const bool old_healthy = healthy();
+#endif
+
 #ifndef HAL_BUILD_AP_PERIPH
     if (!_initial_location_set) {
         try_set_initial_location();
@@ -1594,7 +1626,21 @@ Compass::read(void)
             break;
         }
     }
-    return healthy();
+    const bool new_healthy = healthy();
+
+#if HAL_LOGGING_ENABLED
+
+    #define MASK_LOG_ANY                    0xFFFF
+
+    if (new_healthy != old_healthy) {
+        if (AP::logger().should_log(MASK_LOG_ANY)) {
+            const LogErrorCode code = new_healthy ? LogErrorCode::ERROR_RESOLVED : LogErrorCode::UNHEALTHY;
+            AP::logger().Write_Error(LogErrorSubsystem::COMPASS, code);
+        }
+    }
+#endif
+
+    return new_healthy;
 }
 
 uint8_t
@@ -1718,7 +1764,7 @@ void Compass::try_set_initial_location()
     }
 
     Location loc;
-    if (!AP::ahrs().get_position(loc)) {
+    if (!AP::ahrs().get_location(loc)) {
         return;
     }
     _initial_location_set = true;
@@ -1842,6 +1888,14 @@ bool Compass::configured(uint8_t i)
         return false;
     }
 
+#ifdef HAL_USE_EMPTY_STORAGE
+    // the load() call below returns zeroes on empty storage, so the
+    // check-stored-value check here will always fail.  Since nobody
+    // really cares about the empty-storage case, shortcut out here
+    // for simplicity.
+    return true;
+#endif
+
     // back up cached value of dev_id
     int32_t dev_id_cache_value = _state[id].dev_id;
 
@@ -1867,7 +1921,7 @@ bool Compass::configured(char *failure_msg, uint8_t failure_msg_len)
     for (Priority i(0); i<COMPASS_MAX_INSTANCES; i++) {
         if (_priority_did_list[i] != 0 && use_for_yaw(uint8_t(i))) {
             if (!_get_state(i).registered) {
-                snprintf(failure_msg, failure_msg_len, "Compass %d not Found", uint8_t(i));
+                snprintf(failure_msg, failure_msg_len, "Compass %d not found", uint8_t(i + 1));
                 return false;
             }
             if (_priority_did_list[i] != _priority_did_stored_list[i]) {
@@ -1880,7 +1934,16 @@ bool Compass::configured(char *failure_msg, uint8_t failure_msg_len)
 
     bool all_configured = true;
     for (uint8_t i=0; i<get_count(); i++) {
-        all_configured = all_configured && (!use_for_yaw(i) || configured(i));
+        if (configured(i)) {
+            continue;
+        }
+        if (!use_for_yaw(i)) {
+            // we're not planning on using this anyway so sure,
+            // whatever, it's configured....
+            continue;
+        }
+        all_configured = false;
+        break;
     }
     if (!all_configured) {
         snprintf(failure_msg, failure_msg_len, "Compass not calibrated");

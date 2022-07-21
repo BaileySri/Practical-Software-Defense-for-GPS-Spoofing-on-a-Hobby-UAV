@@ -18,7 +18,9 @@
 #if HAL_EFI_ENABLED
 
 #include "AP_EFI_Serial_MS.h"
+#include "AP_EFI_Serial_Lutan.h"
 #include "AP_EFI_NWPMU.h"
+#include "AP_EFI_DroneCAN.h"
 #include <AP_Logger/AP_Logger.h>
 
 #if HAL_MAX_CAN_PROTOCOL_DRIVERS
@@ -32,21 +34,21 @@ const AP_Param::GroupInfo AP_EFI::var_info[] = {
     // @Param: _TYPE
     // @DisplayName: EFI communication type
     // @Description: What method of communication is used for EFI #1
-    // @Values: 0:None,1:Serial-MS,2:NWPMU
+    // @Values: 0:None,1:Serial-MS,2:NWPMU,3:Serial-Lutan,5:DroneCAN
     // @User: Advanced
     // @RebootRequired: True
     AP_GROUPINFO_FLAGS("_TYPE", 1, AP_EFI, type, 0, AP_PARAM_FLAG_ENABLE),
 
     // @Param: _COEF1
     // @DisplayName: EFI Calibration Coefficient 1
-    // @Description: Used to calibrate fuel flow for MS protocol (Slope)
+    // @Description: Used to calibrate fuel flow for MS protocol (Slope). This should be calculated from a log at constant fuel usage rate. Plot (ECYL[0].InjT*EFI.Rpm)/600.0 to get the duty_cycle. Measure actual fuel usage in cm^3/min, and set EFI_COEF1 = fuel_usage_cm3permin / duty_cycle
     // @Range: 0 1
     // @User: Advanced
     AP_GROUPINFO("_COEF1", 2, AP_EFI, coef1, 0),
 
     // @Param: _COEF2
     // @DisplayName: EFI Calibration Coefficient 2
-    // @Description: Used to calibrate fuel flow for MS protocol (Offset)
+    // @Description: Used to calibrate fuel flow for MS protocol (Offset). This can be used to correct for a non-zero offset in the fuel consumption calculation of EFI_COEF1
     // @Range: 0 10
     // @User: Advanced
     AP_GROUPINFO("_COEF2", 3, AP_EFI, coef2, 0),
@@ -76,13 +78,21 @@ void AP_EFI::init(void)
     case Type::MegaSquirt:
         backend = new AP_EFI_Serial_MS(*this);
         break;
+    case Type::Lutan:
+        backend = new AP_EFI_Serial_Lutan(*this);
+        break;
     case Type::NWPMU:
 #if HAL_EFI_NWPWU_ENABLED
         backend = new AP_EFI_NWPMU(*this);
 #endif
         break;
+    case Type::DroneCAN:
+#if HAL_EFI_DRONECAN_ENABLED
+        backend = new AP_EFI_DroneCAN(*this);
+#endif
+        break;
     default:
-        gcs().send_text(MAV_SEVERITY_INFO, "Unknown EFI type");
+        GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Unknown EFI type");
         break;
     }
 }
@@ -92,7 +102,9 @@ void AP_EFI::update()
 {
     if (backend) {
         backend->update();
+#if HAL_LOGGING_ENABLED
         log_status();
+#endif
     }
 }
 
@@ -101,6 +113,7 @@ bool AP_EFI::is_healthy(void) const
     return (backend && (AP_HAL::millis() - state.last_updated_ms) < HEALTHY_LAST_RECEIVED_MS);
 }
 
+#if HAL_LOGGING_ENABLED
 /*
   write status to log
  */
@@ -204,6 +217,7 @@ void AP_EFI::log_status(void)
                            state.ecu_index);
     }
 }
+#endif // LOGGING_ENABLED
 
 /*
   send EFI_STATUS
@@ -225,11 +239,22 @@ void AP_EFI::send_mavlink_status(mavlink_channel_t chan)
         state.spark_dwell_time_ms,
         state.atmospheric_pressure_kpa,
         state.intake_manifold_pressure_kpa,
-        (state.intake_manifold_temperature - C_TO_KELVIN),
-        (state.cylinder_status[0].cylinder_head_temperature - C_TO_KELVIN),
+        KELVIN_TO_C(state.intake_manifold_temperature),
+        KELVIN_TO_C(state.cylinder_status[0].cylinder_head_temperature),
         state.cylinder_status[0].ignition_timing_deg,
         state.cylinder_status[0].injection_time_ms,
-        0, 0, 0);
+        0,  // exhaust gas temperature
+        0,  // throttle out
+        0,  // pressure/temperature compensation
+        0  // ignition voltage (spark supply voltage)
+        );
+}
+
+// get a copy of state structure
+void AP_EFI::get_state(EFI_State &_state)
+{
+    WITH_SEMAPHORE(sem);
+    _state = state;
 }
 
 namespace AP {

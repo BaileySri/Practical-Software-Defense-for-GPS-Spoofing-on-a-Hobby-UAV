@@ -36,7 +36,17 @@ extern AP_IOMCU iomcu;
 #define ANLOGIN_DEBUGGING 0
 
 // base voltage scaling for 12 bit 3.3V ADC
-#define VOLTAGE_SCALING (3.3f/(1<<12))
+#define VOLTAGE_SCALING (3.3f / ((1 << 12) - 1))
+
+// voltage divider is usually 1/(10/(20+10))
+#ifndef HAL_IOMCU_VSERVO_SCALAR
+  #define HAL_IOMCU_VSERVO_SCALAR 3
+#endif
+
+// voltage divider is usually not present
+#ifndef HAL_IOMCU_VRSSI_SCALAR
+  #define HAL_IOMCU_VRSSI_SCALAR 1
+#endif
 
 #if ANLOGIN_DEBUGGING
  # define Debug(fmt, args ...)  do {printf("%s:%d: " fmt "\n", __FUNCTION__, __LINE__, ## args); } while(0)
@@ -146,7 +156,7 @@ bool AnalogSource::set_pin(uint8_t pin)
         return true;
     }
     bool found_pin = false;
-    if (_pin == ANALOG_SERVO_VRSSI_PIN) {
+    if (pin == ANALOG_SERVO_VRSSI_PIN) {
         found_pin = true;
     } else {
         for (uint8_t i=0; i<ADC_GRP1_NUM_CHANNELS; i++) {
@@ -462,8 +472,8 @@ void AnalogIn::_timer_tick(void)
 
 #if HAL_WITH_IO_MCU
     // now handle special inputs from IOMCU
-    _servorail_voltage = iomcu.get_vservo();
-    _rssi_voltage = iomcu.get_vrssi();
+    _servorail_voltage = iomcu.get_vservo_adc_count() * (VOLTAGE_SCALING * HAL_IOMCU_VSERVO_SCALAR);
+    _rssi_voltage = iomcu.get_vrssi_adc_count() * (VOLTAGE_SCALING *  HAL_IOMCU_VRSSI_SCALAR);
 #endif
 
     for (uint8_t i=0; i<ADC_GRP1_NUM_CHANNELS; i++) {
@@ -503,8 +513,9 @@ void AnalogIn::_timer_tick(void)
 
         _mcu_temperature = ((110 - 30) / (TS_CAL2 - TS_CAL1)) * (float(buf_adc3[1]) - TS_CAL1) + 30;
         _mcu_voltage = 3.3 * VREFINT_CAL / float(buf_adc3[2]+0.001);
-        _mcu_voltage_min = 3.3 * VREFINT_CAL / float(min_adc3[2]+0.001);
-        _mcu_voltage_max = 3.3 * VREFINT_CAL / float(max_adc3[2]+0.001);
+        // note min/max swap due to inversion
+        _mcu_voltage_min = 3.3 * VREFINT_CAL / float(max_adc3[2]+0.001);
+        _mcu_voltage_max = 3.3 * VREFINT_CAL / float(min_adc3[2]+0.001);
     }
 #endif
 }
@@ -518,7 +529,7 @@ AP_HAL::AnalogSource* AnalogIn::channel(int16_t pin)
             return _channels[j];
         }
     }
-    hal.console->printf("Out of analog channels\n");
+    DEV_PRINTF("Out of analog channels\n");
     return nullptr;
 }
 

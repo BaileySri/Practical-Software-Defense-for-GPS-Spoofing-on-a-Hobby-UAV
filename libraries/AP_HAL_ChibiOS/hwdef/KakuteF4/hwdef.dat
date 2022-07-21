@@ -117,7 +117,7 @@ PC8 TIM8_CH3 TIM8 PWM(5) GPIO(54) # LED strip
 define HAL_NEOPIXEL_COUNT 8
 
 define HAL_STORAGE_SIZE 15360
-define STORAGE_FLASH_PAGE 2
+STORAGE_FLASH_PAGE 2
 
 # reserve 32k for bootloader and 32k for flash storage
 FLASH_RESERVE_START_KB 64
@@ -125,7 +125,6 @@ FLASH_RESERVE_START_KB 64
 # no built-in compass, but probe the i2c bus for all possible
 # external compass types
 define ALLOW_ARM_NO_COMPASS
-define HAL_COMPASS_DEFAULT HAL_COMPASS_NONE
 define HAL_PROBE_EXTERNAL_I2C_COMPASSES
 define HAL_I2C_INTERNAL_MASK 0
 define HAL_COMPASS_AUTO_ROT_DEFAULT 2
@@ -142,9 +141,12 @@ IMU Invensense SPI:mpu6000 ROTATION_YAW_180
 BARO BMP280 I2C:0:0x76
 
 # enable logging to dataflash
-define HAL_LOGGING_DATAFLASH
+define HAL_LOGGING_DATAFLASH_ENABLED 1
 
 # setup for OSD
 define OSD_ENABLED 1
 define HAL_OSD_TYPE_DEFAULT 1
 ROMFS_WILDCARD libraries/AP_OSD/fonts/font*.bin
+
+# minimal drivers to reduce flash usage
+include ../include/minimal.inc

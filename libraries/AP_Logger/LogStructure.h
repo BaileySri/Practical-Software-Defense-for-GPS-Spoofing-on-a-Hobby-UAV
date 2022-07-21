@@ -101,6 +101,7 @@ const struct MultiplierStructure log_Multipliers[] = {
     { 'E', 1e-5 },
     { 'F', 1e-6 },
     { 'G', 1e-7 },
+    { 'I', 1e-9 },
 // <leave a gap here, just in case....>
     { '!', 3.6 }, // (ampere*second => milliampere*hour) and (km/h => m/s)
     { '/', 3600 }, // (ampere*second => ampere*hour)
@@ -119,6 +120,7 @@ const struct MultiplierStructure log_Multipliers[] = {
 #define HEAD_BYTE1  0xA3    // Decimal 163
 #define HEAD_BYTE2  0x95    // Decimal 149
 
+#include <AP_Beacon/LogStructure.h>
 #include <AP_DAL/LogStructure.h>
 #include <AP_NavEKF2/LogStructure.h>
 #include <AP_NavEKF3/LogStructure.h>
@@ -131,12 +133,22 @@ const struct MultiplierStructure log_Multipliers[] = {
 #include <AP_Baro/LogStructure.h>
 #include <AP_VisualOdom/LogStructure.h>
 #include <AC_PrecLand/LogStructure.h>
+#include <AP_Proximity/LogStructure.h>
 #include <AC_Avoidance/LogStructure.h>
 #include <AP_ESC_Telem/LogStructure.h>
 #include <AP_AIS/LogStructure.h>
+#include <AP_HAL_ChibiOS/LogStructure.h>
+#include <AP_RPM/LogStructure.h>
 
 // structure used to define logging format
+// It is packed on ChibiOS to save flash space; however, this causes problems
+// when building the SITL on an Apple M1 CPU (and is also slower) so we do not
+// pack it by default
+#if CONFIG_HAL_BOARD == HAL_BOARD_CHIBIOS
 struct PACKED LogStructure {
+#else
+struct LogStructure {
+#endif
     uint8_t msg_type;
     uint8_t msg_len;
     const char *name;
@@ -270,6 +282,15 @@ struct PACKED log_RCOUT {
     uint16_t chan12;
     uint16_t chan13;
     uint16_t chan14;
+};
+
+struct PACKED log_RCOUT2 {
+    LOG_PACKET_HEADER;
+    uint64_t time_us;
+    uint16_t chan15;
+    uint16_t chan16;
+    uint16_t chan17;
+    uint16_t chan18;
 };
 
 struct PACKED log_MAV {
@@ -451,6 +472,7 @@ struct PACKED log_TERRAIN {
     float current_height;
     uint16_t pending;
     uint16_t loaded;
+    float reference_offset;
 };
 
 struct PACKED log_CSRV {
@@ -499,13 +521,6 @@ struct PACKED log_MAV_Stats {
     // uint8_t state_retry_max;
 };
 
-struct PACKED log_RPM {
-    LOG_PACKET_HEADER;
-    uint64_t time_us;
-    float rpm1;
-    float rpm2;
-};
-
 struct PACKED log_Rally {
     LOG_PACKET_HEADER;
     uint64_t time_us;
@@ -514,52 +529,6 @@ struct PACKED log_Rally {
     int32_t latitude;
     int32_t longitude;
     int16_t altitude;
-};
-
-struct PACKED log_Beacon {
-    LOG_PACKET_HEADER;
-    uint64_t time_us;
-    uint8_t health;
-    uint8_t count;
-    float dist0;
-    float dist1;
-    float dist2;
-    float dist3;
-    float posx;
-    float posy;
-    float posz;
-};
-
-// proximity sensor logging
-struct PACKED log_Proximity {
-    LOG_PACKET_HEADER;
-    uint64_t time_us;
-    uint8_t instance;
-    uint8_t health;
-    float dist0;
-    float dist45;
-    float dist90;
-    float dist135;
-    float dist180;
-    float dist225;
-    float dist270;
-    float dist315;
-    float distup;
-    float closest_angle;
-    float closest_dist;
-};
-struct PACKED log_Proximity_raw {
-    LOG_PACKET_HEADER;
-    uint64_t time_us;
-    uint8_t instance;
-    float raw_dist0;
-    float raw_dist45;
-    float raw_dist90;
-    float raw_dist135;
-    float raw_dist180;
-    float raw_dist225;
-    float raw_dist270;
-    float raw_dist315;
 };
 
 struct PACKED log_Performance {
@@ -689,7 +658,6 @@ struct PACKED log_STAK {
 
 //PADLOCK
 //Log packet definitions
-
 //ACO Data with filtered accelerometer
 struct PACKED log_sensors_1 {
     LOG_PACKET_HEADER;
@@ -819,6 +787,47 @@ struct PACKED log_accof_2{
   float C_ACC_Down;
   float C_ACC_Err;
 };
+struct PACKED log_File {
+    LOG_PACKET_HEADER;
+    char filename[16];
+    uint32_t offset;
+    uint8_t length;
+    char data[64];
+};
+
+struct PACKED log_Scripting {
+    LOG_PACKET_HEADER;
+    uint64_t time_us;
+    char name[16];
+    uint32_t run_time;
+    int32_t total_mem;
+    int32_t run_mem;
+};
+
+struct PACKED log_MotBatt {
+    LOG_PACKET_HEADER;
+    uint64_t time_us;
+    float   lift_max;
+    float   bat_volt;
+    float   th_limit;
+    float th_average_max;
+    uint8_t mot_fail_flags;
+};
+
+struct PACKED log_VER {
+    LOG_PACKET_HEADER;
+    uint64_t time_us;
+    uint8_t board_type;
+    uint16_t board_subtype;
+    uint8_t major;
+    uint8_t minor;
+    uint8_t patch;
+    uint8_t fw_type;
+    uint32_t git_hash;
+    char fw_string[64];
+    uint16_t _APJ_BOARD_ID;
+};
+
 
 // FMT messages define all message formats other than FMT
 // UNIT messages define units which can be referenced by FMTU messages
@@ -830,7 +839,7 @@ struct PACKED log_accof_2{
 #define PID_MULTS  "F----------"
 
 // @LoggerMessage: ADSB
-// @Description: Automatic Dependant Serveillance - Broadcast detected vehicle information
+// @Description: Automatic Dependent Serveillance - Broadcast detected vehicle information
 // @Field: TimeUS: Time since system startup
 // @Field: ICAO_address: Transponder address
 // @Field: Lat: Vehicle latitude
@@ -860,21 +869,8 @@ struct PACKED log_accof_2{
 // @Field: Offset: Offset from parameter
 // @Field: U: True if sensor is being used
 // @Field: H: True if sensor is healthy
-// @Field: Hfp: Probability sensor has failed
+// @Field: Hp: Probability sensor is healthy
 // @Field: Pri: True if sensor is the primary sensor
-
-// @LoggerMessage: BCN
-// @Description: Beacon information
-// @Field: TimeUS: Time since system startup
-// @Field: Health: True if beacon sensor is healthy
-// @Field: Cnt: Number of beacons being used
-// @Field: D0: Distance to first beacon
-// @Field: D1: Distance to second beacon
-// @Field: D2: Distance to third beacon
-// @Field: D3: Distance to fourth beacon
-// @Field: PosX: Calculated beacon position, x-axis
-// @Field: PosY: Calculated beacon position, y-axis
-// @Field: PosZ: Calculated beacon position, z-axis
 
 // @LoggerMessage: CMD
 // @Description: Executed mission command information
@@ -1030,20 +1026,6 @@ struct PACKED log_accof_2{
 // @Field: ModeNum: alias for Mode
 // @Field: Rsn: reason for entering this mode; enumeration value
 
-// @LoggerMessage: MON
-// @Description: Main loop stuck data
-// @Field: TimeUS: Time since system startup
-// @Field: LDelay: Time main loop has been stuck for
-// @Field: Task: Current scheduler task number
-// @Field: IErr: Internal error mask; which internal errors have been detected
-// @Field: IErrCnt: Internal error count; how many internal errors have been detected
-// @Field: IErrLn: Line on which internal error ocurred
-// @Field: MavMsg: Id of the last mavlink message processed
-// @Field: MavCmd: Id of the last mavlink command processed
-// @Field: SemLine: Line number of semaphore most recently taken
-// @Field: SPICnt: Number of SPI transactions processed
-// @Field: I2CCnt: Number of i2c transactions processed
-
 // @LoggerMessage: MSG
 // @Description: Textual messages
 // @Field: TimeUS: Time since system startup
@@ -1070,7 +1052,7 @@ struct PACKED log_accof_2{
 // @Field: Name: parameter name
 // @Field: Value: parameter value
 
-// @LoggerMessage: PIDR,PIDP,PIDY,PIDA,PIDS
+// @LoggerMessage: PIDR,PIDP,PIDY,PIDA,PIDS,PIDN,PIDE
 // @Description: Proportional/Integral/Derivative gain values for Roll/Pitch/Yaw/Altitude/Steering
 // @Field: TimeUS: Time since system startup
 // @Field: Tar: desired value
@@ -1113,36 +1095,6 @@ struct PACKED log_accof_2{
 // @Field: MVmin: MCU Voltage min
 // @Field: MVmax: MCU Voltage max
 
-// @LoggerMessage: PRX
-// @Description: Proximity Filtered sensor data
-// @Field: TimeUS: Time since system startup
-// @Field: Layer: Pitch(instance) at which the obstacle is at. 0th layer {-75,-45} degrees. 1st layer {-45,-15} degrees. 2nd layer {-15, 15} degrees. 3rd layer {15, 45} degrees. 4th layer {45,75} degrees. Minimum distance in each layer will be logged.
-// @Field: He: True if proximity sensor is healthy
-// @Field: D0: Nearest object in sector surrounding 0-degrees
-// @Field: D45: Nearest object in sector surrounding 45-degrees
-// @Field: D90: Nearest object in sector surrounding 90-degrees
-// @Field: D135: Nearest object in sector surrounding 135-degrees
-// @Field: D180: Nearest object in sector surrounding 180-degrees
-// @Field: D225: Nearest object in sector surrounding 225-degrees
-// @Field: D270: Nearest object in sector surrounding 270-degrees
-// @Field: D315: Nearest object in sector surrounding 315-degrees
-// @Field: DUp: Nearest object in upwards direction
-// @Field: CAn: Angle to closest object
-// @Field: CDis: Distance to closest object
-
-// @LoggerMessage: PRXR
-// @Description: Proximity Raw sensor data
-// @Field: TimeUS: Time since system startup
-// @Field: Layer: Pitch(instance) at which the obstacle is at. 0th layer {-75,-45} degrees. 1st layer {-45,-15} degrees. 2nd layer {-15, 15} degrees. 3rd layer {15, 45} degrees. 4th layer {45,75} degrees. Minimum distance in each layer will be logged.
-// @Field: D0: Nearest object in sector surrounding 0-degrees
-// @Field: D45: Nearest object in sector surrounding 45-degrees
-// @Field: D90: Nearest object in sector surrounding 90-degrees
-// @Field: D135: Nearest object in sector surrounding 135-degrees
-// @Field: D180: Nearest object in sector surrounding 180-degrees
-// @Field: D225: Nearest object in sector surrounding 225-degrees
-// @Field: D270: Nearest object in sector surrounding 270-degrees
-// @Field: D315: Nearest object in sector surrounding 315-degrees
-
 // @LoggerMessage: RAD
 // @Description: Telemetry radio statistics
 // @Field: TimeUS: Time since system startup
@@ -1163,6 +1115,13 @@ struct PACKED log_accof_2{
 // @Field: Lng: longitude of rally point
 // @Field: Alt: altitude of rally point
 
+// @LoggerMessage: RCI2
+// @Description: (More) RC input channels to vehicle
+// @Field: TimeUS: Time since system startup
+// @Field: C15: channel 15 input
+// @Field: C16: channel 16 input
+// @Field: OMask: bitmask of RC channels being overridden by mavlink input
+
 // @LoggerMessage: RCIN
 // @Description: RC input channels to vehicle
 // @Field: TimeUS: Time since system startup
@@ -1182,7 +1141,7 @@ struct PACKED log_accof_2{
 // @Field: C14: channel 14 input
 
 // @LoggerMessage: RCOU
-// @Description: Servo channel output values
+// @Description: Servo channel output values 1 to 14
 // @Field: TimeUS: Time since system startup
 // @Field: C1: channel 1 output
 // @Field: C2: channel 2 output
@@ -1199,6 +1158,32 @@ struct PACKED log_accof_2{
 // @Field: C13: channel 13 output
 // @Field: C14: channel 14 output
 
+// @LoggerMessage: RCO2
+// @Description: Servo channel output values 15 to 18
+// @Field: TimeUS: Time since system startup
+// @Field: C15: channel 15 output
+// @Field: C16: channel 16 output
+// @Field: C17: channel 17 output
+// @Field: C18: channel 18 output
+
+// @LoggerMessage: RCO3
+// @Description: Servo channel output values 19 to 32
+// @Field: TimeUS: Time since system startup
+// @Field: C19: channel 19 output
+// @Field: C20: channel 20 output
+// @Field: C21: channel 21 output
+// @Field: C22: channel 22 output
+// @Field: C23: channel 23 output
+// @Field: C24: channel 24 output
+// @Field: C25: channel 25 output
+// @Field: C26: channel 26 output
+// @Field: C27: channel 27 output
+// @Field: C28: channel 28 output
+// @Field: C29: channel 29 output
+// @Field: C30: channel 30 output
+// @Field: C31: channel 31 output
+// @Field: C32: channel 32 output
+
 // @LoggerMessage: RFND
 // @Description: Rangefinder sensor information
 // @Field: TimeUS: Time since system startup
@@ -1206,12 +1191,6 @@ struct PACKED log_accof_2{
 // @Field: Dist: Reported distance from sensor
 // @Field: Stat: Sensor state
 // @Field: Orient: Sensor orientation
-
-// @LoggerMessage: RPM
-// @Description: Data from RPM sensors
-// @Field: TimeUS: Time since system startup
-// @Field: rpm1: First sensor's data
-// @Field: rpm2: Second sensor's data
 
 // @LoggerMessage: RSSI
 // @Description: Received Signal Strength Indicator for RC receiver
@@ -1255,6 +1234,7 @@ struct PACKED log_accof_2{
 // @Field: CHeight: Vehicle height above terrain
 // @Field: Pending: Number of tile requests outstanding
 // @Field: Loaded: Number of tiles in memory
+// @Field: ROfs: terrain reference offset for arming altitude
 
 // @LoggerMessage: TSYN
 // @Description: Time synchronisation response information
@@ -1336,6 +1316,23 @@ struct PACKED log_accof_2{
 // @Field: Free: free stack
 // @Field: Name: thread name
 
+// @LoggerMessage: SCR
+// @Description: Scripting runtime stats
+// @Field: TimeUS: Time since system startup
+// @Field: Name: script name
+// @Field: Runtime: run time
+// @Field: Total_mem: total memory usage
+// @Field: Run_mem: run memory usage
+
+// @LoggerMessage: MOTB
+// @Description: Motor mixer information
+// @Field: TimeUS: Time since system startup
+// @Field: LiftMax: Maximum motor compensation gain
+// @Field: BatVolt: Ratio between detected battery voltage and maximum battery voltage
+// @Field: ThLimit: Throttle limit set due to battery current limitations
+// @Field: ThrAvMx: Maximum average throttle that can be used to maintain attitude control, derived from throttle mix params
+// @Field: FailFlags: bit 0 motor failed, bit 1 motors balanced, should be 2 in normal flight
+
 // messages for all boards
 #define LOG_COMMON_STRUCTURES \
     { LOG_FORMAT_MSG, sizeof(log_Format), \
@@ -1357,6 +1354,10 @@ LOG_STRUCTURE_FROM_GPS \
       "RCI2",  "QHHH",     "TimeUS,C15,C16,OMask", "sYY-", "F---", true }, \
     { LOG_RCOUT_MSG, sizeof(log_RCOUT), \
       "RCOU",  "QHHHHHHHHHHHHHH",     "TimeUS,C1,C2,C3,C4,C5,C6,C7,C8,C9,C10,C11,C12,C13,C14", "sYYYYYYYYYYYYYY", "F--------------", true  }, \
+    { LOG_RCOUT2_MSG, sizeof(log_RCOUT2), \
+      "RCO2",  "QHHHH",     "TimeUS,C15,C16,C17,C18", "sYYYY", "F----", true  }, \
+    { LOG_RCOUT3_MSG, sizeof(log_RCOUT), \
+      "RCO3",  "QHHHHHHHHHHHHHH",     "TimeUS,C19,C20,C21,C22,C23,C24,C25,C26,C27,C28,C29,C30,C31,C32", "sYYYYYYYYYYYYYY", "F--------------", true  }, \
     { LOG_RSSI_MSG, sizeof(log_RSSI), \
       "RSSI",  "Qff",     "TimeUS,RXRSSI,RXLQ", "s--", "F--", true  }, \
 LOG_STRUCTURE_FROM_BARO \
@@ -1370,7 +1371,7 @@ LOG_STRUCTURE_FROM_PRECLAND \
     { LOG_RADIO_MSG, sizeof(log_Radio), \
       "RAD", "QBBBBBHH", "TimeUS,RSSI,RemRSSI,TxBuf,Noise,RemNoise,RxErrors,Fixed", "s-------", "F-------", true }, \
 LOG_STRUCTURE_FROM_CAMERA \
-    { LOG_ARSP_MSG, sizeof(log_ARSP), "ARSP",  "QBffcffBBfB", "TimeUS,I,Airspeed,DiffPress,Temp,RawPress,Offset,U,H,Hfp,Pri", "s#nPOPP----", "F-00B00----", true }, \
+    { LOG_ARSP_MSG, sizeof(log_ARSP), "ARSP",  "QBffcffBBfB", "TimeUS,I,Airspeed,DiffPress,Temp,RawPress,Offset,U,H,Hp,Pri", "s#nPOPP----", "F-00B00----", true }, \
     LOG_STRUCTURE_FROM_BATTMONITOR \
     { LOG_MAG_MSG, sizeof(log_MAG), \
       "MAG", "QBhhhhhhhhhBI",    "TimeUS,I,MagX,MagY,MagZ,OfsX,OfsY,OfsZ,MOX,MOY,MOZ,Health,S", "s#GGGGGGGGG-s", "F-CCCCCCCCC-F", true }, \
@@ -1380,12 +1381,8 @@ LOG_STRUCTURE_FROM_CAMERA \
       "RFND", "QBCBB", "TimeUS,Instance,Dist,Stat,Orient", "s#m--", "F-B--", true }, \
     { LOG_MAV_STATS, sizeof(log_MAV_Stats), \
       "DMS", "QIIIIBBBBBBBBB",         "TimeUS,N,Dp,RT,RS,Fa,Fmn,Fmx,Pa,Pmn,Pmx,Sa,Smn,Smx", "s-------------", "F-------------" }, \
-    { LOG_BEACON_MSG, sizeof(log_Beacon), \
-      "BCN", "QBBfffffff",  "TimeUS,Health,Cnt,D0,D1,D2,D3,PosX,PosY,PosZ", "s--mmmmmmm", "F--0000000", true }, \
-    { LOG_PROXIMITY_MSG, sizeof(log_Proximity), \
-      "PRX", "QBBfffffffffff", "TimeUS,Layer,He,D0,D45,D90,D135,D180,D225,D270,D315,DUp,CAn,CDis", "s#-mmmmmmmmmhm", "F--00000000000", true }, \
-    { LOG_RAW_PROXIMITY_MSG, sizeof(log_Proximity_raw), \
-      "PRXR", "QBffffffff", "TimeUS,Layer,D0,D45,D90,D135,D180,D225,D270,D315", "s#mmmmmmmm", "F-00000000", true }, \
+    LOG_STRUCTURE_FROM_BEACON                                       \
+    LOG_STRUCTURE_FROM_PROXIMITY                                    \
     { LOG_PERFORMANCE_MSG, sizeof(log_Performance),                     \
       "PM",  "QHHIIHHIIIIII", "TimeUS,NLon,NLoop,MaxT,Mem,Load,ErrL,IntE,ErrC,SPIC,I2CC,I2CI,Ex", "s---b%------s", "F---0A------F" }, \
     { LOG_SRTL_MSG, sizeof(log_SRTL), \
@@ -1394,7 +1391,7 @@ LOG_STRUCTURE_FROM_AVOIDANCE \
     { LOG_SIMSTATE_MSG, sizeof(log_AHRS), \
       "SIM","QccCfLLffffcf","TimeUS,Roll,Pitch,Yaw,Alt,Lat,Lng,Q1,Q2,Q3,Q4,I,Ie", "sddhmDU????dd", "FBBB0GG????00", true }, \
     { LOG_TERRAIN_MSG, sizeof(log_TERRAIN), \
-      "TERR","QBLLHffHH","TimeUS,Status,Lat,Lng,Spacing,TerrH,CHeight,Pending,Loaded", "s-DU-mm--", "F-GG-00--", true }, \
+      "TERR","QBLLHffHHf","TimeUS,Status,Lat,Lng,Spacing,TerrH,CHeight,Pending,Loaded,ROfs", "s-DU-mm--m", "F-GG-00--0", true }, \
 LOG_STRUCTURE_FROM_ESC_TELEM \
     { LOG_CSRV_MSG, sizeof(log_CSRV), \
       "CSRV","QBfffB","TimeUS,Id,Pos,Force,Speed,Pow", "s#---%", "F-0000", true }, \
@@ -1420,10 +1417,10 @@ LOG_STRUCTURE_FROM_NAVEKF2 \
 LOG_STRUCTURE_FROM_NAVEKF3 \
 LOG_STRUCTURE_FROM_NAVEKF \
 LOG_STRUCTURE_FROM_AHRS \
+LOG_STRUCTURE_FROM_HAL_CHIBIOS \
+LOG_STRUCTURE_FROM_RPM \
     { LOG_DF_FILE_STATS, sizeof(log_DSF), \
       "DSF", "QIHIIII", "TimeUS,Dp,Blk,Bytes,FMn,FMx,FAv", "s--b---", "F--0---" }, \
-    { LOG_RPM_MSG, sizeof(log_RPM), \
-      "RPM",  "Qff", "TimeUS,rpm1,rpm2", "sqq", "F00" , true }, \
     { LOG_RALLY_MSG, sizeof(log_Rally), \
       "RALY", "QBBLLh", "TimeUS,Tot,Seq,Lat,Lng,Alt", "s--DUm", "F--GGB" },  \
     { LOG_MAV_MSG, sizeof(log_MAV),   \
@@ -1469,13 +1466,21 @@ LOG_STRUCTURE_FROM_VISUALODOM \
       "ACO1", "Qffffffff", "TimeUS,COFN,COFE,CNe,CEe,POFN,POFE,PNe,PEe", "snnnnnnnn", "F00000000"}, \
     { LOG_ACCOF_2_MSG, sizeof(log_accof_2), \
       "ACO2", "Qffff", "TimeUS,CAN,CAE,CAD,CAe", "snnnn", "F0000"}, \
+    { LOG_FILE_MSG, sizeof(log_File), \
+      "FILE",   "NIBZ",       "FileName,Offset,Length,Data", "----", "----" }, \
 LOG_STRUCTURE_FROM_AIS \
+    { LOG_SCRIPTING_MSG, sizeof(log_Scripting), \
+      "SCR",   "QNIii", "TimeUS,Name,Runtime,Total_mem,Run_mem", "s-sbb", "F-F--", true }, \
+    { LOG_VER_MSG, sizeof(log_VER), \
+      "VER",   "QBHBBBBIZH", "TimeUS,BT,BST,Maj,Min,Pat,FWT,GH,FWS,APJ", "s---------", "F---------", false }, \
+    { LOG_MOTBATT_MSG, sizeof(log_MotBatt), \
+      "MOTB", "QffffB",  "TimeUS,LiftMax,BatVolt,ThLimit,ThrAvMx,FailFlags", "s-----", "F-----" , true }
 
 // message types 0 to 63 reserved for vehicle specific use
 
 // message types for common messages
 enum LogMessages : uint8_t {
-    LOG_PARAMETER_MSG = 64,
+    LOG_PARAMETER_MSG = 32,
     LOG_IDS_FROM_NAVEKF2,
     LOG_IDS_FROM_NAVEKF3,
     LOG_MESSAGE_MSG,
@@ -1496,16 +1501,9 @@ enum LogMessages : uint8_t {
     LOG_CSRV_MSG,
     LOG_IDS_FROM_ESC_TELEM,
     LOG_IDS_FROM_BATTMONITOR,
+    LOG_IDS_FROM_HAL_CHIBIOS,
 
     LOG_IDS_FROM_GPS,
-
-    // LOG_MODE_MSG is used as a check for duplicates. Do not add between this and LOG_FORMAT_MSG
-    LOG_MODE_MSG,
-
-    LOG_FORMAT_MSG = 128, // this must remain #128
-
-    LOG_IDS_FROM_DAL,
-    LOG_IDS_FROM_INERTIALSENSOR,
 
     LOG_PIDR_MSG,
     LOG_PIDP_MSG,
@@ -1517,17 +1515,26 @@ enum LogMessages : uint8_t {
     LOG_DSTL_MSG,
     LOG_MAG_MSG,
     LOG_ARSP_MSG,
-    LOG_RPM_MSG,
+    LOG_IDS_FROM_RPM,
     LOG_RFND_MSG,
     LOG_MAV_STATS,
     LOG_FORMAT_UNITS_MSG,
     LOG_UNIT_MSG,
     LOG_MULT_MSG,
-
     LOG_RALLY_MSG,
+
+    // LOG_MODE_MSG is used as a check for duplicates. Do not add between this and LOG_FORMAT_MSG
+    LOG_MODE_MSG,
+
+    LOG_FORMAT_MSG = 128, // this must remain #128
+
+    LOG_IDS_FROM_DAL,
+    LOG_IDS_FROM_INERTIALSENSOR,
+
     LOG_IDS_FROM_VISUALODOM,
-    LOG_BEACON_MSG,
-    LOG_PROXIMITY_MSG,
+    LOG_IDS_FROM_AVOIDANCE,
+    LOG_IDS_FROM_BEACON,
+    LOG_IDS_FROM_PROXIMITY,
     LOG_DF_FILE_STATS,
     LOG_SRTL_MSG,
     LOG_PERFORMANCE_MSG,
@@ -1538,12 +1545,10 @@ enum LogMessages : uint8_t {
     LOG_ERROR_MSG,
     LOG_ADSB_MSG,
     LOG_ARM_DISARM_MSG,
-    LOG_IDS_FROM_AVOIDANCE,
     LOG_WINCH_MSG,
     LOG_PSCN_MSG,
     LOG_PSCE_MSG,
     LOG_PSCD_MSG,
-    LOG_RAW_PROXIMITY_MSG,
     LOG_IDS_FROM_PRECLAND,
     LOG_IDS_FROM_AIS,
     LOG_STAK_MSG,
@@ -1556,14 +1561,17 @@ enum LogMessages : uint8_t {
     LOG_CNFR_4_MSG,
     LOG_ACCOF_1_MSG,
     LOG_ACCOF_2_MSG,
+    LOG_FILE_MSG,
+    LOG_SCRIPTING_MSG,
+    LOG_VIDEO_STABILISATION_MSG,
+    LOG_MOTBATT_MSG,
+    LOG_VER_MSG,
+    LOG_RCOUT2_MSG,
+    LOG_RCOUT3_MSG,
 
     _LOG_LAST_MSG_
 };
 
-static_assert(_LOG_LAST_MSG_ <= 255, "Too many message formats");
+// we reserve ID #255 for future expansion
+static_assert(_LOG_LAST_MSG_ < 255, "Too many message formats");
 static_assert(LOG_MODE_MSG < 128, "Duplicate message format IDs");
-
-enum LogOriginType {
-    ekf_origin = 0,
-    ahrs_home = 1
-};

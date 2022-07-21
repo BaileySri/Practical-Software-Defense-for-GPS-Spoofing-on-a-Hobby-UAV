@@ -3,10 +3,18 @@
 #include <AP_Common/AP_Common.h>
 
 #include "RC_Channel.h"
+#include <AC_Avoidance/AC_Avoid.h>
 #include "AC_Sprayer/AC_Sprayer.h"
+#include <AP_AIS/AP_AIS.h>
+#include <AP_Beacon/AP_Beacon.h>
+#include <AP_Follow/AP_Follow.h>
 #include "AP_Gripper/AP_Gripper.h"
+#include <AP_Proximity/AP_Proximity.h>
 #include "AP_Rally.h"
+#include <AP_SmartRTL/AP_SmartRTL.h>
+#include <AP_Stats/AP_Stats.h>
 #include "AP_Torqeedo/AP_Torqeedo.h"
+#include <AP_WindVane/AP_WindVane.h>
 
 // Global parameter class.
 //
@@ -206,7 +214,7 @@ public:
         k_param_ins,
         k_param_compass,
         k_param_rcmap,
-        k_param_L1_controller,
+        k_param_L1_controller,          // unused
         k_param_steerController_old,    // unused
         k_param_barometer,
         k_param_notify,
@@ -371,9 +379,6 @@ public:
     // windvane
     AP_WindVane windvane;
 
-    // Airspeed
-    AP_Airspeed airspeed;
-
     // mission behave
     AP_Int8 mis_done_behave;
 
@@ -383,12 +388,12 @@ public:
     // stick mixing for auto modes
     AP_Int8     stick_mixing;
 
-#ifdef ENABLE_SCRIPTING
+#if AP_SCRIPTING_ENABLED
     AP_Scripting scripting;
-#endif // ENABLE_SCRIPTING
+#endif // AP_SCRIPTING_ENABLED
 
     // waypoint navigation
-    AR_WPNav wp_nav;
+    AR_WPNav_OA wp_nav;
 
     // Sailboat functions
     Sailboat sailboat;
@@ -410,10 +415,14 @@ public:
     AP_Torqeedo torqeedo;
 #endif
 
-#if HAL_AIS_ENABLED
-    // Automatic Identification System - for tracking sea-going vehicles
-    AP_AIS ais;
-#endif
+    // position controller
+    AR_PosControl pos_control;
+
+    // guided options bitmask
+    AP_Int32 guided_options;
+
+    // Rover options
+    AP_Int32 manual_options;
 };
 
 extern const AP_Param::Info var_info[];

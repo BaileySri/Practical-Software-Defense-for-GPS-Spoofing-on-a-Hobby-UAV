@@ -53,7 +53,7 @@ template <typename T>
 inline bool is_zero(const T fVal1) {
     static_assert(std::is_floating_point<T>::value || std::is_base_of<T,AP_Float>::value,
                   "Template parameter not of type float");
-    return (fabsf(static_cast<float>(fVal1)) < FLT_EPSILON);
+    return is_zero(static_cast<float>(fVal1));
 }
 
 /* 
@@ -77,6 +77,19 @@ inline bool is_negative(const T fVal1) {
     return (static_cast<float>(fVal1) <= (-1.0 * FLT_EPSILON));
 }
 
+/*
+ * @brief: Check whether a double is greater than zero
+ */
+inline bool is_positive(const double fVal1) {
+    return (fVal1 >= static_cast<double>(FLT_EPSILON));
+}
+
+/*
+ * @brief: Check whether a double is less than zero
+ */
+inline bool is_negative(const double fVal1) {
+    return (fVal1 <= static_cast<double>((-1.0 * FLT_EPSILON)));
+}
 
 /*
  * A variant of asin() that checks the input ranges and ensures a valid angle
@@ -166,12 +179,27 @@ inline int16_t constrain_int16(const int16_t amt, const int16_t low, const int16
     return constrain_value(amt, low, high);
 }
 
+inline uint16_t constrain_uint16(const uint16_t amt, const uint16_t low, const uint16_t high)
+{
+    return constrain_value(amt, low, high);
+}
+
 inline int32_t constrain_int32(const int32_t amt, const int32_t low, const int32_t high)
 {
     return constrain_value(amt, low, high);
 }
 
+inline uint32_t constrain_uint32(const uint32_t amt, const uint32_t low, const uint32_t high)
+{
+    return constrain_value(amt, low, high);
+}
+
 inline int64_t constrain_int64(const int64_t amt, const int64_t low, const int64_t high)
+{
+    return constrain_value(amt, low, high);
+}
+
+inline uint64_t constrain_uint64(const uint64_t amt, const uint64_t low, const uint64_t high)
 {
     return constrain_value(amt, low, high);
 }
@@ -194,6 +222,10 @@ ftype sq(const T val)
     ftype v = static_cast<ftype>(val);
     return v*v;
 }
+static inline constexpr float sq(const float val)
+{
+    return val*val;
+}
 
 /*
  * Variadic template for calculating the square norm of a vector of any
@@ -215,12 +247,14 @@ ftype norm(const T first, const U second, const Params... parameters)
     return sqrtF(sq(first, second, parameters...));
 }
 
+#undef MIN
 template<typename A, typename B>
 static inline auto MIN(const A &one, const B &two) -> decltype(one < two ? one : two)
 {
     return one < two ? one : two;
 }
 
+#undef MAX
 template<typename A, typename B>
 static inline auto MAX(const A &one, const B &two) -> decltype(one > two ? one : two)
 {
@@ -322,3 +356,15 @@ uint16_t float2fixed(const float input, const uint8_t fractional_bits = 8);
   fixed wing aircraft
  */
 float fixedwing_turn_rate(float bank_angle_deg, float airspeed);
+
+// convert degrees farenheight to Kelvin
+float degF_to_Kelvin(float temp_f);
+
+/*
+  conversion functions to prevent undefined behaviour
+ */
+int16_t float_to_int16(const float v);
+uint16_t float_to_uint16(const float v);
+int32_t float_to_int32(const float v);
+uint32_t float_to_uint32(const float v);
+

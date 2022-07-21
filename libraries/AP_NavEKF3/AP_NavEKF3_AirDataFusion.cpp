@@ -137,6 +137,11 @@ void NavEKF3_core::FuseAirspeed()
         // fail if the ratio is > 1, but don't fail if bad IMU data
         bool tasHealth = ((tasTestRatio < 1.0f) || badIMUdata);
         tasTimeout = (imuSampleTime_ms - lastTasPassTime_ms) > frontend->tasRetryTime_ms;
+        if (!tasHealth) {
+            lastTasFailTime_ms = imuSampleTime_ms;
+        } else {
+            lastTasFailTime_ms = 0;
+        }
 
         // test the ratio before fusing data, forcing fusion if airspeed and position are timed out as we have no choice but to try and use airspeed to constrain error growth
         if (tasHealth || (tasTimeout && posTimeout)) {
@@ -249,7 +254,7 @@ void NavEKF3_core::SelectBetaDragFusion()
             // we are required to correct all states
             airDataFusionWindOnly = false;
         } else {
-            // we are required to corrrect only wind states
+            // we are required to correct only wind states
             airDataFusionWindOnly = true;
         }
         // Fuse estimated airspeed to aid wind estimation
@@ -265,6 +270,7 @@ void NavEKF3_core::SelectBetaDragFusion()
     if (!inhibitWindStates && storedDrag.recall(dragSampleDelayed,imuDataDelayed.time_ms)) {
         FuseDragForces();
     }
+    dragTimeout = (imuSampleTime_ms - lastDragPassTime_ms) > frontend->dragFailTimeLimit_ms;
 #endif
 }
 
@@ -524,7 +530,7 @@ void NavEKF3_core::FuseDragForces()
         // correct accel data for bias
         const ftype mea_acc = dragSampleDelayed.accelXY[axis_index]  - stateStruct.accel_bias[axis_index] / dtEkfAvg;
 
-        // Acceleration in m/s/s predicfed using vehicle and wind velocity estimates
+        // Acceleration in m/s/s predicted using vehicle and wind velocity estimates
         // Initialised to measured value and updated later using available drag model
         ftype predAccel = mea_acc;
 
@@ -615,7 +621,7 @@ void NavEKF3_core::FuseDragForces()
 
 
         } else if (axis_index == 1) {
-            // drag can be modelled as an arbitrary  combination of bluff body drag that proportional to
+            // drag can be modelled as an arbitrary combination of bluff body drag that proportional to
             // speed squared, and rotor momentum drag that is proportional to speed.
             ftype Kacc; // Derivative of specific force wrt airspeed
             if (using_mcoef && using_bcoef_y) {
@@ -746,6 +752,9 @@ void NavEKF3_core::FuseDragForces()
             }
         }
     }
+
+    // record time of successful fusion
+    lastDragPassTime_ms = imuSampleTime_ms;
 }
 #endif // EK3_FEATURE_DRAG_FUSION
 

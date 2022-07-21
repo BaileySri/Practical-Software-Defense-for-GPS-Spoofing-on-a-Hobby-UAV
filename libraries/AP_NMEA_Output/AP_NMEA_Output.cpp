@@ -95,9 +95,9 @@ void AP_NMEA_Output::update()
 
     auto &ahrs = AP::ahrs();
 
-    // get location (note: get_position from AHRS always returns true after having GPS position once)
+    // get location (note: get_location from AHRS always returns true after having GPS position once)
     Location loc;
-    bool pos_valid = ahrs.get_position(loc);
+    bool pos_valid = ahrs.get_location(loc);
 
     // format latitude
     char lat_string[13];
@@ -167,24 +167,15 @@ void AP_NMEA_Output::update()
             continue;
         }
 
-        if (gga_res != -1) {
-            _uart[i]->write(gga);
-            _uart[i]->write(gga_end);
-        }
+        _uart[i]->write(gga);
+        _uart[i]->write(gga_end);
 
-        if (rmc_res != -1) {
-            _uart[i]->write(rmc);
-            _uart[i]->write(rmc_end);
-        }
+        _uart[i]->write(rmc);
+        _uart[i]->write(rmc_end);
     }
 
-    if (gga_res != -1) {
-        free(gga);
-    }
-
-    if (rmc_res != -1) {
-        free(rmc);
-    }
+    free(gga);
+    free(rmc);
 }
 
 #endif  // HAL_NMEA_OUTPUT_ENABLED

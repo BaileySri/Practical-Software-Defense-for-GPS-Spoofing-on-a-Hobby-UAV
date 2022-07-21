@@ -70,6 +70,10 @@
 
 #define MAX_CONNECTED_MAGS (COMPASS_MAX_UNREG_DEV+COMPASS_MAX_INSTANCES)
 
+#ifndef AP_SIM_COMPASS_ENABLED
+#define AP_SIM_COMPASS_ENABLED AP_SIM_ENABLED
+#endif
+
 #include "CompassCalibrator.h"
 
 class CompassLearn;
@@ -233,9 +237,8 @@ public:
     bool auto_declination_enabled() const { return _auto_declination != 0; }
 
     // set overall board orientation
-    void set_board_orientation(enum Rotation orientation, Matrix3f* custom_rotation = nullptr) {
+    void set_board_orientation(enum Rotation orientation) {
         _board_orientation = orientation;
-        _custom_rotation = custom_rotation;
     }
 
     /// Set the motor compensation type
@@ -336,7 +339,8 @@ public:
       fast compass calibration given vehicle position and yaw
      */
     MAV_RESULT mag_cal_fixed_yaw(float yaw_deg, uint8_t compass_mask,
-                                 float lat_deg, float lon_deg);
+                                 float lat_deg, float lon_deg,
+                                 bool force_use=false);
 
 #if HAL_MSP_COMPASS_ENABLED
     void handle_msp(const MSP::msp_compass_data_message_t &pkt);
@@ -451,12 +455,6 @@ private:
     // board orientation from AHRS
     enum Rotation _board_orientation = ROTATION_NONE;
 
-    // custom board rotation matrix
-    Matrix3f* _custom_rotation;
-
-    // custom external compass rotation matrix
-    Matrix3f* _custom_external_rotation;
-
     // declination in radians
     AP_Float    _declination;
 
@@ -473,11 +471,6 @@ private:
     // automatic compass orientation on calibration
     AP_Int8     _rotate_auto;
 
-    // custom compass rotation
-    AP_Float    _custom_roll;
-    AP_Float    _custom_pitch;
-    AP_Float    _custom_yaw;
-    
     // throttle expressed as a percentage from 0 ~ 1.0, used for motor compensation
     float       _thr;
 

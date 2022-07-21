@@ -9,6 +9,7 @@ Andrew Tridgell, October 2011
 from __future__ import print_function
 import atexit
 import fnmatch
+import copy
 import glob
 import optparse
 import os
@@ -39,6 +40,8 @@ from pymavlink.generator import mavtemplate
 from common import Test
 
 tester = None
+
+build_opts = None
 
 
 def buildlogs_dirpath():
@@ -117,9 +120,16 @@ def build_binaries():
 
     # copy the script (and various libraries used by the script) as it
     # changes git branch, which can change the script while running
-    for thing in "build_binaries.py", "generate_manifest.py", "gen_stable.py", "build_binaries_history.py", "board_list.py":
+    for thing in [
+            "board_list.py",
+            "build_binaries_history.py",
+            "build_binaries.py",
+            "build_sizes/build_sizes.py",
+            "generate_manifest.py",
+            "gen_stable.py",
+    ]:
         orig = util.reltopdir('Tools/scripts/%s' % thing)
-        copy = util.reltopdir('./%s' % thing)
+        copy = util.reltopdir('./%s' % os.path.basename(thing))
         shutil.copy2(orig, copy)
 
     if util.run_cmd("./build_binaries.py", directory=util.reltopdir('.')) != 0:
@@ -217,7 +227,8 @@ def all_vehicles():
             'ArduCopter',
             'Rover',
             'AntennaTracker',
-            'ArduSub')
+            'ArduSub',
+            'Blimp')
 
 
 def build_parameters():
@@ -314,6 +325,7 @@ __bin_names = {
     "Helicopter": "arducopter-heli",
     "QuadPlane": "arduplane",
     "Sub": "ardusub",
+    "Blimp": "blimp",
     "BalanceBot": "ardurover",
     "Sailboat": "ardurover",
     "SITLPeriphGPS": "sitl_periph_gp.AP_Periph",
@@ -438,10 +450,14 @@ def run_step(step):
         "extra_configure_args": opts.waf_configure_args,
         "coverage": opts.coverage,
         "sitl_32bit" : opts.sitl_32bit,
+        "ubsan" : opts.ubsan,
+        "ubsan_abort" : opts.ubsan_abort,
     }
 
     if opts.Werror:
         build_opts['extra_configure_args'].append("--Werror")
+
+    build_opts = build_opts
 
     vehicle_binary = None
     if step == 'build.Plane':
@@ -452,6 +468,9 @@ def run_step(step):
 
     if step == 'build.Copter':
         vehicle_binary = 'bin/arducopter'
+
+    if step == 'build.Blimp':
+        vehicle_binary = 'bin/blimp'
 
     if step == 'build.Tracker':
         vehicle_binary = 'bin/antennatracker'
@@ -505,6 +524,7 @@ def run_step(step):
         "viewerip": opts.viewerip,
         "use_map": opts.map,
         "valgrind": opts.valgrind,
+        "callgrind": opts.callgrind,
         "gdb": opts.gdb,
         "gdb_no_tui": opts.gdb_no_tui,
         "lldb": opts.lldb,
@@ -518,6 +538,7 @@ def run_step(step):
         "logs_dir": buildlogs_dirpath(),
         "sup_binaries": supplementary_binaries,
         "reset_after_every_test": opts.reset_after_every_test,
+        "build_opts": copy.copy(build_opts),
     }
     if opts.speedup is not None:
         fly_opts["speedup"] = opts.speedup
@@ -946,6 +967,16 @@ if __name__ == "__main__":
                            action='store_true',
                            dest="sitl_32bit",
                            help="compile sitl using 32-bit")
+    group_build.add_option("", "--ubsan",
+                           default=False,
+                           action='store_true',
+                           dest="ubsan",
+                           help="compile sitl with undefined behaviour sanitiser")
+    group_build.add_option("", "--ubsan-abort",
+                           default=False,
+                           action='store_true',
+                           dest="ubsan_abort",
+                           help="compile sitl with undefined behaviour sanitiser and abort on error")
     parser.add_option_group(group_build)
 
     group_sim = optparse.OptionGroup(parser, "Simulation options")
@@ -957,6 +988,10 @@ if __name__ == "__main__":
                          default=False,
                          action='store_true',
                          help='run ArduPilot binaries under valgrind')
+    group_sim.add_option("", "--callgrind",
+                         action='store_true',
+                         default=False,
+                         help="enable valgrind for performance analysis (slow!!)")
     group_sim.add_option("--gdb",
                          default=False,
                          action='store_true',
@@ -1027,6 +1062,8 @@ if __name__ == "__main__":
         # adjust if we're running in a regime which may slow us down e.g. Valgrind
         if opts.valgrind:
             opts.timeout *= 10
+        elif opts.callgrind:
+            opts.timeout *= 10
         elif opts.gdb:
             opts.timeout = None
 
@@ -1069,10 +1106,14 @@ if __name__ == "__main__":
         'defaults.Sub',
         'test.Sub',
 
+        'build.Blimp',
+        'defaults.Blimp',
+
         'build.SITLPeriphGPS',
         'test.CAN',
 
-        'convertgpx',
+        # convertgps disabled as it takes 5 hours
+        # 'convertgpx',
     ]
 
     moresteps = [

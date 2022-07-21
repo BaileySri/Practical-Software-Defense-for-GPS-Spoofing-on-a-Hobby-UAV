@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <AP_HAL/AP_HAL.h>
+#include <AP_HAL/AP_HAL_Boards.h>
 
 #include "quadplane.h"
 
@@ -12,9 +12,9 @@
 
 #if QAUTOTUNE_ENABLED
 
-#include <AC_AutoTune/AC_AutoTune.h>
+#include <AC_AutoTune/AC_AutoTune_Multi.h>
 
-class QAutoTune : public AC_AutoTune
+class QAutoTune : public AC_AutoTune_Multi
 {
 public:
     friend class QuadPlane;

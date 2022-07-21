@@ -94,6 +94,10 @@ imu_types = {
     0x33 : "DEVTYPE_INS_ICM40609",
     0x34 : "DEVTYPE_INS_ICM42688",
     0x35 : "DEVTYPE_INS_ICM42605",
+    0x36 : "DEVTYPE_INS_ICM40605",
+    0x37 : "DEVTYPE_INS_IIM42652",
+    0x38 : "DEVTYPE_INS_BMI270",
+    0x39 : "DEVTYPE_INS_BMI085",
 }
 
 baro_types = {

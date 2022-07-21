@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 '''
 Dive ArduSub in SITL
 
@@ -81,7 +79,7 @@ class AutoTestSub(AutoTest):
     def is_sub(self):
         return True
 
-    def watch_altitude_maintained(self, delta=1, timeout=5.0):
+    def watch_altitude_maintained(self, delta=0.3, timeout=5.0):
         """Watch and wait for the actual altitude to be maintained
 
         Keyword Arguments:
@@ -152,9 +150,21 @@ class AutoTestSub(AutoTest):
 
         # let the vehicle settle (momentum / stopping point shenanigans....)
         self.delay_sim_time(1)
-
         self.watch_altitude_maintained()
 
+        # Make sure the code can handle buoyancy changes
+        self.set_parameter("SIM_BUOYANCY", 10)
+        self.watch_altitude_maintained()
+        self.set_parameter("SIM_BUOYANCY", -10)
+        self.watch_altitude_maintained()
+
+        # Make sure that the ROV will dive with a small input down even if there is a 10N buoyancy force upwards
+        self.set_parameter("SIM_BUOYANCY", 10)
+        self.set_rc(Joystick.Throttle, 1350)
+        self.wait_altitude(altitude_min=-6, altitude_max=-5.5)
+
+        self.set_rc(Joystick.Throttle, 1500)
+        self.watch_altitude_maintained()
         self.disarm_vehicle()
 
     def test_pos_hold(self):
@@ -245,9 +255,7 @@ class AutoTestSub(AutoTest):
         self.disarm_vehicle()
         self.progress("Manual dive OK")
 
-        m = self.mav.recv_match(type='SCALED_PRESSURE3', blocking=True)
-        if m is None:
-            raise NotAchievedException("Did not get SCALED_PRESSURE3")
+        m = self.assert_receive_message('SCALED_PRESSURE3')
         if m.temperature != 2650:
             raise NotAchievedException("Did not get correct TSYS01 temperature")
 

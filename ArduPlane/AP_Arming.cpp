@@ -75,33 +75,7 @@ bool AP_Arming_Plane::pre_arm_checks(bool display_failure)
     }
 
 #if HAL_QUADPLANE_ENABLED
-    if (plane.quadplane.enabled() && !plane.quadplane.available()) {
-        check_failed(display_failure, "Quadplane enabled but not running");
-        ret = false;
-    }
-
-    if (plane.quadplane.available() && plane.scheduler.get_loop_rate_hz() < 100) {
-        check_failed(display_failure, "quadplane needs SCHED_LOOP_RATE >= 100");
-        ret = false;
-    }
-
-    if (plane.quadplane.available() && !plane.quadplane.motors->initialised_ok()) {
-        check_failed(display_failure, "Quadplane: check motor setup");
-        ret = false;
-    }
-
-    if (plane.quadplane.enabled() && plane.quadplane.available()) {
-        // ensure controllers are OK with us arming:
-        char failure_msg[50];
-        if (!plane.quadplane.pos_control->pre_arm_checks("PSC", failure_msg, ARRAY_SIZE(failure_msg))) {
-            check_failed(ARMING_CHECK_PARAMETERS, display_failure, "Bad parameter: %s", failure_msg);
-            return false;
-        }
-        if (!plane.quadplane.attitude_control->pre_arm_checks("ATC", failure_msg, ARRAY_SIZE(failure_msg))) {
-            check_failed(ARMING_CHECK_PARAMETERS, display_failure, "Bad parameter: %s", failure_msg);
-            return false;
-        }
-    }
+    ret &= quadplane_checks(display_failure);
 #endif
 
     if (plane.control_mode == &plane.mode_auto && plane.mission.num_commands() <= 1) {
@@ -120,14 +94,6 @@ bool AP_Arming_Plane::pre_arm_checks(bool display_failure)
         ret = false;
     }
 
-#if HAL_QUADPLANE_ENABLED
-    if (plane.quadplane.enabled() && ((plane.quadplane.options & QuadPlane::OPTION_ONLY_ARM_IN_QMODE_OR_AUTO) != 0) &&
-            !plane.control_mode->is_vtol_mode() && (plane.control_mode != &plane.mode_auto) && (plane.control_mode != &plane.mode_guided)) {
-        check_failed(display_failure,"not in Q mode");
-        ret = false;
-    }
-#endif
-
     if (plane.g2.flight_options & FlightOptions::CENTER_THROTTLE_TRIM){
        int16_t trim = plane.channel_throttle->get_radio_trim();
        if (trim < 1250 || trim > 1750) {
@@ -136,8 +102,111 @@ bool AP_Arming_Plane::pre_arm_checks(bool display_failure)
        }
     }
 
+    if (plane.mission.get_in_landing_sequence_flag() &&
+        !plane.mission.starts_with_takeoff_cmd()) {
+        check_failed(display_failure,"In landing sequence");
+        ret = false;
+    }
+    
     return ret;
 }
+
+#if HAL_QUADPLANE_ENABLED
+bool AP_Arming_Plane::quadplane_checks(bool display_failure)
+{
+    if (!plane.quadplane.enabled()) {
+        return true;
+    }
+
+    if (!plane.quadplane.available()) {
+        check_failed(display_failure, "Quadplane enabled but not running");
+        return false;
+    }
+
+    bool ret = true;
+
+    if (plane.scheduler.get_loop_rate_hz() < 100) {
+        check_failed(display_failure, "quadplane needs SCHED_LOOP_RATE >= 100");
+        ret = false;
+    }
+
+    if (!plane.quadplane.motors->initialised_ok()) {
+        check_failed(display_failure, "Quadplane: check motor setup");
+        ret = false;
+    }
+
+    // lean angle parameter check
+    if (plane.quadplane.aparm.angle_max < 1000 || plane.quadplane.aparm.angle_max > 8000) {
+        check_failed(ARMING_CHECK_PARAMETERS, display_failure, "Check Q_ANGLE_MAX");
+        ret = false;
+    }
+
+    if ((plane.quadplane.tailsitter.enable > 0) && (plane.quadplane.tiltrotor.enable > 0)) {
+        check_failed(ARMING_CHECK_PARAMETERS, display_failure, "set TAILSIT_ENABLE 0 or TILT_ENABLE 0");
+        ret = false;
+
+    } else {
+
+        if ((plane.quadplane.tailsitter.enable > 0) && !plane.quadplane.tailsitter.enabled()) {
+            check_failed(ARMING_CHECK_PARAMETERS, display_failure, "tailsitter setup not complete, reboot");
+            ret = false;
+        }
+
+        if ((plane.quadplane.tiltrotor.enable > 0) && !plane.quadplane.tiltrotor.enabled()) {
+            check_failed(ARMING_CHECK_PARAMETERS, display_failure, "tiltrotor setup not complete, reboot");
+            ret = false;
+        }
+    }
+
+    // ensure controllers are OK with us arming:
+    char failure_msg[50] = {};
+    if (!plane.quadplane.pos_control->pre_arm_checks("PSC", failure_msg, ARRAY_SIZE(failure_msg))) {
+        check_failed(ARMING_CHECK_PARAMETERS, display_failure, "Bad parameter: %s", failure_msg);
+        ret = false;
+    }
+    if (!plane.quadplane.attitude_control->pre_arm_checks("ATC", failure_msg, ARRAY_SIZE(failure_msg))) {
+        check_failed(ARMING_CHECK_PARAMETERS, display_failure, "Bad parameter: %s", failure_msg);
+        ret = false;
+    }
+    if (!plane.quadplane.motors->check_mot_pwm_params()) {
+        check_failed(ARMING_CHECK_PARAMETERS, display_failure, "Check Q_M_PWM_MIN/MAX");
+        ret = false;
+    }
+
+    if ((plane.quadplane.options & QuadPlane::OPTION_ONLY_ARM_IN_QMODE_OR_AUTO) != 0) {
+        if (!plane.control_mode->is_vtol_mode() && (plane.control_mode != &plane.mode_auto) && (plane.control_mode != &plane.mode_guided)) {
+            check_failed(display_failure,"not in Q mode");
+            ret = false;
+        }
+        if ((plane.control_mode == &plane.mode_auto) && !plane.quadplane.is_vtol_takeoff(plane.mission.get_current_nav_cmd().id)) {
+            check_failed(display_failure,"not in VTOL takeoff");
+            ret = false;
+        }
+    }
+
+    if ((plane.control_mode == &plane.mode_auto) && !plane.mission.starts_with_takeoff_cmd()) {
+        check_failed(display_failure,"missing takeoff waypoint");
+        ret = false;
+    }
+
+    if (plane.control_mode == &plane.mode_rtl) {
+        check_failed(display_failure,"in RTL mode");
+        ret = false;
+    }
+    
+    /*
+      Q_ASSIST_SPEED really should be enabled for all quadplanes except tailsitters
+     */
+    if (check_enabled(ARMING_CHECK_PARAMETERS) &&
+        is_zero(plane.quadplane.assist_speed) &&
+        !plane.quadplane.tailsitter.enabled()) {
+        check_failed(display_failure,"Q_ASSIST_SPEED is not set");
+        ret = false;
+    }
+
+    return ret;
+}
+#endif // HAL_QUADPLANE_ENABLED
 
 bool AP_Arming_Plane::ins_checks(bool display_failure)
 {
@@ -174,7 +243,7 @@ bool AP_Arming_Plane::arm_checks(AP_Arming::Method method)
         }
 
         // if throttle is not down, then pilot cannot rudder arm/disarm
-        if (plane.get_throttle_input() != 0){
+        if (!is_zero(plane.get_throttle_input())){
             check_failed(true, "Non-zero throttle");
             return false;
         }
@@ -236,12 +305,15 @@ bool AP_Arming_Plane::arm(const AP_Arming::Method method, const bool do_arming_c
 bool AP_Arming_Plane::disarm(const AP_Arming::Method method, bool do_disarm_checks)
 {
     if (do_disarm_checks &&
-        method == AP_Arming::Method::RUDDER) {
-        // don't allow rudder-disarming in flight:
+        (method == AP_Arming::Method::MAVLINK ||
+         method == AP_Arming::Method::RUDDER)) {
         if (plane.is_flying()) {
-            // obviously this could happen in-flight so we can't warn about it
+            // don't allow mavlink or rudder disarm while flying
             return false;
         }
+    }
+    
+    if (do_disarm_checks && method == AP_Arming::Method::RUDDER) {
         // option must be enabled:
         if (get_rudder_arming_type() != AP_Arming::RudderArming::ARMDISARM) {
             gcs().send_text(MAV_SEVERITY_INFO, "Rudder disarm: disabled");
@@ -309,3 +381,16 @@ void AP_Arming_Plane::update_soft_armed()
     }
 }
 
+/*
+  extra plane mission checks
+ */
+bool AP_Arming_Plane::mission_checks(bool report)
+{
+    // base checks
+    bool ret = AP_Arming::mission_checks(report);
+    if (plane.mission.get_landing_sequence_start() > 0 && plane.g.rtl_autoland == RtlAutoland::RTL_DISABLE) {
+        ret = false;
+        check_failed(ARMING_CHECK_MISSION, report, "DO_LAND_START set and RTL_AUTOLAND disabled");
+    }
+    return ret;
+}

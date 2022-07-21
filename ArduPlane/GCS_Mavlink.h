@@ -41,7 +41,7 @@ protected:
 
 private:
 
-    void send_pid_info(const AP_Logger::PID_Info *pid_info, const uint8_t axis, const float achieved);
+    void send_pid_info(const AP_PIDInfo *pid_info, const uint8_t axis, const float achieved);
 
     void handleMessage(const mavlink_message_t &msg) override;
     bool handle_guided_request(AP_Mission::Mission_Command &cmd) override;
@@ -69,6 +69,9 @@ private:
     uint8_t high_latency_tgt_airspeed() const override;
     uint8_t high_latency_wind_speed() const override;
     uint8_t high_latency_wind_direction() const override;
-    int8_t high_latency_air_temperature() const override;
 #endif // HAL_HIGH_LATENCY2_ENABLED
+
+    MAV_VTOL_STATE vtol_state() const override;
+    MAV_LANDED_STATE landed_state() const override;
+
 };

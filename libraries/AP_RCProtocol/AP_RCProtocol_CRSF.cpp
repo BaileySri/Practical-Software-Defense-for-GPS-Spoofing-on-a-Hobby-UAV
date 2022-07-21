@@ -80,10 +80,11 @@
 
 extern const AP_HAL::HAL& hal;
 
-// #define CRSF_DEBUG
+//#define CRSF_DEBUG
+//#define CRSF_DEBUG_CHARS
 #ifdef CRSF_DEBUG
 # define debug(fmt, args...)	hal.console->printf("CRSF: " fmt "\n", ##args)
-static const char* get_frame_type(uint8_t byte)
+static const char* get_frame_type(uint8_t byte, uint8_t subtype = 0)
 {
     switch(byte) {
     case AP_RCProtocol_CRSF::CRSF_FRAMETYPE_GPS:
@@ -124,6 +125,17 @@ static const char* get_frame_type(uint8_t byte)
         return "LINK_STATSv3_TX";
     case AP_RCProtocol_CRSF::CRSF_FRAMETYPE_PARAMETER_WRITE:
         return "UNKNOWN";
+    case AP_RCProtocol_CRSF::CRSF_FRAMETYPE_AP_CUSTOM_TELEM_LEGACY:
+    case AP_RCProtocol_CRSF::CRSF_FRAMETYPE_AP_CUSTOM_TELEM:
+        switch (subtype) {
+        case AP_RCProtocol_CRSF::CRSF_AP_CUSTOM_TELEM_SINGLE_PACKET_PASSTHROUGH:
+            return "AP_CUSTOM_SINGLE";
+        case AP_RCProtocol_CRSF::CRSF_AP_CUSTOM_TELEM_STATUS_TEXT:
+            return "AP_CUSTOM_TEXT";
+        case AP_RCProtocol_CRSF::CRSF_AP_CUSTOM_TELEM_MULTI_PACKET_PASSTHROUGH:
+            return "AP_CUSTOM_MULTI";
+        }
+        return "AP_CUSTOM";
     }
     return "UNKNOWN";
 }
@@ -135,12 +147,13 @@ static const char* get_frame_type(uint8_t byte)
 #define CRSF_INTER_FRAME_TIME_US_250HZ    4000U // At fastest, frames are sent by the transmitter every 4 ms, 250 Hz
 #define CRSF_INTER_FRAME_TIME_US_150HZ    6667U // At medium, frames are sent by the transmitter every 6.667 ms, 150 Hz
 #define CRSF_INTER_FRAME_TIME_US_50HZ    20000U // At slowest, frames are sent by the transmitter every 20ms, 50 Hz
-#define CSRF_HEADER_LEN     2
+#define CSRF_HEADER_TYPE_LEN     (CSRF_HEADER_LEN + 1)           // header length including type
 
 #define CRSF_DIGITAL_CHANNEL_MIN 172
 #define CRSF_DIGITAL_CHANNEL_MAX 1811
 
 
+constexpr uint16_t AP_RCProtocol_CRSF::elrs_air_rates[8];
 AP_RCProtocol_CRSF* AP_RCProtocol_CRSF::_singleton;
 
 AP_RCProtocol_CRSF::AP_RCProtocol_CRSF(AP_RCProtocol &_frontend) : AP_RCProtocol_Backend(_frontend)
@@ -185,8 +198,6 @@ void AP_RCProtocol_CRSF::_process_byte(uint32_t timestamp_us, uint8_t byte)
         _frame_ofs = 0;
     }
 
-    _last_rx_time_us = timestamp_us;
-
     // overflow check
     if (_frame_ofs >= CRSF_FRAMELEN_MAX) {
         _frame_ofs = 0;
@@ -200,17 +211,23 @@ void AP_RCProtocol_CRSF::_process_byte(uint32_t timestamp_us, uint8_t byte)
     add_to_buffer(_frame_ofs++, byte);
 
     // need a header to get the length
-    if (_frame_ofs < CSRF_HEADER_LEN) {
+    if (_frame_ofs < CSRF_HEADER_TYPE_LEN) {
         return;
     }
 
     // parse the length
-    if (_frame_ofs == CSRF_HEADER_LEN) {
+    if (_frame_ofs == CSRF_HEADER_TYPE_LEN) {
+        _frame_crc = crc8_dvb_s2(0, _frame.type);
         // check for garbage frame
-        if (_frame.length > CRSF_FRAMELEN_MAX) {
+        if (_frame.length > CRSF_FRAME_PAYLOAD_MAX) {
             _frame_ofs = 0;
         }
         return;
+    }
+
+    // update crc
+    if (_frame_ofs < _frame.length + CSRF_HEADER_LEN) {
+        _frame_crc = crc8_dvb_s2(_frame_crc, byte);
     }
 
     // overflow check
@@ -226,19 +243,15 @@ void AP_RCProtocol_CRSF::_process_byte(uint32_t timestamp_us, uint8_t byte)
         // we consumed the partial frame, reset
         _frame_ofs = 0;
 
-        uint8_t crc = crc8_dvb_s2(0, _frame.type);
-        for (uint8_t i = 0; i < _frame.length - 2; i++) {
-            crc = crc8_dvb_s2(crc, _frame.payload[i]);
-        }
-
-        // bad CRC
-        if (crc != _frame.payload[_frame.length - CSRF_HEADER_LEN]) {
+        // bad CRC (payload start is +1 from frame start, so need to subtract that from frame length to get index)
+        if (_frame_crc != _frame.payload[_frame.length - 2]) {
             return;
         }
 
-        _last_frame_time_us = timestamp_us;
+        _last_frame_time_us = _last_rx_frame_time_us = timestamp_us;
         // decode here
         if (decode_crsf_packet()) {
+            _last_tx_frame_time_us = timestamp_us;  // we have received a frame from the transmitter
             add_input(MAX_CHANNELS, _channels, false, _link_status.rssi, _link_status.link_quality);
         }
     }
@@ -259,17 +272,21 @@ void AP_RCProtocol_CRSF::update(void)
         for (uint8_t i = 0; i < n; i++) {
             int16_t b = _uart->read();
             if (b >= 0) {
-                _process_byte(now, uint8_t(b));
+                process_byte(AP_HAL::micros(), uint8_t(b));
             }
         }
     }
 
     // never received RC frames, but have received CRSF frames so make sure we give the telemetry opportunity to run
     uint32_t now = AP_HAL::micros();
-    if (_last_frame_time_us > 0 && !get_rc_frame_count() && now - _last_frame_time_us > CRSF_INTER_FRAME_TIME_US_250HZ) {
+    if (_last_frame_time_us > 0 && (!get_rc_frame_count() || !is_tx_active())
+        && now - _last_frame_time_us > CRSF_INTER_FRAME_TIME_US_250HZ) {
         process_telemetry(false);
         _last_frame_time_us = now;
     }
+
+    //Check if LQ is to be reported in place of RSSI
+    _use_lq_for_rssi = bool(rc().use_crsf_lq_as_rssi());
 }
 
 // write out a frame of any type
@@ -288,16 +305,21 @@ void AP_RCProtocol_CRSF::write_frame(Frame* frame)
     frame->payload[frame->length - 2] = crc;
 
     uart->write((uint8_t*)frame, frame->length + 2);
+    uart->flush();
 
 #ifdef CRSF_DEBUG
-    hal.console->printf("CRSF: writing %s:", get_frame_type(frame->type));
+    hal.console->printf("CRSF: writing %s:", get_frame_type(frame->type, frame->payload[0]));
     for (uint8_t i = 0; i < frame->length + 2; i++) {
         uint8_t val = ((uint8_t*)frame)[i];
+#ifdef CRSF_DEBUG_CHARS
         if (val >= 32 && val <= 126) {
             hal.console->printf(" 0x%x '%c'", val, (char)val);
         } else {
+#endif
             hal.console->printf(" 0x%x", val);
+#ifdef CRSF_DEBUG_CHARS
         }
+#endif
     }
     hal.console->printf("\n");
 #endif
@@ -309,7 +331,15 @@ bool AP_RCProtocol_CRSF::decode_crsf_packet()
     hal.console->printf("CRSF: received %s:", get_frame_type(_frame.type));
     uint8_t* fptr = (uint8_t*)&_frame;
     for (uint8_t i = 0; i < _frame.length + 2; i++) {
-        hal.console->printf(" 0x%x", fptr[i]);
+#ifdef CRSF_DEBUG_CHARS
+        if (fptr[i] >= 32 && fptr[i] <= 126) {
+            hal.console->printf(" 0x%x '%c'", fptr[i], (char)fptr[i]);
+        } else {
+#endif
+            hal.console->printf(" 0x%x", fptr[i]);
+#ifdef CRSF_DEBUG_CHARS
+        }
+#endif
     }
     hal.console->printf("\n");
 #endif
@@ -403,7 +433,7 @@ void AP_RCProtocol_CRSF::decode_variable_bit_channels(const uint8_t* payload, ui
     }
 
     // calculate the number of channels packed
-    uint8_t numOfChannels = ((frame_length - 2) * 8 - CRSF_SUBSET_RC_STARTING_CHANNEL_BITS) / channelBits;
+    uint8_t numOfChannels = MIN(uint8_t(((frame_length - 2) * 8 - CRSF_SUBSET_RC_STARTING_CHANNEL_BITS) / channelBits), CRSF_MAX_CHANNELS);
 
     // unpack the channel data
     uint8_t bitsMerged = 0;
@@ -412,9 +442,17 @@ void AP_RCProtocol_CRSF::decode_variable_bit_channels(const uint8_t* payload, ui
 
     for (uint8_t n = 0; n < numOfChannels; n++) {
         while (bitsMerged < channelBits) {
+            // check for corrupt frame
+            if (readByteIndex >= CRSF_FRAME_PAYLOAD_MAX) {
+                return;
+            }
             uint8_t readByte = payload[readByteIndex++];
             readValue |= ((uint32_t) readByte) << bitsMerged;
             bitsMerged += 8;
+        }
+        // check for corrupt frame
+        if (uint8_t(channel_data->starting_channel + n) >= CRSF_MAX_CHANNELS) {
+            return;
         }
         _channels[channel_data->starting_channel + n] =
             uint16_t(channelScale * float(uint16_t(readValue & channelMask)) + 988);
@@ -434,7 +472,7 @@ bool AP_RCProtocol_CRSF::process_telemetry(bool check_constraint)
 
     if (!telem_available) {
 #if HAL_CRSF_TELEM_ENABLED && !APM_BUILD_TYPE(APM_BUILD_iofirmware)
-        if (AP_CRSF_Telem::get_telem_data(&_telemetry_frame)) {
+        if (AP_CRSF_Telem::get_telem_data(&_telemetry_frame, is_tx_active())) {
             telem_available = true;
         } else {
             return false;
@@ -462,17 +500,21 @@ void AP_RCProtocol_CRSF::process_link_stats_frame(const void* data)
         rssi_dbm = link->uplink_rssi_ant2;
     }
     _link_status.link_quality = link->uplink_status;
-     // AP rssi: -1 for unknown, 0 for no link, 255 for maximum link
-    if (rssi_dbm < 50) {
-        _link_status.rssi = 255;
-    } else if (rssi_dbm > 120) {
-        _link_status.rssi = 0;
-    } else {
-        // this is an approximation recommended by Remo from TBS
-        _link_status.rssi = int16_t(roundf((1.0f - (rssi_dbm - 50.0f) / 70.0f) * 255.0f));
+    if (_use_lq_for_rssi) {
+        _link_status.rssi = derive_scaled_lq_value(link->uplink_status);
+    } else{
+        // AP rssi: -1 for unknown, 0 for no link, 255 for maximum link
+        if (rssi_dbm < 50) {
+            _link_status.rssi = 255;
+        } else if (rssi_dbm > 120) {
+            _link_status.rssi = 0;
+        } else {
+            // this is an approximation recommended by Remo from TBS
+            _link_status.rssi = int16_t(roundf((1.0f - (rssi_dbm - 50.0f) / 70.0f) * 255.0f));
+        }
     }
 
-    _link_status.rf_mode = static_cast<RFMode>(MIN(link->rf_mode, 3U));
+    _link_status.rf_mode = MIN(link->rf_mode, 7U);
 }
 
 // process link statistics to get RX RSSI
@@ -480,7 +522,11 @@ void AP_RCProtocol_CRSF::process_link_stats_rx_frame(const void* data)
 {
     const LinkStatisticsRXFrame* link = (const LinkStatisticsRXFrame*)data;
 
-    _link_status.rssi = link->rssi_percent * 255.0f * 0.01f;
+    if (_use_lq_for_rssi) {
+        _link_status.rssi = derive_scaled_lq_value(link->link_quality);
+    } else {
+        _link_status.rssi = link->rssi_percent * 255.0f * 0.01f;
+    }
 }
 
 // process link statistics to get TX RSSI
@@ -488,7 +534,11 @@ void AP_RCProtocol_CRSF::process_link_stats_tx_frame(const void* data)
 {
     const LinkStatisticsTXFrame* link = (const LinkStatisticsTXFrame*)data;
 
-    _link_status.rssi = link->rssi_percent * 255.0f * 0.01f;
+    if (_use_lq_for_rssi) {
+        _link_status.rssi = derive_scaled_lq_value(link->link_quality);
+    } else {
+        _link_status.rssi = link->rssi_percent * 255.0f * 0.01f;
+    }
 }
 
 // process a byte provided by a uart
@@ -531,6 +581,12 @@ bool AP_RCProtocol_CRSF::change_baud_rate(uint32_t baudrate)
     _new_baud_rate = baudrate;
 
     return true;
+}
+
+//returns uplink link quality on 0-255 scale
+int16_t AP_RCProtocol_CRSF::derive_scaled_lq_value(uint8_t uplink_lq)
+{
+    return int16_t(roundf(constrain_float(uplink_lq*2.5f,0,255)));
 }
 
 namespace AP {

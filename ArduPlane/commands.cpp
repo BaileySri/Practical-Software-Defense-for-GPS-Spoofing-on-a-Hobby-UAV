@@ -51,13 +51,8 @@ void Plane::set_next_WP(const struct Location &loc)
     // location as the previous waypoint, to prevent immediately
     // considering the waypoint complete
     if (current_loc.past_interval_finish_line(prev_WP_loc, next_WP_loc)) {
-        gcs().send_text(MAV_SEVERITY_NOTICE, "Resetting previous waypoint");
         prev_WP_loc = current_loc;
     }
-
-    // used to control FBW and limit the rate of climb
-    // -----------------------------------------------
-    set_target_altitude_location(next_WP_loc);
 
     // zero out our loiter vals to watch for missed waypoints
     loiter_angle_reset();
@@ -66,9 +61,9 @@ void Plane::set_next_WP(const struct Location &loc)
     setup_turn_angle();
 }
 
-void Plane::set_guided_WP(void)
+void Plane::set_guided_WP(const Location &loc)
 {
-    if (aparm.loiter_radius < 0 || guided_WP_loc.loiter_ccw) {
+    if (aparm.loiter_radius < 0 || loc.loiter_ccw) {
         loiter.direction = -1;
     } else {
         loiter.direction = 1;
@@ -80,7 +75,7 @@ void Plane::set_guided_WP(void)
 
     // Load the next_WP slot
     // ---------------------
-    next_WP_loc = guided_WP_loc;
+    next_WP_loc = loc;
 
     // used to control FBW and limit the rate of climb
     // -----------------------------------------------
@@ -127,7 +122,7 @@ void Plane::update_home()
     }
     if (ahrs.home_is_set() && !ahrs.home_is_locked()) {
         Location loc;
-        if(ahrs.get_position(loc) && gps.status() >= AP_GPS::GPS_OK_FIX_3D) {
+        if(ahrs.get_location(loc) && gps.status() >= AP_GPS::GPS_OK_FIX_3D) {
             // we take the altitude directly from the GPS as we are
             // about to reset the baro calibration. We can't use AHRS
             // altitude or we can end up perpetuating a bias in

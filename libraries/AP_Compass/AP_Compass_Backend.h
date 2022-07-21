@@ -19,11 +19,12 @@
  */
 #pragma once
 
-#include "AP_Compass.h"
-
+#include <AP_MSP/msp.h>
 #ifndef HAL_MSP_COMPASS_ENABLED
 #define HAL_MSP_COMPASS_ENABLED HAL_MSP_SENSORS_ENABLED
 #endif
+
+#include "AP_Compass.h"
 
 class Compass;  // forward declaration
 class AP_Compass_Backend
@@ -64,8 +65,9 @@ public:
         DEVTYPE_IST8308 = 0x10,
         DEVTYPE_RM3100 = 0x11,
         DEVTYPE_RM3100_2 = 0x12, // unused, past mistake
-        DEVTYPE_MMC5883 = 0x13,
+        DEVTYPE_MMC5983 = 0x13,
         DEVTYPE_AK09918 = 0x14,
+        DEVTYPE_AK09915 = 0x15,
     };
 
 #if HAL_MSP_COMPASS_ENABLED

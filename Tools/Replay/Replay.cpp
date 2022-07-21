@@ -25,6 +25,7 @@
 #include <GCS_MAVLink/GCS_Dummy.h>
 #include <AP_Filesystem/AP_Filesystem.h>
 #include <AP_Filesystem/posix_compat.h>
+#include <AP_AdvancedFailsafe/AP_AdvancedFailsafe.h>
 
 #if CONFIG_HAL_BOARD == HAL_BOARD_LINUX
 #include <AP_HAL_Linux/Scheduler.h>
@@ -58,9 +59,11 @@ const AP_Param::Info ReplayVehicle::var_info[] = {
     // @Path: ../libraries/AP_AHRS/AP_AHRS.cpp
     GOBJECT(ahrs,                   "AHRS_",    AP_AHRS),
 
+#if AP_AIRSPEED_ENABLED
     // @Group: ARSPD_
     // @Path: ../libraries/AP_Airspeed/AP_Airspeed.cpp
     GOBJECT(airspeed,                               "ARSP_",   AP_Airspeed),
+#endif
 
     // @Group: EK2_
     // @Path: ../libraries/AP_NavEKF2/AP_NavEKF2.cpp
@@ -108,10 +111,14 @@ bool AP_AdvancedFailsafe::gcs_terminate(bool should_terminate, const char *reaso
 // dummy method to avoid linking AP_Avoidance
 // AP_Avoidance *AP::ap_avoidance() { return nullptr; }
 
+#if AP_LTM_TELEM_ENABLED
 // avoid building/linking LTM:
 void AP_LTM_Telem::init() {};
+#endif
+#if AP_DEVO_TELEM_ENABLED
 // avoid building/linking Devo:
 void AP_DEVO_Telem::init() {};
+#endif
 
 void ReplayVehicle::init_ardupilot(void)
 {

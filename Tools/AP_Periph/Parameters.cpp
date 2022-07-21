@@ -1,3 +1,5 @@
+
+#include <AP_HAL/AP_HAL_Boards.h>
 #include "AP_Periph.h"
 
 extern const AP_HAL::HAL &hal;
@@ -10,8 +12,8 @@ extern const AP_HAL::HAL &hal;
 #define HAL_PERIPH_RANGEFINDER_BAUDRATE_DEFAULT 115200
 #endif
 
-#ifndef HAL_PERIPH_RANGEFINDER_PORT_DEFAULT
-#define HAL_PERIPH_RANGEFINDER_PORT_DEFAULT 3
+#ifndef AP_PERIPH_RANGEFINDER_PORT_DEFAULT
+#define AP_PERIPH_RANGEFINDER_PORT_DEFAULT 3
 #endif
 
 #ifndef HAL_PERIPH_GPS_PORT_DEFAULT
@@ -27,6 +29,22 @@ extern const AP_HAL::HAL &hal;
 
 #ifndef AP_PERIPH_MSP_PORT_DEFAULT
 #define AP_PERIPH_MSP_PORT_DEFAULT 1
+#endif
+
+#ifndef AP_PERIPH_ESC_TELEM_PORT_DEFAULT
+#define AP_PERIPH_ESC_TELEM_PORT_DEFAULT -1
+#endif
+
+#ifndef AP_PERIPH_BARO_ENABLE_DEFAULT
+#define AP_PERIPH_BARO_ENABLE_DEFAULT 1
+#endif
+
+#ifndef AP_PERIPH_EFI_PORT_DEFAULT
+#define AP_PERIPH_EFI_PORT_DEFAULT 3
+#endif
+
+#ifndef HAL_PERIPH_EFI_BAUDRATE_DEFAULT
+#define HAL_PERIPH_EFI_BAUDRATE_DEFAULT 115200
 #endif
 
 #ifndef HAL_DEFAULT_MAV_SYSTEM_ID
@@ -74,7 +92,7 @@ const AP_Param::Info AP_Periph_FW::var_info[] = {
     // @Param: CAN_PROTOCOL
     // @DisplayName: Enable use of specific protocol to be used on this port
     // @Description: Enabling this option starts selected protocol that will use this virtual driver. At least one CAN port must be UAVCAN or else CAN1 gets set to UAVCAN
-    // @Values: 0:Disabled,1:UAVCAN,3:ToshibaCAN,4:PiccoloCAN,5:CANTester,6:EFI_NWPMU,7:USD1,8:KDECAN,9:PacketDigital
+    // @Values: 0:Disabled,1:UAVCAN,4:PiccoloCAN,5:CANTester,6:EFI_NWPMU,7:USD1,8:KDECAN
     // @User: Advanced
     // @RebootRequired: True
     GARRAY(can_protocol,     0, "CAN_PROTOCOL", AP_CANManager::Driver_Type_UAVCAN),
@@ -90,7 +108,7 @@ const AP_Param::Info AP_Periph_FW::var_info[] = {
     // @Param: CAN2_PROTOCOL
     // @DisplayName: Enable use of specific protocol to be used on this port
     // @Description: Enabling this option starts selected protocol that will use this virtual driver. At least one CAN port must be UAVCAN or else CAN1 gets set to UAVCAN
-    // @Values: 0:Disabled,1:UAVCAN,3:ToshibaCAN,4:PiccoloCAN,5:CANTester,6:EFI_NWPMU,7:USD1,8:KDECAN,9:PacketDigital
+    // @Values: 0:Disabled,1:UAVCAN,4:PiccoloCAN,5:CANTester,6:EFI_NWPMU,7:USD1,8:KDECAN
     // @User: Advanced
     // @RebootRequired: True
     GARRAY(can_protocol,     1, "CAN2_PROTOCOL", AP_CANManager::Driver_Type_UAVCAN),
@@ -108,10 +126,38 @@ const AP_Param::Info AP_Periph_FW::var_info[] = {
     // @Param: CAN3_PROTOCOL
     // @DisplayName: Enable use of specific protocol to be used on this port
     // @Description: Enabling this option starts selected protocol that will use this virtual driver. At least one CAN port must be UAVCAN or else CAN1 gets set to UAVCAN
-    // @Values: 0:Disabled,1:UAVCAN,3:ToshibaCAN,4:PiccoloCAN,5:CANTester,6:EFI_NWPMU,7:USD1,8:KDECAN,9:PacketDigital
+    // @Values: 0:Disabled,1:UAVCAN,4:PiccoloCAN,5:CANTester,6:EFI_NWPMU,7:USD1,8:KDECAN
     // @User: Advanced
     // @RebootRequired: True
     GARRAY(can_protocol,    2, "CAN3_PROTOCOL", AP_CANManager::Driver_Type_UAVCAN),
+#endif
+
+#if HAL_CANFD_SUPPORTED
+    // @Param: CAN_FDMODE
+    // @DisplayName: Enable CANFD mode
+    // @Description: Enabling this option sets the CAN bus to be in CANFD mode with BRS.
+    // @Values: 0:Disabled,1:Enabled
+    // @User: Advanced
+    // @RebootRequired: True
+    GSCALAR(can_fdmode,     "CAN_FDMODE", 0),
+
+    // @Param: CAN_FDBAUDRATE
+    // @DisplayName: Set up bitrate for data section on CAN1
+    // @Description: This sets the bitrate for the data section of CAN1.
+    // @Values: 1:1M, 2:2M, 4:4M, 5:5M, 8:8M
+    // @User: Advanced
+    // @RebootRequired: True
+    GARRAY(can_fdbaudrate,    0, "CAN_FDBAUDRATE", HAL_CANFD_SUPPORTED),
+
+#if HAL_NUM_CAN_IFACES >= 2
+    // @Param: CAN2_FDBAUDRATE
+    // @DisplayName: Set up bitrate for data section on CAN2
+    // @Description: This sets the bitrate for the data section of CAN2.
+    // @Values: 1:1M, 2:2M, 4:4M, 5:5M, 8:8M
+    // @User: Advanced
+    // @RebootRequired: True
+    GARRAY(can_fdbaudrate,    1, "CAN2_FDBAUDRATE", HAL_CANFD_SUPPORTED),
+#endif
 #endif
 
 #if !defined(HAL_NO_FLASH_SUPPORT) && !defined(HAL_NO_ROMFS_SUPPORT)
@@ -126,9 +172,10 @@ const AP_Param::Info AP_Periph_FW::var_info[] = {
     // @Param: DEBUG
     // @DisplayName: Debug
     // @Description: Debug
-    // @Values: 0:Disabled, 1:Show free stack space
+    // @Bitmask: 0:Disabled, 1:Show free stack space, 2:Auto Reboot after 15sec
     // @User: Advanced
     GSCALAR(debug, "DEBUG", 0),
+
 
     // @Param: BRD_SERIAL_NUM
     // @DisplayName: Serial number of device
@@ -163,7 +210,7 @@ const AP_Param::Info AP_Periph_FW::var_info[] = {
     // @RebootRequired: True
     GSCALAR(gps_port, "GPS_PORT", HAL_PERIPH_GPS_PORT_DEFAULT),
 
-#if HAL_NUM_CAN_IFACES >= 2
+#if GPS_MOVING_BASELINE
     // @Param: MB_CAN_PORT
     // @DisplayName: Moving Baseline CAN Port option
     // @Description: Autoselect dedicated CAN port on which moving baseline data will be transmitted.
@@ -197,7 +244,7 @@ const AP_Param::Info AP_Periph_FW::var_info[] = {
     // @Description: Barometer Enable
     // @Values: 0:Disabled, 1:Enabled
     // @User: Standard
-    GSCALAR(baro_enable, "BARO_ENABLE", 1),
+    GSCALAR(baro_enable, "BARO_ENABLE", AP_PERIPH_BARO_ENABLE_DEFAULT),
 #endif
 
 #ifdef AP_PERIPH_HAVE_LED_WITHOUT_NOTIFY
@@ -235,8 +282,17 @@ const AP_Param::Info AP_Periph_FW::var_info[] = {
     // @Increment: 1
     // @User: Advanced
     // @RebootRequired: True
-    GSCALAR(rangefinder_port, "RNGFND_PORT", HAL_PERIPH_RANGEFINDER_PORT_DEFAULT),
+    GSCALAR(rangefinder_port, "RNGFND_PORT", AP_PERIPH_RANGEFINDER_PORT_DEFAULT),
 
+    // @Param: RNGFND_MAX_RATE
+    // @DisplayName: Rangefinder max rate
+    // @Description: This is the maximum rate we send rangefinder data in Hz. Zero means no limit
+    // @Units: Hz
+    // @Range: 0 200
+    // @Increment: 1
+    // @User: Advanced
+    GSCALAR(rangefinder_max_rate, "RNGFND_MAX_RATE", 50),
+    
     // Rangefinder driver
     // @Group: RNGFND
     // @Path: ../libraries/AP_RangeFinder/AP_RangeFinder.cpp
@@ -298,10 +354,21 @@ const AP_Param::Info AP_Periph_FW::var_info[] = {
     // @Param: ESC_PWM_TYPE
     // @DisplayName: Output PWM type
     // @Description: This selects the output PWM type, allowing for normal PWM continuous output, OneShot, brushed or DShot motor output
-    // @Values: 0:Normal,1:OneShot,2:OneShot125,3:Brushed,4:DShot150,5:DShot300,6:DShot600,7:DShot1200
+    // @Values: 1:Normal,2:OneShot,3:OneShot125,4:Brushed,5:DShot150,6:DShot300,7:DShot600,8:DShot1200
     // @User: Advanced
     // @RebootRequired: True
     GSCALAR(esc_pwm_type, "ESC_PWM_TYPE",     0),
+
+#if HAL_WITH_ESC_TELEM && !HAL_GCS_ENABLED
+    // @Param: ESC_TELEM_PORT
+    // @DisplayName: ESC Telemetry Serial Port
+    // @Description: This is the serial port number where SERIALx_PROTOCOL will be set to ESC Telemetry
+    // @Range: 0 10
+    // @Increment: 1
+    // @User: Advanced
+    // @RebootRequired: True
+    GSCALAR(esc_telem_port, "ESC_TELEM_PORT", AP_PERIPH_ESC_TELEM_PORT_DEFAULT),
+#endif
 #endif
 
 #ifdef HAL_PERIPH_ENABLE_MSP
@@ -347,11 +414,43 @@ const AP_Param::Info AP_Periph_FW::var_info[] = {
     GOBJECT(serial_manager, "SERIAL",   AP_SerialManager),
 #endif
 
-#ifdef ENABLE_SCRIPTING
+#if AP_SCRIPTING_ENABLED
     // @Group: SCR_
     // @Path: ../libraries/AP_Scripting/AP_Scripting.cpp
     GOBJECT(scripting, "SCR_", AP_Scripting),
 #endif
+
+#if AP_STATS_ENABLED
+    // @Group: Node
+    // @Path: ../libraries/AP_Stats/AP_Stats.cpp
+    GOBJECT(node_stats, "STAT", AP_Stats),
+#endif
+
+#ifdef HAL_PERIPH_ENABLE_EFI
+    // @Param: EFI_BAUDRATE
+    // @DisplayName: EFI serial baudrate
+    // @Description: EFI  serial baudrate.
+    // @Values: 1:1200,2:2400,4:4800,9:9600,19:19200,38:38400,57:57600,111:111100,115:115200,230:230400,256:256000,460:460800,500:500000,921:921600,1500:1500000
+    // @Increment: 1
+    // @User: Standard
+    // @RebootRequired: True
+    GSCALAR(efi_baudrate, "EFI_BAUDRATE", HAL_PERIPH_EFI_BAUDRATE_DEFAULT),
+
+    // @Param: EFI_PORT
+    // @DisplayName: EFI Serial Port
+    // @Description: This is the serial port number where SERIALx_PROTOCOL will be set to EFI.
+    // @Range: 0 10
+    // @Increment: 1
+    // @User: Advanced
+    // @RebootRequired: True
+    GSCALAR(efi_port, "EFI_PORT", AP_PERIPH_EFI_PORT_DEFAULT),
+
+    // EFI driver
+    // @Group: EFI
+    // @Path: ../libraries/AP_EFI/AP_EFI.cpp
+    GOBJECT(efi, "EFI", AP_EFI),
+#endif
+
     AP_VAREND
 };
 

@@ -36,8 +36,8 @@
 #include <SITL/SIM_RF_Lanbao.h>
 #include <SITL/SIM_RF_BLping.h>
 #include <SITL/SIM_RF_LeddarOne.h>
-#include <SITL/SIM_RF_uLanding_v0.h>
-#include <SITL/SIM_RF_uLanding_v1.h>
+#include <SITL/SIM_RF_USD1_v0.h>
+#include <SITL/SIM_RF_USD1_v1.h>
 #include <SITL/SIM_RF_MaxsonarSerialLV.h>
 #include <SITL/SIM_RF_Wasp.h>
 #include <SITL/SIM_RF_NMEA.h>
@@ -46,6 +46,7 @@
 #include <SITL/SIM_VectorNav.h>
 #include <SITL/SIM_LORD.h>
 #include <SITL/SIM_AIS.h>
+#include <SITL/SIM_GPS.h>
 
 #include <SITL/SIM_Frsky_D.h>
 #include <SITL/SIM_CRSF.h>
@@ -76,8 +77,6 @@ public:
         Blimp
     };
 
-    int gps_pipe(uint8_t index);
-    ssize_t gps_read(int fd, void *buf, size_t count);
     uint16_t pwm_output[SITL_NUM_CHANNELS];
     uint16_t pwm_input[SITL_RC_INPUT_CHANNELS];
     bool output_ready = false;
@@ -87,11 +86,9 @@ public:
         return _base_port;
     }
 
-    // create a file descriptor attached to a virtual device; type of
-    // device is given by name parameter
-    int sim_fd(const char *name, const char *arg);
-    // returns a write file descriptor for a created virtual device
-    int sim_fd_write(const char *name);
+    // create a simulated serial device; type of device is given by
+    // name parameter
+    SITL::SerialDevice *create_serial_sim(const char *name, const char *arg);
 
     bool use_rtscts(void) const {
         return _use_rtscts;
@@ -99,8 +96,7 @@ public:
     
     // simulated airspeed, sonar and battery monitor
     uint16_t sonar_pin_value;    // pin 0
-    uint16_t airspeed_pin_value; // pin 1
-    uint16_t airspeed_2_pin_value; // pin 2
+    uint16_t airspeed_pin_value[AIRSPEED_MAX_SENSORS]; // pin 1
     uint16_t voltage_pin_value;  // pin 13
     uint16_t current_pin_value;  // pin 12
     uint16_t voltage2_pin_value;  // pin 15
@@ -136,51 +132,16 @@ private:
     void _parse_command_line(int argc, char * const argv[]);
     void _set_param_default(const char *parm);
     void _usage(void);
-    void _sitl_setup(const char *home_str);
+    void _sitl_setup();
     void _setup_fdm(void);
     void _setup_timer(void);
     void _setup_adc(void);
 
     void set_height_agl(void);
-    void _update_rangefinder(float range_value);
+    void _update_rangefinder();
     void _set_signal_handlers(void) const;
 
-    struct gps_data {
-        double latitude;
-        double longitude;
-        float altitude;
-        double speedN;
-        double speedE;
-        double speedD;
-        double yaw;
-        bool have_lock;
-    };
-
-#define MAX_GPS_DELAY 100
-    gps_data _gps_data[2][MAX_GPS_DELAY];
-
-    bool _gps_has_basestation_position;
-    gps_data _gps_basestation_data;
-    void _gps_write(const uint8_t *p, uint16_t size, uint8_t instance);
-    void _gps_send_ubx(uint8_t msgid, uint8_t *buf, uint16_t size, uint8_t instance);
-    void _update_gps_ubx(const struct gps_data *d, uint8_t instance);
-    uint8_t _gps_nmea_checksum(const char *s);
-    void _gps_nmea_printf(uint8_t instance, const char *fmt, ...);
-    void _update_gps_nmea(const struct gps_data *d, uint8_t instance);
-    void _sbp_send_message(uint16_t msg_type, uint16_t sender_id, uint8_t len, uint8_t *payload, uint8_t instance);
-    void _update_gps_sbp(const struct gps_data *d, uint8_t instance);
-    void _update_gps_sbp2(const struct gps_data *d, uint8_t instance);
-    void _update_gps_file(uint8_t instance);
-    void _update_gps_nova(const struct gps_data *d, uint8_t instance);
-    void _nova_send_message(uint8_t *header, uint8_t headerlength, uint8_t *payload, uint8_t payloadlen, uint8_t instance);
-    uint32_t CRC32Value(uint32_t icrc);
-    uint32_t CalculateBlockCRC32(uint32_t length, uint8_t *buffer, uint32_t crc);
-
-    void _update_gps(double latitude, double longitude, float altitude,
-                     double speedN, double speedE, double speedD,
-                     double yaw, bool have_lock);
     void _update_airspeed(float airspeed);
-    void _update_gps_instance(SITL::SIM::GPSType gps_type, const struct gps_data *d, uint8_t instance);
     void _check_rc_input(void);
     bool _read_rc_sitl_input();
     void _fdm_input_local(void);
@@ -197,10 +158,7 @@ private:
     pid_t _parent_pid;
     uint32_t _update_count;
 
-    AP_Baro *_barometer;
-    AP_InertialSensor *_ins;
     Scheduler *_scheduler;
-    Compass *_compass;
 
     SocketAPM _sitl_rc_in{true};
     SITL::SIM *_sitl;
@@ -217,19 +175,7 @@ private:
     const char *_fg_address;
 
     // delay buffer variables
-    static const uint8_t mag_buffer_length = 250;
     static const uint8_t wind_buffer_length = 50;
-
-    // magnetometer delay buffer variables
-    struct readings_mag {
-        uint32_t time;
-        Vector3f data;
-    };
-    uint8_t store_index_mag;
-    uint32_t last_store_time_mag;
-    VectorN<readings_mag,mag_buffer_length> buffer_mag;
-    uint32_t time_delta_mag;
-    uint32_t delayed_time_mag;
 
     // airspeed sensor delay buffer variables
     struct readings_wind {
@@ -239,7 +185,6 @@ private:
     uint8_t store_index_wind;
     uint32_t last_store_time_wind;
     VectorN<readings_wind,wind_buffer_length> buffer_wind;
-    VectorN<readings_wind,wind_buffer_length> buffer_wind_2;
     uint32_t time_delta_wind;
     uint32_t delayed_time_wind;
     uint32_t wind_start_delay_micros;
@@ -247,12 +192,16 @@ private:
     // internal SITL model
     SITL::Aircraft *sitl_model;
 
+#if HAL_SIM_GIMBAL_ENABLED
     // simulated gimbal
     bool enable_gimbal;
     SITL::Gimbal *gimbal;
+#endif
 
+#if HAL_SIM_ADSB_ENABLED
     // simulated ADSb
     SITL::ADSB *adsb;
+#endif
 
     // simulated vicon system:
     SITL::Vicon *vicon;
@@ -274,10 +223,10 @@ private:
     SITL::RF_BLping *blping;
     // simulated LeddarOne rangefinder:
     SITL::RF_LeddarOne *leddarone;
-    // simulated uLanding v0 rangefinder:
-    SITL::RF_uLanding_v0 *ulanding_v0;
-    // simulated uLanding v1 rangefinder:
-    SITL::RF_uLanding_v1 *ulanding_v1;
+    // simulated USD1 v0 rangefinder:
+    SITL::RF_USD1_v0 *USD1_v0;
+    // simulated USD1 v1 rangefinder:
+    SITL::RF_USD1_v1 *USD1_v1;
     // simulated MaxsonarSerialLV rangefinder:
     SITL::RF_MaxsonarSerialLV *maxsonarseriallv;
     // simulated Wasp rangefinder:
@@ -294,19 +243,27 @@ private:
     // SITL::Frsky_SPort *frsky_sport;
     // SITL::Frsky_SPortPassthrough *frsky_sportpassthrough;
 
+#if HAL_SIM_PS_RPLIDARA2_ENABLED
     // simulated RPLidarA2:
     SITL::PS_RPLidarA2 *rplidara2;
+#endif
 
     // simulated FETtec OneWire ESCs:
     SITL::FETtecOneWireESC *fetteconewireesc;
 
+#if HAL_SIM_PS_LIGHTWARE_SF45B_ENABLED
     // simulated SF45B proximity sensor:
     SITL::PS_LightWare_SF45B *sf45b;
+#endif
 
+#if HAL_SIM_PS_TERARANGERTOWER_ENABLED
     SITL::PS_TeraRangerTower *terarangertower;
+#endif
 
+#if AP_SIM_CRSF_ENABLED
     // simulated CRSF devices
     SITL::CRSF *crsf;
+#endif
 
     // simulated VectorNav system:
     SITL::VectorNav *vectornav;
@@ -314,11 +271,15 @@ private:
     // simulated LORD Microstrain system
     SITL::LORD *lord;
 
+#if HAL_SIM_JSON_MASTER_ENABLED
     // Ride along instances via JSON SITL backend
     SITL::JSON_Master ride_along;
+#endif
 
+#if HAL_SIM_AIS_ENABLED
     // simulated AIS stream
     SITL::AIS *ais;
+#endif
 
     // simulated EFI MegaSquirt device:
     SITL::EFI_MegaSquirt *efi_ms;
@@ -328,8 +289,15 @@ private:
     
     const char *defaults_path = HAL_PARAM_DEFAULTS_PATH;
 
-    const char *_home_str;
     char *_gps_fifo[2];
+
+    // simulated GPS devices
+    SITL::GPS *gps[2];  // constrained by # of parameter sets
+
+    // returns a voltage between 0V to 5V which should appear as the
+    // voltage from the sensor
+    float _sonar_pin_voltage() const;
+
 };
 
 #endif // defined(HAL_BUILD_AP_PERIPH)

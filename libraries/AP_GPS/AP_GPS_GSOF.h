@@ -22,6 +22,7 @@
 #include "AP_GPS.h"
 #include "GPS_Backend.h"
 
+#if AP_GPS_GSOF_ENABLED
 class AP_GPS_GSOF : public AP_GPS_Backend
 {
 public:
@@ -82,3 +83,4 @@ private:
     uint8_t gsofmsgreq_index = 0;
     uint8_t gsofmsgreq[5] = {1,2,8,9,12};
 };
+#endif

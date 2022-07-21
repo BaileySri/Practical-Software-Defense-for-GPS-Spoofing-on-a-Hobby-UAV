@@ -174,6 +174,9 @@ void Plane::update_is_flying_5Hz(void)
 
     // tell AHRS flying state
     set_likely_flying(new_is_flying);
+
+    // conservative ground mode value for rate D suppression
+    ground_mode = !is_flying() && !hal.util->get_soft_armed();
 }
 
 /*
@@ -288,8 +291,14 @@ void Plane::crash_detection_update(void)
 
     // if we have no GPS lock and we don't have a functional airspeed
     // sensor then don't do crash detection
-    if (gps.status() < AP_GPS::GPS_OK_FIX_3D && (!airspeed.use() || !airspeed.healthy())) {
+    if (gps.status() < AP_GPS::GPS_OK_FIX_3D) {
+#if AP_AIRSPEED_ENABLED
+        if (!airspeed.use() || !airspeed.healthy()) {
+            crashed = false;
+        }
+#else
         crashed = false;
+#endif
     }
 
     if (!crashed) {

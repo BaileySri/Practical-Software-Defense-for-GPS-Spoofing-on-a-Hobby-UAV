@@ -1,5 +1,254 @@
 Rover Release Notes:
 ------------------------------------------------------------------
+Rover 4.2.2 28-Jun-2022 / 4.2.2-rc1 21-Jun-2022
+Changes from 4.2.1
+1) MambaH743v4 and MambaF405 MK4 autopilot support
+2) Second full harmonic notches available (see INS_HNTC2_ parameters)
+3) UAVCAN memory usage reduced (see CAN_Dn_UC_POOL parameter to control DroneCAN pool size)
+5) Watchdog (caused by hardfault) saves crash dump logs to SD card
+6) Bug fixes
+    a) CRSF protection against watchdog on bad frames
+    b) CRSF reset in flight handled
+    c) FFT init watchdog fix when ARMING_REQUIRE=0
+    d) OSD flight modes menu includes newer flight modes
+    e) Param download (via MAVFTP) fixed for params with overlapping names
+    f) PWM rangefinder bug fix and added SCALING parameter support
+    g) Replay bug fix when EK3_SRCs changed
+    h) SERIALx_OPTION fix when "Don't forward mavlink to/from" selected (resolves MAVLink gimbal detection)
+    i) VL53L1X rangefinder preserves addresses
+------------------------------------------------------------------
+Rover 4.2.1 07-Jun-2022 / 4.2.1-rc1 28-May-2022
+Changes from 4.2.0
+1) CAN ESCs bus bandwidth efficiency improvements (see CAN_Dx_UC_ESC_OF parameter)
+2) DShot timing improvements to support for ESC variants
+3) Luftan EFI measures fuel consumption (see EFI_COEF1, EFI_COEF2)
+4) Bug fixes
+    b) CAN ESCs work on boards with no safety switch (e.g. MatekH743)
+    b) Inflight Compass calibration checks GSF yaw estimate is good
+    c) NeoPixel colour fix
+------------------------------------------------------------------
+Rover 4.2.0 23-May-2022 / 4.2.0-rc4 14-May-2022
+Changes from 4.2.0-rc3
+1) FlyingMoon F407 and F427 autopilots supported
+2) Bug fixes
+    a) Log file list with over 500 logs fixed
+    b) RSSI when using IOMCU pin 103 fixed
+------------------------------------------------------------------
+Rover 4.2.0-rc3 07-May-2022
+Changes from 4.2.0-rc2
+1) Bug fixes
+    a) Blended Z axis accel calculation fix when not using first IMU
+    b) Custom compass orientation for DroneCAN compasses
+------------------------------------------------------------------
+Rover 4.2.0-rc2 29-Apr-2022
+Changes from 4.2.0-rc1
+1) Minor Enhancements
+    a) Button, Relay and RPM GPIO pin conflict pre-arm check improved
+    b) DShot uses narrower bitwidths for more accurate timing (allows BLHeli BlueJay to work)
+    c) INS_NOTCH parameters renamed to INS_HNTC2
+    d) Matek F765-Wing-bdshot firmware added
+    e) Matek H743 supports ICM42688
+    f) QiotekZealot H743 supports ICM4xxxx
+    g) Scripting heap size increased to 100k on F7/H7
+    h) SPRacingH7 improvements including external flash performance improvements
+2) Bug fixes
+    a) BMI088 IMU FIFO overruns fixed
+    b) DO_SET_SERVO with SERVOn_FUNCTION=0 fixed, added pre-arm check of servo functions configured on disabled channels
+    c) Log file descriptor init fixed (issues only seen on Linux autopilots)
+    d) Log list cope with gaps, performance improvement to reduce impact on EKF and some ESCs
+    e) Proximity sensor fix when using MAVLink lidars in non-forward orientations
+    f) RPM sensor fix to avoid "failed to attach pin" spam to GCS
+    g) STM32 DMA fatal exceptions disabled (caused watch dogs reboots with zero information)
+------------------------------------------------------------------
+Rover 4.2.0-rc1 10-Apr-2022
+Changes from 4.2.0-beta3
+1) Minor Enhancements
+    a) Log and monitor threads stack size increased
+    b) SPro H7 Extreme QSPI support improved
+2) Bug fixes
+    a) EKF3 accel bias fixed when an IMU is disabled
+    b) MatekH743 buzzer fixed by reverting to 16 bit timer
+    c) STM32 H7 flash storage bug fixed that caused re-init on overflow
+    d) @SYS file logging fixed
+    e) Timer bug fixed that could cause a watchdog on boards using flash storage
+    f) UART driver incorrect lock class fixed
+------------------------------------------------------------------
+Rover 4.2.0-beta3 30-Mar-2022
+Changes from 4.2.0-beta2
+1) Minor Enhancements
+    a) BATT_OPTIONS supports sending resting voltage (corrected for internal resistance) to the ground station
+    b) KakuteH7-bdshot support
+    c) MatekH743 uses a 32 bit timer to resolve occasional 68ms timing glitch
+    d) RC input protocol text message sent to GCS (helps pilot awareness during RC handover)
+2) Bug fixes
+    a) Balance bot stands in acro mode even with no GPS
+    b) Battery remaining percentage fixed when using Sum battery
+    c) DShot reversal bug with IOMCU based boards (see SERVO_BLH_RVMASK)
+    d) DShot commands fixed (could cause random motor movements)
+    e) GPS blending fix that could have resulted in the wrong GPS being used for a short time
+    f) Param conversion bug (impacted airspeed enable)
+    g) RC handover between IOMCU RC input and a secondary RC input on a serial port fixed
+    h) QioTek Zealot H743 SLCAN port and relays fixed
+------------------------------------------------------------------
+Rover 4.2.0-beta2 10-Mar-2022
+Changes from 4.2.0-beta1
+1) Follow mode supports FOLLOW_TARGET message (sent by QGC ground station) 
+2) Bug fixes
+    a) Arming checks ignore SERVOx_MIN, MAX if setup as GPIO pin
+    b) BeastH7v2 BMI270 baro support
+    c) DShot prescaler fix (ESCs were not initialising correctly)
+    d) EKF3 variance constraint fix used to prevent "ill-conditioning"
+    e) POWR log message MCU voltage fix (min and max voltage were swapped)
+    f) Sailboats loiter fix (could get stuck pointing directly into the wind)
+    g) SPRacingH7 firmware install fix
+------------------------------------------------------------------
+Rover 4.2.0-rc1 28-Feb-2022
+Changes from 4.1.5
+1) AHRS/EKF improvements
+    a) EKF startup messages reduced
+    b) LORD Microstrain CX5/GX5 external AHRS support
+    c) ModalAI VOXL non-GPS system supported (set VISO_TYPE=3, uses ODOMETRY mavlink msg)
+2) Rover specific enhancements
+    a) AIS support
+    b) Attitude control gains defaults reduced
+        - ATC_STR_ANG_P reduced to 2
+        - ATC_STR_RAT_MAX reduced to 120 deg/sec
+        - ATC_STR_ACC_MAX reduced to 120 deg/sec
+        - ATC_ACCEL_MAX reduced to 1m/s
+    c) Boats loiter by default at end of mission (see MIS_DONE_BEHAVE parameter)
+    d) DPTH message supports multiple rangefinders
+    e) Omni motor saturation improvement (scaling applied evenly to all motors)
+    f) Pivot turn overshoot reduced (would happen with bad combination of ATC_STR_ACC_MAX and ATC_STR_ANG_P)
+    g) Speed control improvement when motor hits limits (especially when MOT_SLEWRATE was set to a low number)
+    h) Speed control PID logging and reporting includes FF
+    i) Stops maintain zero turn rate (previously steering was straight but trim could lead to turning)
+    j) Torqeedo motor support
+3) Custom build server support (see https://custom.ardupilot.org)
+4) Lua scripting improvements
+    a) ahrs::get_location replaces get_position (get_position still works for now)
+    b) Auto support for NAV_SCRIPT_TIME commands (Lua within Auto)
+    c) Frame string support (allows scripting based frame to display custom description after startup)
+    d) Parameter support (no need to always use SCR_USERx)
+    e) Script logged to onboard log (can be disabled by setting SCR_DEBUG_OPTS)
+    f) Set_turn_rate_and_speed control support
+5) New autopilots supported
+    a) AirLink
+    b) BeastF7v2, BeastH7v2
+    c) JHEMCU GSF405A
+    d) KakuteH7, KakuteH7Mini
+    e) MambaF405US-I2C
+    f) MatekF405-TE
+    g) ModalAI fc-v1
+    h) PixC4-Jetson
+    i) Pixhawk5X
+    j) QioTekZealotH743
+    k) RPI-Zero2W
+    l) SPRacingH7 Extreme
+    m) Swan-K1
+6) Safety improvements
+    a) Dijkstra's avoidance performance improvements including converting to A*
+    b) Parachute option to leave servo in open position (see CHUTE_OPTIONS parameter)
+    c) Pre-arm check of IMU heater temp
+    d) Pre-arm check of rangefinder health
+    e) Pre-arm check that not in RC/throttle failsafe
+7) Sensor driver enhancements
+    a) ADIS16470, ADIS16507 and BMI270 IMU support
+    b) AK09918 compass support
+    c) Battery monitor supports voltage offset (see BATTx_VLT_OFFSET)
+    d) Benewake TFMiniPlus I2C address defaults correctly
+    e) Buzzer can be connected to any GPIO on any board
+    f) Compass calibration (in-flight) uses GSF for better accuracy
+    g) CRSFv3 support, CSRF telemetry link reports link quality in RSSI
+    h) Cybot D1 Lidar
+    i) DroneCan (aka UAVCAN) battery monitors support scaling (see BATTx_CURR_MULT)
+    j) DroneCan (aka UAVCAN) GPS-for-yaw support
+    k) Electronic Fuel Injection support incl Lutan EFI
+    l) FETtecOneWire resyncs if EMI causes lost bytes
+    m) Hondex underwater sonar custom message support
+    n) IMU heater params renamed to BRD_HEAT_xxx
+    o) Lightware SF40C ver 0.9 support removed (ver 1.0 and higher still supported)
+    p) Maxbotix serial sonar driver support RNGFNDx_SCALING parameter to support for varieties of sensor
+    q) MPPT solar charge controller support
+    r) MTK GPS driver removed
+    s) Ping200x support
+    t) Proximity sensor min and max range (see PRX_MIN, PRX_MAX)
+    u) QSPI external flash support
+    v) uLanding (aka USD1) radar provides average of last few samples
+    w) Unicore NMEA GPS support for yaw and 3D velocity
+8) Other System enhancements
+    a) Board ID sent in AUTOPILOT_VERSION mavlink message
+    b) DO_SET_CAM_TRIG_DIST supports instantly triggering camera
+    c) DJI FPV OSD multi screen and stats support
+    d) GPIO pin configured by setting SERVOx_FUNCTION to -1 (also see SERVO_GPIO_MASK. BRD_PWM_COUNT removed)
+    e) GPIO pin support on main outputs on boards with IOMCU
+    f) GyroFlow logging (see LOG_BITMASK's "VideoStabilization" option)
+    g) Firmware version logged in VER message
+    h) Log rate limiting to more easily reduce log sizes (see LOG_FILE_RATEMAX parameter)
+    i) SD card format via MAVLink
+    j) Serial port option to disable changes to stream rate (see SERIALx_OPTIONS)
+    k) Serial port passthrough via USB supports baud rate changes (eases UBlox F9P firmware updates)
+    l) VIBE logging units to m/s/s
+9) Bug fixes
+    a) Auto mode infinite loop with nav commands that fail to start fixed
+    b) BLHeli passthrough reliability improvements
+    c) Compass learning (inflight) fixed to ignore unused compasses (e.g. those with COMPASS_USE = 0)
+    d) EKF resets due to bad IMU data occur at most once per second
+    e) GPIO pin fix on CubeOrange, F4BY, mRoControlZeroF7, R9Pilot
+    f) MAVlink2 serial ports always send MAVLink2 messages (previously waited until other side sent MAVLink2)
+    g) Omnibusf4pro bi-directional dshot fix
+    h) Real-Time-Clock (RTC) oldest possible date updated to Jan-2022
+------------------------------------------------------------------
+Rover 4.1.5 19-Feb-2022 / 4.1.5-rc1 10-Feb-2022
+Changes from 4.1.4
+1) Revert SBUS RC frame gap change from 4.1.4
+------------------------------------------------------------------
+Rover 4.1.4 08-Feb-2022 / 4.1.4-rc1 31-Jan-2022
+Changes from 4.1.3
+1) Benewake CAN Lidar support
+2) CAN GPS default lag dropped to 0.1 seconds (was 0.22 seconds)
+3) Bug fixes
+    a) Compass custom orientation is never overwritten during calibration
+    b) EKF logging gaps fixed (some messages were occasionally being skipped)
+    c) IMU logging fix for IREG message (records IMU register changes)
+    d) SBUS RC frame gap increased to better handle some new receivers
+    e) SERVOx_FUNCTION protection to avoid memory overwrite if set too high
+    f) SD card init triggering watchdog fixed
+------------------------------------------------------------------
+Rover 4.1.3 31-Dec-2021 /4.1.3-rc2 21-Dec-2021
+Changes from 4.1.3-rc1
+1) Suport for IIM-42652, ICM-40605 and ICM-20608-D IMUs
+2) Bug fixes
+    a) SmartAudio high CPU load fix (previously it could starve other threads of CPU)
+    b) Debug pins disabled by default to prevent rare inflight reset due to electrostatic discharge
+    c) EKF3 reset causing bad accel biases fixed
+    d) RC protocol detection fix that forced PH4-mini users to powerup autopilot before transmitter
+------------------------------------------------------------------
+Rover 4.1.3-rc1 18-Dec-2021
+Changes from 4.1.2
+1) CUAV-X7 servo voltage detection support
+2) Bug fixes
+    a) Main loop delay fix for boards with 16 bit timers (could affect smaller boards like those from MatekSys)
+    b) Polygon Fence upload fix when replacing fence with one that has fewer points
+------------------------------------------------------------------
+Rover 4.1.2 07-Dec-2021 / 4.1.2-rc1 22-Nov-2021
+Changes from 4.1.1
+1) CAN_Dn_UC_OPTION param added to help resolve DroneCAN DNA conflicts
+2) Durandal with alternative ICM-20602 IMU
+3) OBAL autopilot support (Open Board Architecture for Linux)
+4) FETtec One ESC protocol support
+5) Bug Fixes
+    a) APM/LOGS directory creation fixed on some boards
+    b) EKF3 fix to switch to non-zero primary core when disarmed
+------------------------------------------------------------------
+Rover 4.1.1 10-Nov-2021 / 4.1.1-rc1 16-Oct-2021
+Changes from 4.1.0 
+1) EK3_PRIMARY allows selection of which EKF core/IMU to use on startup
+2) Bug Fixes
+    a) MAVFTP init fix (could cause slow parameter download)
+    b) Scripting fix when logging strings
+    c) Serial flow control fix (affected at least Lightware LW20 serial lidar)
+    d) QiotekZealotF427 IMU (ICM42605) orientation fixed
+------------------------------------------------------------------
 Rover 4.1.0 20-Sep-2021 / 4.1.0-rc3 15-Sep-2021
 Changes from 4.1.0-rc2
 1) Bug Fixes

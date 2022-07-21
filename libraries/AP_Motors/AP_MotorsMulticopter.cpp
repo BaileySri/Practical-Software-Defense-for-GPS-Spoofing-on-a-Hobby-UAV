@@ -16,6 +16,7 @@
 #include "AP_MotorsMulticopter.h"
 #include <AP_HAL/AP_HAL.h>
 #include <AP_BattMonitor/AP_BattMonitor.h>
+#include <AP_Logger/AP_Logger.h>
 
 extern const AP_HAL::HAL& hal;
 
@@ -146,7 +147,7 @@ const AP_Param::GroupInfo AP_MotorsMulticopter::var_info[] = {
 
     // @Param: YAW_SV_ANGLE
     // @DisplayName: Yaw Servo Max Lean Angle
-    // @Description: Yaw servo's maximum lean angle
+    // @Description: Yaw servo's maximum lean angle (Tricopter only)
     // @Range: 5 80
     // @Units: deg
     // @Increment: 1
@@ -401,6 +402,21 @@ void AP_MotorsMulticopter::update_lift_max_from_batt_voltage()
     _lift_max = batt_voltage_filt * (1 - thrust_curve_expo) + thrust_curve_expo * batt_voltage_filt * batt_voltage_filt;
 }
 
+// 10hz logging of voltage scaling and max trust
+void AP_MotorsMulticopter::Log_Write()
+{
+    const struct log_MotBatt pkt_mot {
+        LOG_PACKET_HEADER_INIT(LOG_MOTBATT_MSG),
+        time_us         : AP_HAL::micros64(),
+        lift_max        : _lift_max,
+        bat_volt        : _batt_voltage_filt.get(),
+        th_limit        : _throttle_limit,
+        th_average_max  : _throttle_avg_max,
+        mot_fail_flags  : (uint8_t)(_thrust_boost | (_thrust_balanced << 1U)),
+    };
+    AP::logger().WriteBlock(&pkt_mot, sizeof(pkt_mot));
+}
+
 float AP_MotorsMulticopter::get_compensation_gain() const
 {
     // avoid divide by zero
@@ -492,12 +508,10 @@ float AP_MotorsMulticopter::actuator_spin_up_to_ground_idle() const
 // parameter checks for MOT_PWM_MIN/MAX, returns true if parameters are valid
 bool AP_MotorsMulticopter::check_mot_pwm_params() const
 {
-    // sanity says that minimum should be less than maximum:
-    if (_pwm_min >= _pwm_max) {
-        return false;
-    }
-    // negative values are out-of-range:
-    if (_pwm_max <= 0) {
+    // _pwm_min is a value greater than or equal to 1.
+    // _pwm_max is greater than _pwm_min.
+    // The values of _pwm_min and _pwm_max are positive values.
+    if (_pwm_min < 1 || _pwm_min >= _pwm_max) {
         return false;
     }
     return true;
@@ -549,6 +563,7 @@ void AP_MotorsMulticopter::output_logic()
         _spool_up_time.set(0.05);
     }
 
+    const float spool_step = 1.0f / (_spool_up_time * _loop_rate);
     switch (_spool_state) {
     case SpoolState::SHUT_DOWN:
         // Motors should be stationary.
@@ -588,7 +603,6 @@ void AP_MotorsMulticopter::output_logic()
         limit.throttle_upper = true;
 
         // set and increment ramp variables
-        float spool_step = 1.0f / (_spool_up_time * _loop_rate);
         switch (_spool_desired) {
         case DesiredSpoolState::SHUT_DOWN:
             _spin_up_ratio -= spool_step;
@@ -642,7 +656,7 @@ void AP_MotorsMulticopter::output_logic()
 
         // set and increment ramp variables
         _spin_up_ratio = 1.0f;
-        _throttle_thrust_max += 1.0f / (_spool_up_time * _loop_rate);
+        _throttle_thrust_max += spool_step;
 
         // constrain ramp value and update mode
         if (_throttle_thrust_max >= MIN(get_throttle(), get_current_limit_max_throttle())) {
@@ -654,7 +668,7 @@ void AP_MotorsMulticopter::output_logic()
 
         // initialise motor failure variables
         _thrust_boost = false;
-        _thrust_boost_ratio = MAX(0.0, _thrust_boost_ratio - 1.0 / (_spool_up_time * _loop_rate));
+        _thrust_boost_ratio = MAX(0.0, _thrust_boost_ratio - spool_step);
         break;
 
     case SpoolState::THROTTLE_UNLIMITED:
@@ -679,9 +693,9 @@ void AP_MotorsMulticopter::output_logic()
         _throttle_thrust_max = get_current_limit_max_throttle();
 
         if (_thrust_boost && !_thrust_balanced) {
-            _thrust_boost_ratio = MIN(1.0, _thrust_boost_ratio + 1.0f / (_spool_up_time * _loop_rate));
+            _thrust_boost_ratio = MIN(1.0, _thrust_boost_ratio + spool_step);
         } else {
-            _thrust_boost_ratio = MAX(0.0, _thrust_boost_ratio - 1.0f / (_spool_up_time * _loop_rate));
+            _thrust_boost_ratio = MAX(0.0, _thrust_boost_ratio - spool_step);
         }
         break;
 
@@ -704,7 +718,7 @@ void AP_MotorsMulticopter::output_logic()
 
         // set and increment ramp variables
         _spin_up_ratio = 1.0f;
-        _throttle_thrust_max -= 1.0f / (_spool_up_time * _loop_rate);
+        _throttle_thrust_max -= spool_step;
 
         // constrain ramp value and update mode
         if (_throttle_thrust_max <= 0.0f) {
@@ -716,7 +730,7 @@ void AP_MotorsMulticopter::output_logic()
             _spool_state = SpoolState::GROUND_IDLE;
         }
 
-        _thrust_boost_ratio = MAX(0.0, _thrust_boost_ratio - 1.0f / (_spool_up_time * _loop_rate));
+        _thrust_boost_ratio = MAX(0.0, _thrust_boost_ratio - spool_step);
         break;
     }
 }
@@ -749,7 +763,7 @@ void AP_MotorsMulticopter::output_motor_mask(float thrust, uint8_t mask, float r
 
     for (uint8_t i = 0; i < AP_MOTORS_MAX_NUM_MOTORS; i++) {
         if (motor_enabled[i]) {
-            if ((mask & (1U << i)) && armed()) {
+            if ((mask & (1U << i)) && armed() && get_interlock()) {
                 /*
                  apply rudder mixing differential thrust
                  copter frame roll is plane frame yaw as this only
@@ -768,7 +782,7 @@ void AP_MotorsMulticopter::output_motor_mask(float thrust, uint8_t mask, float r
 
 // get_motor_mask - returns a bitmask of which outputs are being used for motors (1 means being used)
 //  this can be used to ensure other pwm outputs (i.e. for servos) do not conflict
-uint16_t AP_MotorsMulticopter::get_motor_mask()
+uint32_t AP_MotorsMulticopter::get_motor_mask()
 {
     return SRV_Channels::get_output_channel_mask(SRV_Channel::k_boost_throttle);
 }
@@ -785,7 +799,7 @@ void AP_MotorsMulticopter::save_params_on_disarm()
 // convert to PWM min and max in the motor lib
 void AP_MotorsMulticopter::convert_pwm_min_max_param(int16_t radio_min, int16_t radio_max)
 {
-    if (_pwm_min.configured_in_storage() || _pwm_max.configured_in_storage()) {
+    if (_pwm_min.configured() || _pwm_max.configured()) {
         return;
     }
     _pwm_min.set_and_save(radio_min);

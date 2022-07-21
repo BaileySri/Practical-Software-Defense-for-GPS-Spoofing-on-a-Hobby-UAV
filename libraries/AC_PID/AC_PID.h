@@ -7,13 +7,14 @@
 #include <AP_Param/AP_Param.h>
 #include <stdlib.h>
 #include <cmath>
-#include <AP_Logger/AP_Logger.h>
 #include <Filter/SlewLimiter.h>
 
 #define AC_PID_TFILT_HZ_DEFAULT  0.0f   // default input filter frequency
 #define AC_PID_EFILT_HZ_DEFAULT  0.0f   // default input filter frequency
 #define AC_PID_DFILT_HZ_DEFAULT  20.0f   // default input filter frequency
 #define AC_PID_RESET_TC          0.16f   // Time constant for integrator reset decay to zero
+
+#include "AP_PIDInfo.h"
 
 /// @class	AC_PID
 /// @brief	Copter PID control class
@@ -58,9 +59,6 @@ public:
     // reset_I - reset the integrator
     void reset_I();
 
-    // reset_I - reset the integrator smoothly to zero within 0.5 seconds
-    void reset_I_smoothly();
-
     // reset_filter - input filter will be reset to the next value provided to set_input()
     void reset_filter() {
         _flags._reset_filter = true;
@@ -101,6 +99,7 @@ public:
     void filt_T_hz(const float v);
     void filt_E_hz(const float v);
     void filt_D_hz(const float v);
+    void slew_limit(const float v);
 
     // set the desired and actual rates (for logging purposes)
     void set_target_rate(float target) { _pid_info.target = target; }
@@ -110,6 +109,7 @@ public:
     void set_integrator(float target, float measurement, float i);
     void set_integrator(float error, float i);
     void set_integrator(float i);
+    void relax_integrator(float integrator, float time_constant);
 
     // set slew limiter scale factor
     void set_slew_limit_scale(int8_t scale) { _slew_limit_scale = scale; }
@@ -117,7 +117,7 @@ public:
     // return current slew rate of slew limiter. Will return 0 if SMAX is zero
     float get_slew_rate(void) const { return _slew_limiter.get_slew_rate(); }
 
-    const AP_Logger::PID_Info& get_pid_info(void) const { return _pid_info; }
+    const AP_PIDInfo& get_pid_info(void) const { return _pid_info; }
 
     // parameter var table
     static const struct AP_Param::GroupInfo var_info[];
@@ -155,8 +155,6 @@ protected:
     float _error;             // error value to enable filtering
     float _derivative;        // derivative value to enable filtering
     int8_t _slew_limit_scale;
-    uint16_t _reset_counter;  // loop counter for reset decay
-    uint64_t _reset_last_update; //time in microseconds of last update to reset_I
 
-    AP_Logger::PID_Info _pid_info;
+    AP_PIDInfo _pid_info;
 };

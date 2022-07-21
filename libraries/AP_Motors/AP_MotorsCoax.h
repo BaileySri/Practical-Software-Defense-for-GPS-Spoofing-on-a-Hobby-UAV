@@ -37,19 +37,12 @@ public:
     // set update rate to motors - a value in hertz
     void                set_update_rate( uint16_t speed_hz ) override;
 
-    // output_test_seq - spin a motor at the pwm value specified
-    //  motor_seq is the motor's sequence number from 1 to the number of motors on the frame
-    //  pwm value is an actual pwm value that will be output, normally in the range of 1000 ~ 2000
-    virtual void        output_test_seq(uint8_t motor_seq, int16_t pwm) override;
-
     // output_to_motors - sends minimum values out to the motors
     virtual void        output_to_motors() override;
 
     // get_motor_mask - returns a bitmask of which outputs are being used for motors or servos (1 means being used)
     //  this can be used to ensure other pwm outputs (i.e. for servos) do not conflict
-    uint16_t            get_motor_mask() override;
-
-    const char* get_frame_string() const override { return "COAX"; }
+    uint32_t            get_motor_mask() override;
 
 protected:
     // output - sends commands to the motors
@@ -58,4 +51,11 @@ protected:
     float               _actuator_out[NUM_ACTUATORS]; // combined roll, pitch, yaw and throttle outputs to motors in 0~1 range
     float               _thrust_yt_ccw;
     float               _thrust_yt_cw;
+
+    const char* _get_frame_string() const override { return "COAX"; }
+
+    // output_test_seq - spin a motor at the pwm value specified
+    //  motor_seq is the motor's sequence number from 1 to the number of motors on the frame
+    //  pwm value is an actual pwm value that will be output, normally in the range of 1000 ~ 2000
+    virtual void _output_test_seq(uint8_t motor_seq, int16_t pwm) override;
 };

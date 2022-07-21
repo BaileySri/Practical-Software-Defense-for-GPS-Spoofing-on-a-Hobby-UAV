@@ -13,9 +13,10 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 /*
-  driver for all supported Invensense IMUs, including MPU6000, MPU9250
-  ICM-20608 and ICM-20602
+  driver for all supported Invensense IMUs, including
+  MPU6000, MPU9250,  ICM20608, ICM20602, ICM20601, ICM20789, ICM20689
  */
+#define AP_INLINE_VECTOR_OPS
 
 #include <assert.h>
 #include <utility>
@@ -416,16 +417,17 @@ void AP_InertialSensor_Invensense::start()
 bool AP_InertialSensor_Invensense::get_output_banner(char* banner, uint8_t banner_len) {
     if (_fast_sampling) {
         snprintf(banner, banner_len, "IMU%u: fast sampling enabled %.1fkHz/%.1fkHz",
-            _gyro_instance, _gyro_backend_rate_hz * _gyro_fifo_downsample_rate / 1000.0, _gyro_backend_rate_hz / 1000.0);
+            _gyro_instance, _gyro_backend_rate_hz * _gyro_fifo_downsample_rate * 0.001, _gyro_backend_rate_hz * 0.001);
         return true;
     }
     return false;
 }
 
+
 /*
   publish any pending data
  */
-bool AP_InertialSensor_Invensense::update()
+bool AP_InertialSensor_Invensense::update() /* front end */
 {
     update_accel(_accel_instance);
     update_gyro(_gyro_instance);
@@ -757,7 +759,9 @@ check_registers:
               events to help with log analysis, but don't shout at the
               GCS to prevent possible flood
             */
+#if HAL_LOGGING_ENABLED
             AP::logger().Write_MessageF("ICM20602 yofs fix: %x %x", y_ofs, _saved_y_ofs_high);
+#endif
             _register_write(MPUREG_ACC_OFF_Y_H, _saved_y_ofs_high);
         }
     }
@@ -911,7 +915,8 @@ bool AP_InertialSensor_Invensense::_check_whoami(void)
     case MPU_WHOAMI_MPU9255:
         _mpu_type = Invensense_MPU9250;
         return true;
-    case MPU_WHOAMI_20608:
+    case MPU_WHOAMI_20608D:    
+    case MPU_WHOAMI_20608G:
         _mpu_type = Invensense_ICM20608;
         return true;
     case MPU_WHOAMI_20602:
@@ -968,6 +973,13 @@ bool AP_InertialSensor_Invensense::_hardware_init(void)
 
         /* bus-dependent initialization */
         if (_dev->bus_type() == AP_HAL::Device::BUS_TYPE_SPI) {
+            /* reset signal path as recommended in the datasheet */
+            if (_mpu_type == Invensense_MPU6000 || _mpu_type == Invensense_MPU6500) {
+                _register_write(MPUREG_SIGNAL_PATH_RESET,
+                    BIT_SIGNAL_PATH_RESET_TEMP_RESET|BIT_SIGNAL_PATH_RESET_ACCEL_RESET|BIT_SIGNAL_PATH_RESET_GYRO_RESET);
+                hal.scheduler->delay(100);
+            }
+
             /* Disable I2C bus if SPI selected (Recommended in Datasheet to be
              * done just after the device is reset) */
             _last_stat_user_ctrl |= BIT_USER_CTRL_I2C_IF_DIS;
@@ -1001,7 +1013,7 @@ bool AP_InertialSensor_Invensense::_hardware_init(void)
     _dev->set_speed(AP_HAL::Device::SPEED_HIGH);
 
     if (tries == 5) {
-        hal.console->printf("Failed to boot Invensense 5 times\n");
+        DEV_PRINTF("Failed to boot Invensense 5 times\n");
         return false;
     }
 
@@ -1052,7 +1064,7 @@ int AP_Invensense_AuxiliaryBusSlave::passthrough_read(uint8_t reg, uint8_t *buf,
                                                    uint8_t size)
 {
     if (_registered) {
-        hal.console->printf("Error: can't passthrough when slave is already configured\n");
+        DEV_PRINTF("Error: can't passthrough when slave is already configured\n");
         return -1;
     }
 
@@ -1078,7 +1090,7 @@ int AP_Invensense_AuxiliaryBusSlave::passthrough_read(uint8_t reg, uint8_t *buf,
 int AP_Invensense_AuxiliaryBusSlave::passthrough_write(uint8_t reg, uint8_t val)
 {
     if (_registered) {
-        hal.console->printf("Error: can't passthrough when slave is already configured\n");
+        DEV_PRINTF("Error: can't passthrough when slave is already configured\n");
         return -1;
     }
 
@@ -1101,7 +1113,7 @@ int AP_Invensense_AuxiliaryBusSlave::passthrough_write(uint8_t reg, uint8_t val)
 int AP_Invensense_AuxiliaryBusSlave::read(uint8_t *buf)
 {
     if (!_registered) {
-        hal.console->printf("Error: can't read before configuring slave\n");
+        DEV_PRINTF("Error: can't read before configuring slave\n");
         return -1;
     }
 

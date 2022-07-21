@@ -14,6 +14,8 @@
  *
  * Bi-directional dshot based on Betaflight, code by Andy Piper and Siddharth Bharat Purohit
  */
+
+#include <hal.h>
 #include "RCOutput.h"
 #include <AP_Math/AP_Math.h>
 #include "hwdef/common/stm32_util.h"
@@ -39,7 +41,7 @@ extern const AP_HAL::HAL& hal;
  * enable bi-directional telemetry request for a mask of channels. This is used
  * with DShot to get telemetry feedback
  */
-void RCOutput::set_bidir_dshot_mask(uint16_t mask)
+void RCOutput::set_bidir_dshot_mask(uint32_t mask)
 {
     _bdshot.mask = (mask >> chan_offset);
     // we now need to reconfigure the DMA channels since they are affected by the value of the mask
@@ -60,17 +62,11 @@ bool RCOutput::bdshot_setup_group_ic_DMA(pwm_group &group)
         return true;
     }
 
-    bool set_curr_chan = false;
-
+    // allocate input capture DMA handles
     for (uint8_t i = 0; i < 4; i++) {
         if (!group.is_chan_enabled(i) ||
             !group.dma_ch[i].have_dma || !(_bdshot.mask & (1 << group.chan[i]))) {
             continue;
-        }
-        // make sure we don't start on a disabled channel
-        if (!set_curr_chan) {
-            group.bdshot.curr_telem_chan = i;
-            set_curr_chan = true;
         }
         pwmmode_t mode = group.pwm_cfg.channels[i].mode;
         if (mode == PWM_COMPLEMENTARY_OUTPUT_ACTIVE_LOW ||
@@ -97,6 +93,15 @@ bool RCOutput::bdshot_setup_group_ic_DMA(pwm_group &group)
     // We might need to do sharing of timers for telemetry feedback
     // due to lack of available DMA channels
     for (uint8_t i = 0; i < 4; i++) {
+        // we must pull all the allocated channels high to prevent them going low
+        // when the pwm peripheral is stopped
+        if (group.chan[i] != CHAN_DISABLED && _bdshot.mask & group.ch_mask) {
+            // bi-directional dshot requires less than MID2 speed and PUSHPULL in order to avoid noise on the line
+            // when switching from output to input
+            palSetLineMode(group.pal_lines[i], PAL_MODE_ALTERNATE(group.alt_functions[i])
+                | PAL_STM32_OTYPE_PUSHPULL | PAL_STM32_PUPDR_PULLUP | PAL_STM32_OSPEED_MID1);
+        }
+
         if (!group.is_chan_enabled(i) || !(_bdshot.mask & (1 << group.chan[i]))) {
             continue;
         }
@@ -135,10 +140,14 @@ bool RCOutput::bdshot_setup_group_ic_DMA(pwm_group &group)
             group.bdshot.telem_tim_ch[i] = curr_chan;
             group.dma_ch[i] = group.dma_ch[curr_chan];
         }
-        // bi-directional dshot requires less than MID2 speed and PUSHPULL in order to avoid noise on the line
-        // when switching from output to input
-        palSetLineMode(group.pal_lines[i], PAL_MODE_ALTERNATE(group.alt_functions[i])
-            | PAL_STM32_OTYPE_PUSHPULL | PAL_STM32_PUPDR_PULLUP | PAL_STM32_OSPEED_MID1);
+    }
+
+    // now allocate the starting channel
+    for (uint8_t i = 0; i < 4; i++) {
+        if (group.chan[i] != CHAN_DISABLED && group.bdshot.ic_dma_handle[i] != nullptr) {
+            group.bdshot.curr_telem_chan = i;
+            break;
+        }
     }
 
     return true;
@@ -352,7 +361,7 @@ void RCOutput::bdshot_config_icu_dshot(stm32_tim_t* TIMx, uint8_t chan, uint8_t 
 /*
   unlock DMA channel after a bi-directional dshot transaction completes
  */
-void RCOutput::bdshot_finish_dshot_gcr_transaction(void *p)
+__RAMFUNC__ void RCOutput::bdshot_finish_dshot_gcr_transaction(void *p)
 {
     pwm_group *group = (pwm_group *)p;
     chSysLockFromISR();
@@ -456,7 +465,7 @@ uint8_t RCOutput::bdshot_find_next_ic_channel(const pwm_group& group)
 /*
   DMA UP channel interrupt handler. Used to mark DMA send completed for DShot
  */
-void RCOutput::dma_up_irq_callback(void *p, uint32_t flags)
+__RAMFUNC__ void RCOutput::dma_up_irq_callback(void *p, uint32_t flags)
 {
     pwm_group *group = (pwm_group *)p;
     chSysLockFromISR();
@@ -468,7 +477,7 @@ void RCOutput::dma_up_irq_callback(void *p, uint32_t flags)
     }
 
     // check nothing bad happened
-    if ((flags & STM32_DMA_ISR_TEIF) != 0) {
+    if ((flags & (STM32_DMA_ISR_TEIF | STM32_DMA_ISR_DMEIF)) != 0) {
         INTERNAL_ERROR(AP_InternalError::error_t::dma_fail);
     }
     dmaStreamDisable(group->dma);
@@ -496,12 +505,12 @@ void RCOutput::dma_up_irq_callback(void *p, uint32_t flags)
 }
 
 // DMA IC channel handler. Used to mark DMA receive completed for DShot
-void RCOutput::bdshot_dma_ic_irq_callback(void *p, uint32_t flags)
+__RAMFUNC__ void RCOutput::bdshot_dma_ic_irq_callback(void *p, uint32_t flags)
 {
     chSysLockFromISR();
 
     // check nothing bad happened
-    if ((flags & STM32_DMA_ISR_TEIF) != 0) {
+    if ((flags & (STM32_DMA_ISR_TEIF | STM32_DMA_ISR_DMEIF)) != 0) {
         INTERNAL_ERROR(AP_InternalError::error_t::dma_fail);
     }
 

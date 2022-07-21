@@ -22,11 +22,8 @@
 
 #include <AP_Math/AP_Math.h>
 #include <inttypes.h>
-#include <AP_Compass/AP_Compass.h>
 #include <AP_Airspeed/AP_Airspeed.h>
 #include <AP_InertialSensor/AP_InertialSensor.h>
-#include <AP_Param/AP_Param.h>
-#include <AP_Common/Location.h>
 
 class OpticalFlow;
 #define AP_AHRS_TRIM_LIMIT 10.0f        // maximum trim angle in degrees
@@ -61,6 +58,7 @@ public:
         Vector3f gyro_drift;
         Vector3f accel_ef[INS_MAX_INSTANCES];  // must be INS_MAX_INSTANCES
         Vector3f accel_ef_blended;
+        Vector3f accel_bias;
     };
 
     // init sets up INS board orientation
@@ -115,7 +113,7 @@ public:
 
     // get our current position estimate. Return true if a position is available,
     // otherwise false. This call fills in lat, lng and alt
-    virtual bool get_position(struct Location &loc) const WARN_IF_UNUSED = 0;
+    virtual bool get_location(struct Location &loc) const WARN_IF_UNUSED = 0;
 
     // get latest altitude estimate above ground level in meters and validity flag
     virtual bool get_hagl(float &height) const WARN_IF_UNUSED { return false; }
@@ -156,15 +154,23 @@ public:
     // return true if airspeed comes from an airspeed sensor, as
     // opposed to an IMU estimate
     bool airspeed_sensor_enabled(void) const {
+    #if AP_AIRSPEED_ENABLED
         const AP_Airspeed *_airspeed = AP::airspeed();
         return _airspeed != nullptr && _airspeed->use() && _airspeed->healthy();
+    #else
+        return false;
+    #endif
     }
 
     // return true if airspeed comes from a specific airspeed sensor, as
     // opposed to an IMU estimate
     bool airspeed_sensor_enabled(uint8_t airspeed_index) const {
+    #if AP_AIRSPEED_ENABLED
         const AP_Airspeed *_airspeed = AP::airspeed();
         return _airspeed != nullptr && _airspeed->use(airspeed_index) && _airspeed->healthy(airspeed_index);
+    #else
+        return false;
+    #endif
     }
 
     // return a ground vector estimate in meters/second, in North/East order
@@ -195,10 +201,10 @@ public:
     }
 
     //
-    virtual bool set_origin(const Location &loc) {
+    virtual bool set_origin(const struct Location &loc) {
         return false;
     }
-    virtual bool get_origin(Location &ret) const = 0;
+    virtual bool get_origin(struct Location &ret) const = 0;
 
     // return a position relative to origin in meters, North/East/Down
     // order. This will only be accurate if have_inertial_nav() is
@@ -291,7 +297,7 @@ public:
     }
 
     // get_variances - provides the innovations normalised using the innovation variance where a value of 0
-    // indicates perfect consistency between the measurement and the EKF solution and a value of of 1 is the maximum
+    // indicates perfect consistency between the measurement and the EKF solution and a value of 1 is the maximum
     // inconsistency that will be accepted by the filter
     // boolean false is returned if variances are not available
     virtual bool get_variances(float &velVar, float &posVar, float &hgtVar, Vector3f &magVar, float &tasVar) const {

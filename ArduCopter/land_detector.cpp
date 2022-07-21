@@ -60,15 +60,28 @@ void Copter::update_land_detector()
         land_detector_count = 0;
     } else {
 
+        float land_trigger_sec = LAND_DETECTOR_TRIGGER_SEC;
 #if FRAME_CONFIG == HELI_FRAME
-        // check for both manual collective modes and modes that use altitude hold. For manual collective (called throttle 
-        // because multi's use throttle), check that collective pitch is below mid collective (zero thrust) position.  For modes 
+        // check for both manual collective modes and modes that use altitude hold. For manual collective (called throttle
+        // because multi's use throttle), check that collective pitch is below land min collective position or throttle stick is zero.
+        // Including the throttle zero check will ensure the conditions where stabilize stick zero position was not below collective min. For modes
         // that use altitude hold, check that the pilot is commanding a descent and collective is at min allowed for altitude hold modes.
-        bool motor_at_lower_limit = ((flightmode->has_manual_throttle() && motors->get_below_mid_collective() && fabsf(ahrs.get_roll()) < M_PI/2.0f) 
-                                    || (motors->limit.throttle_lower && pos_control->get_vel_desired_cms().z < 0.0f));
+
+        // check if landing
+        const bool landing = flightmode->is_landing();
+        bool motor_at_lower_limit = (flightmode->has_manual_throttle() && (motors->get_below_land_min_coll() || heli_flags.coll_stk_low) && fabsf(ahrs.get_roll()) < M_PI/2.0f)
+                                    || ((!force_flying || landing) && motors->limit.throttle_lower && pos_control->get_vel_desired_cms().z < 0.0f);
+        bool throttle_mix_at_min = true;
 #else
         // check that the average throttle output is near minimum (less than 12.5% hover throttle)
-        bool motor_at_lower_limit = motors->limit.throttle_lower && attitude_control->is_throttle_mix_min();
+        bool motor_at_lower_limit = motors->limit.throttle_lower;
+        bool throttle_mix_at_min = attitude_control->is_throttle_mix_min();
+        // set throttle_mix_at_min to true because throttle is never at mix min in airmode
+        // increase land_trigger_sec when using airmode
+        if (flightmode->has_manual_throttle() && air_mode == AirMode::AIRMODE_ENABLED) {
+            land_trigger_sec = LAND_AIRMODE_DETECTOR_TRIGGER_SEC;
+            throttle_mix_at_min = true;
+        }
 #endif
 
         uint8_t land_detector_scalar = 1;
@@ -83,7 +96,7 @@ void Copter::update_land_detector()
         bool accel_stationary = (land_accel_ef_filter.get().length() <= LAND_DETECTOR_ACCEL_MAX * land_detector_scalar);
 
         // check that vertical speed is within 1m/s of zero
-        bool descent_rate_low = fabsf(inertial_nav.get_velocity_z()) < 100 * land_detector_scalar;
+        bool descent_rate_low = fabsf(inertial_nav.get_velocity_z_up_cms()) < 100 * land_detector_scalar;
 
         // if we have a healthy rangefinder only allow landing detection below 2 meters
         bool rangefinder_check = (!rangefinder_alt_ok() || rangefinder_state.alt_cm_filt.get() < LAND_RANGEFINDER_MIN_ALT_CM);
@@ -95,9 +108,9 @@ void Copter::update_land_detector()
         const bool WoW_check = true;
 #endif
 
-        if (motor_at_lower_limit && accel_stationary && descent_rate_low && rangefinder_check && WoW_check) {
+        if (motor_at_lower_limit && throttle_mix_at_min && accel_stationary && descent_rate_low && rangefinder_check && WoW_check) {
             // landed criteria met - increment the counter and check if we've triggered
-            if( land_detector_count < ((float)LAND_DETECTOR_TRIGGER_SEC)*scheduler.get_loop_rate_hz()) {
+            if( land_detector_count < land_trigger_sec*scheduler.get_loop_rate_hz()) {
                 land_detector_count++;
             } else {
                 set_land_complete(true);
@@ -170,7 +183,7 @@ void Copter::update_throttle_mix()
 
     if (flightmode->has_manual_throttle()) {
         // manual throttle
-        if (channel_throttle->get_control_in() <= 0 || air_mode == AirMode::AIRMODE_DISABLED) {
+        if (channel_throttle->get_control_in() <= 0 && air_mode != AirMode::AIRMODE_ENABLED) {
             attitude_control->set_throttle_mix_min();
         } else {
             attitude_control->set_throttle_mix_man();
@@ -195,7 +208,7 @@ void Copter::update_throttle_mix()
         // check if landing
         const bool landing = flightmode->is_landing();
 
-        if ((large_angle_request && !landing) || large_angle_error || accel_moving || descent_not_demanded) {
+        if (((large_angle_request || force_flying) && !landing) || large_angle_error || accel_moving || descent_not_demanded) {
             attitude_control->set_throttle_mix_max(pos_control->get_vel_z_control_ratio());
         } else {
             attitude_control->set_throttle_mix_min();

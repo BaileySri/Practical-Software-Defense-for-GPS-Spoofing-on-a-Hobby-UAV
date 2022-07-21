@@ -44,9 +44,7 @@ float AC_WPNav_OA::get_wp_distance_to_destination() const
         return AC_WPNav::get_wp_distance_to_destination();
     }
 
-    // get current location
-    const Vector3f &curr = _inav.get_position();
-    return norm(_destination_oabak.x-curr.x, _destination_oabak.y-curr.y);
+    return get_horizontal_distance_cm(_inav.get_position_xy_cm(), _destination_oabak.xy());
 }
 
 /// get_wp_bearing_to_destination - get bearing to next waypoint in centi-degrees
@@ -57,7 +55,7 @@ int32_t AC_WPNav_OA::get_wp_bearing_to_destination() const
         return AC_WPNav::get_wp_bearing_to_destination();
     }
 
-    return get_bearing_cd(_inav.get_position(), _destination_oabak);
+    return get_bearing_cd(_inav.get_position_xy_cm(), _destination_oabak.xy());
 }
 
 /// true when we have come within RADIUS cm of the waypoint
@@ -72,7 +70,7 @@ bool AC_WPNav_OA::update_wpnav()
     // run path planning around obstacles
     AP_OAPathPlanner *oa_ptr = AP_OAPathPlanner::get_singleton();
     Location current_loc;
-    if ((oa_ptr != nullptr) && AP::ahrs().get_position(current_loc)) {
+    if ((oa_ptr != nullptr) && AP::ahrs().get_location(current_loc)) {
 
         // backup _origin and _destination when not doing oa
         if (_oa_state == AP_OAPathPlanner::OA_NOT_REQUIRED) {

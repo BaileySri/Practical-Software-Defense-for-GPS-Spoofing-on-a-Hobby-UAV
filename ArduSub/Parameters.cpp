@@ -521,7 +521,7 @@ const AP_Param::Info Sub::var_info[] = {
     GOBJECT(can_mgr,        "CAN_",       AP_CANManager),
 #endif
 
-#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
+#if AP_SIM_ENABLED
     GOBJECT(sitl, "SIM_", SITL::SIM),
 #endif
 
@@ -599,9 +599,9 @@ const AP_Param::Info Sub::var_info[] = {
     GOBJECT(terrain,                "TERRAIN_", AP_Terrain),
 #endif
 
-#if OPTFLOW == ENABLED
+#if AP_OPTICALFLOW_ENABLED
     // @Group: FLOW
-    // @Path: ../libraries/AP_OpticalFlow/OpticalFlow.cpp
+    // @Path: ../libraries/AP_OpticalFlow/AP_OpticalFlow.cpp
     GOBJECT(optflow,   "FLOW", OpticalFlow),
 #endif
 
@@ -651,15 +651,13 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     // @Path: ../libraries/RC_Channel/RC_Channels_VarInfo.h
     AP_SUBGROUPINFO(rc_channels, "RC", 17, ParametersG2, RC_Channels),
 
-#ifdef ENABLE_SCRIPTING
+#if AP_SCRIPTING_ENABLED
     // @Group: SCR_
     // @Path: ../libraries/AP_Scripting/AP_Scripting.cpp
     AP_SUBGROUPINFO(scripting, "SCR_", 18, ParametersG2, AP_Scripting),
 #endif
 
-    // @Group: ARSPD
-    // @Path: ../libraries/AP_Airspeed/AP_Airspeed.cpp
-    AP_SUBGROUPINFO(airspeed, "ARSPD", 19, ParametersG2, AP_Airspeed),
+    // 19 was airspeed
 
     AP_GROUPEND
 };
@@ -667,8 +665,7 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
 /*
   constructor for g2 object
  */
-ParametersG2::ParametersG2():
-    airspeed()
+ParametersG2::ParametersG2()
 {
     AP_Param::setup_object_defaults(this, var_info);
 }
@@ -725,11 +722,25 @@ void Sub::load_parameters()
     AP_Param::set_default_by_name("INS_GYR_CAL", 0);
     AP_Param::set_default_by_name("MNT_TYPE", 1);
     AP_Param::set_default_by_name("MNT_DEFLT_MODE", MAV_MOUNT_MODE_RC_TARGETING);
-    AP_Param::set_default_by_name("MNT_JSTICK_SPD", 100);
+    AP_Param::set_default_by_name("MNT_RC_RATE", 30);
     AP_Param::set_by_name("MNT_RC_IN_PAN", 7);
     AP_Param::set_by_name("MNT_RC_IN_TILT", 8);
     // We should ignore this parameter since ROVs are neutral buoyancy
     AP_Param::set_by_name("MOT_THST_HOVER", 0.5);
+
+// PARAMETER_CONVERSION - Added: JAN-2022
+#if AP_AIRSPEED_ENABLED
+    // Find G2's Top Level Key
+    AP_Param::ConversionInfo info;
+    if (!AP_Param::find_top_level_key_by_pointer(&g2, info.old_key)) {
+        return;
+    }
+
+    const uint16_t old_index = 19;          // Old parameter index in the tree
+    const uint16_t old_top_element = 4051;  // Old group element in the tree for the first subgroup element
+    AP_Param::convert_class(info.old_key, &airspeed, airspeed.var_info, old_index, old_top_element, false);
+#endif
+
 }
 
 void Sub::convert_old_parameters()

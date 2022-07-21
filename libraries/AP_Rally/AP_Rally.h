@@ -14,7 +14,7 @@
  */
 #pragma once
 
-#include <AP_HAL/AP_HAL.h>
+#include <AP_HAL/AP_HAL_Boards.h>
 
 #ifndef HAL_RALLY_ENABLED
 #define HAL_RALLY_ENABLED 1
@@ -68,7 +68,7 @@ public:
     Location rally_location_to_location(const RallyLocation &ret) const;
 
     // logic handling
-    Location calc_best_rally_or_home_location(const Location &current_loc, float rtl_home_alt) const;
+    Location calc_best_rally_or_home_location(const Location &current_loc, float rtl_home_alt_amsl_cm) const;
     bool find_nearest_rally_point(const Location &myloc, RallyLocation &ret) const;
 
     // last time rally points changed

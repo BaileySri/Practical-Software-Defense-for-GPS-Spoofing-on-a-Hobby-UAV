@@ -7,7 +7,7 @@
 #define AP_INERTIAL_SENSOR_ACCEL_VIBE_FILT_HZ           2.0f    // accel vibration filter hz
 #define AP_INERTIAL_SENSOR_ACCEL_PEAK_DETECT_TIMEOUT_MS 500     // peak-hold detector timeout
 
-#include <AP_HAL/AP_HAL.h>
+#include <AP_HAL/AP_HAL_Boards.h>
 
 /**
    maximum number of INS instances available on this platform. If more
@@ -17,7 +17,7 @@
 #define INS_MAX_INSTANCES 3
 #endif
 #define INS_MAX_BACKENDS  2*INS_MAX_INSTANCES
-#define INS_MAX_NOTCHES 4
+#define INS_MAX_NOTCHES 12
 #ifndef INS_VIBRATION_CHECK_INSTANCES
   #if HAL_MEM_CLASS >= HAL_MEM_CLASS_300
     #define INS_VIBRATION_CHECK_INSTANCES INS_MAX_INSTANCES
@@ -35,19 +35,29 @@
 #define HAL_INS_TEMPERATURE_CAL_ENABLE !HAL_MINIMIZE_FEATURES && BOARD_FLASH_SIZE > 1024
 #endif
 
+#ifndef HAL_INS_NUM_HARMONIC_NOTCH_FILTERS
+#define HAL_INS_NUM_HARMONIC_NOTCH_FILTERS 2
+#endif
+
+// time for the estimated gyro rates to converge
+#ifndef HAL_INS_CONVERGANCE_MS
+#define HAL_INS_CONVERGANCE_MS 30000
+#endif
 
 #include <stdint.h>
 
 #include <AP_AccelCal/AP_AccelCal.h>
-#include <AP_HAL/AP_HAL.h>
 #include <AP_HAL/utility/RingBuffer.h>
 #include <AP_Math/AP_Math.h>
 #include <AP_ExternalAHRS/AP_ExternalAHRS.h>
 #include <Filter/LowPassFilter2p.h>
 #include <Filter/LowPassFilter.h>
-#include <Filter/NotchFilter.h>
 #include <Filter/HarmonicNotchFilter.h>
 #include <AP_Math/polyfit.h>
+
+#ifndef AP_SIM_INS_ENABLED
+#define AP_SIM_INS_ENABLED AP_SIM_ENABLED
+#endif
 
 class AP_InertialSensor_Backend;
 class AuxiliaryBus;
@@ -157,7 +167,7 @@ public:
 
     //PADLOCK
     // Get current raw gyro values (Scaled and Rotated into BF)
-    const Vector3f     &get_gyro_raw(uint8_t i) const { return _gyro_raw2[i]; }
+    const Vector3f     &get_gyro_raw(uint8_t i) const { return _last_raw_gyro[i]; }
     const Vector3f     &get_gyro_raw(void) const { return get_gyro_raw(_primary_gyro); }
 
     uint32_t get_gyro_error_count(uint8_t i) const { return _gyro_error_count[i]; }
@@ -167,7 +177,7 @@ public:
     bool get_gyro_health(uint8_t instance) const { return (instance<_gyro_count) ? _gyro_healthy[instance] : false; }
     bool get_gyro_health(void) const { return get_gyro_health(_primary_gyro); }
     bool get_gyro_health_all(void) const;
-    uint8_t get_gyro_count(void) const { return _gyro_count; }
+    uint8_t get_gyro_count(void) const { return MIN(INS_MAX_INSTANCES, _accel_count); }
     bool gyro_calibrated_ok(uint8_t instance) const { return _gyro_cal_ok[instance]; }
     bool gyro_calibrated_ok_all() const;
     bool use_gyro(uint8_t instance) const;
@@ -176,7 +186,7 @@ public:
     bool get_accel_health(uint8_t instance) const { return (instance<_accel_count) ? _accel_healthy[instance] : false; }
     bool get_accel_health(void) const { return get_accel_health(_primary_accel); }
     bool get_accel_health_all(void) const;
-    uint8_t get_accel_count(void) const { return _accel_count; }
+    uint8_t get_accel_count(void) const { return MIN(INS_MAX_INSTANCES, _accel_count); }
     bool accel_calibrated_ok_all() const;
     bool use_accel(uint8_t instance) const;
 
@@ -223,18 +233,17 @@ public:
     float get_gyro_drift_rate(void) const { return ToRad(0.5f/60); }
 
     // update gyro and accel values from accumulated samples
-    void update(void);
+    void update(void) __RAMFUNC__;
 
     // wait for a sample to be available
-    void wait_for_sample(void);
+    void wait_for_sample(void) __RAMFUNC__;
 
     // class level parameters
     static const struct AP_Param::GroupInfo var_info[];
 
     // set overall board orientation
-    void set_board_orientation(enum Rotation orientation, Matrix3f* custom_rotation = nullptr) {
+    void set_board_orientation(enum Rotation orientation) {
         _board_orientation = orientation;
-        _custom_rotation = custom_rotation;
     }
 
     // return the selected loop rate at which samples are made avilable
@@ -248,42 +257,17 @@ public:
     uint8_t get_primary_accel(void) const { return _primary_accel; }
     uint8_t get_primary_gyro(void) const { return _primary_gyro; }
 
-    // Update the harmonic notch frequency
-    void update_harmonic_notch_freq_hz(float scaled_freq);
-    // Update the harmonic notch frequencies
-    void update_harmonic_notch_frequencies_hz(uint8_t num_freqs, const float scaled_freq[]);
-
     // get the gyro filter rate in Hz
     uint16_t get_gyro_filter_hz(void) const { return _gyro_filter_cutoff; }
 
     // get the accel filter rate in Hz
     uint16_t get_accel_filter_hz(void) const { return _accel_filter_cutoff; }
 
-    // harmonic notch current center frequency
-    float get_gyro_dynamic_notch_center_freq_hz(void) const { return _calculated_harmonic_notch_freq_hz[0]; }
+    // setup the notch for throttle based tracking
+    bool setup_throttle_gyro_harmonic_notch(float center_freq_hz, float ref);
 
-    // set of harmonic notch current center frequencies
-    const float* get_gyro_dynamic_notch_center_frequencies_hz(void) const { return _calculated_harmonic_notch_freq_hz; }
-
-    // number of harmonic notch current center frequencies
-    uint8_t get_num_gyro_dynamic_notch_center_frequencies(void) const { return _num_calculated_harmonic_notch_frequencies; }
-
-    // harmonic notch reference center frequency
-    float get_gyro_harmonic_notch_center_freq_hz(void) const { return _harmonic_notch_filter.center_freq_hz(); }
-
-    // harmonic notch reference scale factor
-    float get_gyro_harmonic_notch_reference(void) const { return _harmonic_notch_filter.reference(); }
-
-    // harmonic notch tracking mode
-    HarmonicNotchDynamicMode get_gyro_harmonic_notch_tracking_mode(void) const { return _harmonic_notch_filter.tracking_mode(); }
-
-    // harmonic notch harmonics
-    uint8_t get_gyro_harmonic_notch_harmonics(void) const { return _harmonic_notch_filter.harmonics(); }
-
-    // harmonic notch options
-    bool has_harmonic_option(HarmonicNotchFilterParams::Options option) {
-        return _harmonic_notch_filter.hasOption(option);
-    }
+    // write out harmonic notch log messages
+    void write_notch_log_messages() const;
 
     // indicate which bit in LOG_BITMASK indicates raw logging enabled
     void set_log_raw_bit(uint32_t log_raw_bit) { _log_raw_bit = log_raw_bit; }
@@ -304,9 +288,6 @@ public:
 
     // check for vibration movement. True when all axis show nearly zero movement
     bool is_still();
-
-    // return true if harmonic notch enabled
-    bool gyro_harmonic_notch_enabled(void) const { return _harmonic_notch_filter.enabled(); }
 
     AuxiliaryBus *get_auxiliary_bus(int16_t backend_id) { return get_auxiliary_bus(backend_id, 0); }
     AuxiliaryBus *get_auxiliary_bus(int16_t backend_id, uint8_t instance);
@@ -329,12 +310,14 @@ public:
     // Returns newly calculated trim values if calculated
     bool get_new_trim(Vector3f &trim_rad);
 
+#if HAL_INS_ACCELCAL_ENABLED
     // initialise and register accel calibrator
     // called during the startup of accel cal
     void acal_init();
 
     // update accel calibrator
     void acal_update();
+#endif
 
     // simple accel calibration
 #if HAL_GCS_ENABLED
@@ -363,13 +346,16 @@ public:
         };
 
         void init();
-        void sample(uint8_t instance, IMU_SENSOR_TYPE _type, uint64_t sample_us, const Vector3f &sample);
+        void sample(uint8_t instance, IMU_SENSOR_TYPE _type, uint64_t sample_us, const Vector3f &sample) __RAMFUNC__;
 
         // a function called by the main thread at the main loop rate:
         void periodic();
 
         bool doing_sensor_rate_logging() const { return _doing_sensor_rate_logging; }
-        bool doing_post_filter_logging() const { return _doing_post_filter_logging; }
+        bool doing_post_filter_logging() const {
+            return (_doing_post_filter_logging && (post_filter || !_doing_sensor_rate_logging))
+                || (_doing_pre_post_filter_logging && post_filter);
+        }
 
         // class level parameters
         static const struct AP_Param::GroupInfo var_info[];
@@ -397,26 +383,31 @@ public:
         enum batch_opt_t {
             BATCH_OPT_SENSOR_RATE = (1<<0),
             BATCH_OPT_POST_FILTER = (1<<1),
+            BATCH_OPT_PRE_POST_FILTER = (1<<2),
         };
 
         void rotate_to_next_sensor();
         void update_doing_sensor_rate_logging();
 
-        bool should_log(uint8_t instance, IMU_SENSOR_TYPE type);
+        bool should_log(uint8_t instance, IMU_SENSOR_TYPE type) __RAMFUNC__;
         void push_data_to_log();
 
         // Logging functions
         bool Write_ISBH(const float sample_rate_hz) const;
         bool Write_ISBD() const;
 
+        bool has_option(batch_opt_t option) const { return _batch_options_mask & uint16_t(option); }
+
         uint64_t measurement_started_us;
 
-        bool initialised : 1;
-        bool isbh_sent : 1;
-        bool _doing_sensor_rate_logging : 1;
-        bool _doing_post_filter_logging : 1;
-        uint8_t instance : 3; // instance we are sending data for
-        AP_InertialSensor::IMU_SENSOR_TYPE type : 1;
+        bool initialised;
+        bool isbh_sent;
+        bool _doing_sensor_rate_logging;
+        bool _doing_post_filter_logging;
+        bool _doing_pre_post_filter_logging;
+        uint8_t instance; // instance we are sending data for
+        bool post_filter; // whether we are sending post-filter data
+        AP_InertialSensor::IMU_SENSOR_TYPE type;
         uint16_t isb_seqnum;
         int16_t *data_x;
         int16_t *data_y;
@@ -447,6 +438,49 @@ public:
 
     // force save of current calibration as valid
     void force_save_calibration(void);
+
+    // structure per harmonic notch filter. This is public to allow for
+    // easy iteration
+    class HarmonicNotch {
+    public:
+        HarmonicNotchFilterParams params;
+        HarmonicNotchFilterVector3f filter[INS_MAX_INSTANCES];
+
+        uint8_t num_dynamic_notches;
+
+        // the current center frequency for the notch
+        float calculated_notch_freq_hz[INS_MAX_NOTCHES];
+        uint8_t num_calculated_notch_frequencies;
+
+        // Update the harmonic notch frequency
+        void update_notch_freq_hz(float scaled_freq);
+
+        // Update the harmonic notch frequencies
+        void update_notch_frequencies_hz(uint8_t num_freqs, const float scaled_freq[]);
+
+        // runtime update of notch parameters
+        void update_params(uint8_t instance, bool converging, float gyro_rate);
+
+        // Update the harmonic notch frequencies
+        void update_freq_hz(float scaled_freq);
+        void update_frequencies_hz(uint8_t num_freqs, const float scaled_freq[]);
+
+        // enable/disable the notch
+        void set_inactive(bool _inactive) {
+            inactive = _inactive;
+        }
+
+        bool is_inactive(void) const {
+            return inactive;
+        }
+
+    private:
+        // support for updating harmonic filter at runtime
+        float last_center_freq_hz[INS_MAX_INSTANCES];
+        float last_bandwidth_hz[INS_MAX_INSTANCES];
+        float last_attenuation_dB[INS_MAX_INSTANCES];
+        bool inactive;
+    } harmonic_notches[HAL_INS_NUM_HARMONIC_NOTCH_FILTERS];
 
 private:
     // load backend drivers
@@ -490,8 +524,6 @@ private:
     //PADLOCK
     // Raw accelerometer readings for logging
     Vector3f _accel_raw[INS_MAX_INSTANCES];
-    // Raw gyro readings for logging
-    Vector3f _gyro_raw2[INS_MAX_INSTANCES];
 
     Vector3f _delta_velocity[INS_MAX_INSTANCES];
     float _delta_velocity_dt[INS_MAX_INSTANCES];
@@ -514,17 +546,6 @@ private:
 #endif
     bool _new_accel_data[INS_MAX_INSTANCES];
     bool _new_gyro_data[INS_MAX_INSTANCES];
-
-    // optional notch filter on gyro
-    NotchFilterParams _notch_filter;
-    NotchFilterVector3f _gyro_notch_filter[INS_MAX_INSTANCES];
-
-    // optional harmonic notch filter on gyro
-    HarmonicNotchFilterParams _harmonic_notch_filter;
-    HarmonicNotchFilterVector3f _gyro_harmonic_notch_filter[INS_MAX_INSTANCES];
-    // the current center frequency for the notch
-    float _calculated_harmonic_notch_freq_hz[INS_MAX_NOTCHES];
-    uint8_t _num_calculated_harmonic_notch_frequencies;
 
     // Most recent gyro reading
     Vector3f _gyro[INS_MAX_INSTANCES];
@@ -602,7 +623,6 @@ private:
     
     // board orientation from AHRS
     enum Rotation _board_orientation;
-    Matrix3f* _custom_rotation;
 
     // per-sensor orientation to allow for board type defaults at runtime
     enum Rotation _gyro_orientation[INS_MAX_INSTANCES];

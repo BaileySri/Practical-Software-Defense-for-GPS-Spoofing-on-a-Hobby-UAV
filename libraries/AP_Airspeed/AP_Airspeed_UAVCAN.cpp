@@ -1,8 +1,6 @@
-#include <AP_HAL/AP_HAL.h>
-
-#if HAL_ENABLE_LIBUAVCAN_DRIVERS
-
 #include "AP_Airspeed_UAVCAN.h"
+
+#if AP_AIRSPEED_UAVCAN_ENABLED
 
 #include <AP_CANManager/AP_CANManager.h>
 #include <AP_UAVCAN/AP_UAVCAN.h>
@@ -16,7 +14,7 @@ extern const AP_HAL::HAL& hal;
 // UAVCAN Frontend Registry Binder
 UC_REGISTRY_BINDER(AirspeedCb, uavcan::equipment::air_data::RawAirData);
 
-AP_Airspeed_UAVCAN::DetectedModules AP_Airspeed_UAVCAN::_detected_modules[] = {0};
+AP_Airspeed_UAVCAN::DetectedModules AP_Airspeed_UAVCAN::_detected_modules[];
 HAL_Semaphore AP_Airspeed_UAVCAN::_sem_registry;
 
 // constructor
@@ -121,7 +119,7 @@ void AP_Airspeed_UAVCAN::handle_airspeed(AP_UAVCAN* ap_uavcan, uint8_t node_id, 
         driver->_pressure = cb.msg->differential_pressure;
         if (!isnan(cb.msg->static_air_temperature) &&
             cb.msg->static_air_temperature > 0) {
-            driver->_temperature = cb.msg->static_air_temperature - C_TO_KELVIN;
+            driver->_temperature = KELVIN_TO_C(cb.msg->static_air_temperature);
             driver->_have_temperature = true;
         }
         driver->_last_sample_time_ms = AP_HAL::millis();
@@ -163,4 +161,4 @@ bool AP_Airspeed_UAVCAN::get_temperature(float &temperature)
     return true;
 }
 
-#endif // HAL_ENABLE_LIBUAVCAN_DRIVERS
+#endif // AP_AIRSPEED_UAVCAN_ENABLED

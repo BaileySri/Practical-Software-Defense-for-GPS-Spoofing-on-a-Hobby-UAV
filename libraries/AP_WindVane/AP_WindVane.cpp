@@ -23,7 +23,12 @@
 #include "AP_WindVane_SITL.h"
 #include "AP_WindVane_NMEA.h"
 
+#include <AP_AHRS/AP_AHRS.h>
+#include <AP_HAL/AP_HAL.h>
 #include <AP_Logger/AP_Logger.h>
+#include <AP_SerialManager/AP_SerialManager.h>
+
+extern const AP_HAL::HAL& hal;
 
 const AP_Param::GroupInfo AP_WindVane::var_info[] = {
 
@@ -46,7 +51,7 @@ const AP_Param::GroupInfo AP_WindVane::var_info[] = {
 
     // @Param: DIR_V_MIN
     // @DisplayName: Wind vane voltage minimum
-    // @Description: Minimum voltage supplied by analog wind vane
+    // @Description: Minimum voltage supplied by analog wind vane. When using pin 103, the maximum value of the parameter is 3.3V.
     // @Units: V
     // @Increment: 0.01
     // @Range: 0 5.0
@@ -55,7 +60,7 @@ const AP_Param::GroupInfo AP_WindVane::var_info[] = {
 
     // @Param: DIR_V_MAX
     // @DisplayName: Wind vane voltage maximum
-    // @Description: Maximum voltage supplied by analog wind vane
+    // @Description: Maximum voltage supplied by analog wind vane. When using pin 103, the maximum value of the parameter is 3.3V.
     // @Units: V
     // @Increment: 0.01
     // @Range: 0 5.0
@@ -369,6 +374,10 @@ void AP_WindVane::update()
 
 }
 
+void AP_WindVane::record_home_heading()
+{
+    _home_heading = AP::ahrs().yaw;
+}
 
 // to start direction calibration from mavlink or other
 bool AP_WindVane::start_direction_calibration()

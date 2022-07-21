@@ -57,7 +57,7 @@ const AP_Param::GroupInfo AP_PiccoloCAN::var_info[] = {
     // @Param: ESC_BM
     // @DisplayName: ESC channels
     // @Description: Bitmask defining which ESC (motor) channels are to be transmitted over Piccolo CAN
-    // @Bitmask: 0: ESC 1, 1: ESC 2, 2: ESC 3, 3: ESC 4, 4: ESC 5, 5: ESC 6, 6: ESC 7, 7: ESC 8, 8: ESC 9, 9: ESC 10, 10: ESC 11, 11: ESC 12, 12: ESC 13, 13: ESC 14, 14: ESC 15, 15: ESC 16
+    // @Bitmask: 0: ESC 1, 1: ESC 2, 2: ESC 3, 3: ESC 4, 4: ESC 5, 5: ESC 6, 6: ESC 7, 7: ESC 8, 8: ESC 9, 9: ESC 10, 10: ESC 11, 11: ESC 12, 12: ESC 13, 13: ESC 14, 14: ESC 15, 15: ESC 16, 16: ESC 17, 17: ESC 18, 18: ESC 19, 19: ESC 20, 20: ESC 21, 21: ESC 22, 22: ESC 23, 23: ESC 24, 24: ESC 25, 25: ESC 26, 26: ESC 27, 27: ESC 28, 28: ESC 29, 29: ESC 30, 30: ESC 31, 31: ESC 32
     // @User: Advanced
     AP_GROUPINFO("ESC_BM", 1, AP_PiccoloCAN, _esc_bm, 0xFFFF),
 
@@ -323,7 +323,7 @@ void AP_PiccoloCAN::update()
 
     AP_Logger *logger = AP_Logger::get_singleton();
 
-    // Push received telemtry data into the logging system
+    // Push received telemetry data into the logging system
     if (logger && logger->logging_enabled()) {
 
         WITH_SEMAPHORE(_telem_sem);
@@ -337,7 +337,7 @@ void AP_PiccoloCAN::update()
                     timestamp,
                     ii,
                     (float) servo.statusA.position,         // Servo position (represented in microsecond units)
-                    (float) servo.statusB.current / 100.0f, // Servo force (actually servo current, 0.01A per bit)
+                    (float) servo.statusB.current * 0.01f, // Servo force (actually servo current, 0.01A per bit)
                     (float) servo.statusB.speed,            // Servo speed (degrees per second)
                     (uint8_t) abs(servo.statusB.dutyCycle)  // Servo duty cycle (absolute value as it can be +/- 100%)
                 );
@@ -376,7 +376,8 @@ void AP_PiccoloCAN::send_esc_telemetry_mavlink(uint8_t mav_chan)
         if (is_esc_present(ii)) {
             dataAvailable = true;
 
-            temperature[idx] = esc.fetTemperature;
+            // Provide the maximum ESC temperature in the telemetry stream
+            temperature[idx] = MAX(esc.fetTemperature, esc.escTemperature);
             voltage[idx] = esc.voltage;
             current[idx] = esc.current;
             totalcurrent[idx] = 0;
@@ -690,22 +691,28 @@ bool AP_PiccoloCAN::handle_esc_message(AP_HAL::CANFrame &frame)
         // There are no common error bits between the Gen-1 and Gen-2 ICD
     } else if (decodeESC_StatusBPacket(&frame, &esc.voltage, &esc.current, &esc.dutyCycle, &esc.escTemperature, &esc.motorTemperature)) {
         
-        AP_ESC_Telem_Backend::TelemetryData t {
-            .temperature_cdeg = int16_t(esc.escTemperature * 100),
-            .voltage = float(esc.voltage) * 0.01f,
-            .current = float(esc.current) * 0.01f,
-        };
+        AP_ESC_Telem_Backend::TelemetryData telem {};
 
-        update_telem_data(addr, t,
+        telem.voltage = float(esc.voltage) * 0.01f;
+        telem.current = float(esc.current) * 0.01f;
+        telem.motor_temp_cdeg = int16_t(esc.motorTemperature * 100);
+
+        update_telem_data(addr, telem,
             AP_ESC_Telem_Backend::TelemetryType::CURRENT
                 | AP_ESC_Telem_Backend::TelemetryType::VOLTAGE
-                | AP_ESC_Telem_Backend::TelemetryType::TEMPERATURE);
+                | AP_ESC_Telem_Backend::TelemetryType::MOTOR_TEMPERATURE);
 
         esc.newTelemetry = true;
     } else if (decodeESC_StatusCPacket(&frame, &esc.fetTemperature, &esc.pwmFrequency, &esc.timingAdvance)) {
-        AP_ESC_Telem_Backend::TelemetryData t { };
-        t.motor_temp_cdeg = int16_t(esc.fetTemperature * 100);
-        update_telem_data(addr, t, AP_ESC_Telem_Backend::TelemetryType::MOTOR_TEMPERATURE);
+
+        // Use the higher reported value of 'escTemperature' and 'fetTemperature'
+        const int16_t escTemp = MAX(esc.fetTemperature, esc.escTemperature);
+
+        AP_ESC_Telem_Backend::TelemetryData telem {};
+
+        telem.temperature_cdeg = int16_t(escTemp * 100);
+        
+        update_telem_data(addr, telem, AP_ESC_Telem_Backend::TelemetryType::TEMPERATURE);
 
         esc.newTelemetry = true;
     } else if (decodeESC_WarningErrorStatusPacket(&frame, &esc.warnings, &esc.errors)) {
@@ -742,7 +749,7 @@ bool AP_PiccoloCAN::is_servo_channel_active(uint8_t chan)
     SRV_Channel::Aux_servo_function_t function = SRV_Channels::channel_function(chan);
 
     // Ignore if the servo channel does not have a function assigned
-    if (function == SRV_Channel::k_none) {
+    if (function <= SRV_Channel::k_none) {
         return false;
     }
 
@@ -1053,4 +1060,3 @@ uint32_t getServoPacketID(const void* pkt)
 }
 
 #endif // HAL_PICCOLO_CAN_ENABLE
-

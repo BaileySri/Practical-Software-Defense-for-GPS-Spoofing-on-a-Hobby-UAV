@@ -3,7 +3,7 @@
 #include <SITL/SITL.h>
 #include <stdio.h>
 
-#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
+#if AP_SIM_INS_ENABLED
 
 const extern AP_HAL::HAL& hal;
 
@@ -46,6 +46,7 @@ static float calculate_noise(float noise, float noise_variation) {
 
 float AP_InertialSensor_SITL::get_temperature(void)
 {
+#if HAL_INS_TEMPERATURE_CAL_ENABLE
     if (!is_zero(sitl->imu_temp_fixed)) {
         // user wants fixed temperature
         return sitl->imu_temp_fixed;
@@ -60,6 +61,9 @@ float AP_InertialSensor_SITL::get_temperature(void)
     const float T1 = sitl->imu_temp_end;
     const float tconst = sitl->imu_temp_tconst;
     return T1 - (T1 - T0) * expf(-tsec / tconst);
+#else
+    return 20.0f;
+#endif
 }
 
 /*
@@ -69,8 +73,6 @@ void AP_InertialSensor_SITL::generate_accel()
 {
     Vector3f accel_accum;
     uint8_t nsamples = enable_fast_sampling(accel_instance) ? 4 : 1;
-
-    float T = get_temperature();
 
     for (uint8_t j = 0; j < nsamples; j++) {
 
@@ -137,19 +139,18 @@ void AP_InertialSensor_SITL::generate_accel()
         // VIB_MOT_MAX is a rpm-scaled vibration applied to each axis
         if (!is_zero(sitl->vibe_motor) && motors_on) {
             for (uint8_t i = 0; i < sitl->state.num_motors; i++) {
-                float &phase = accel_motor_phase[i];
-                float motor_freq = calculate_noise(sitl->state.rpm[sitl->state.vtol_motor_start+i] / 60.0f, freq_variation);
-                float phase_incr = motor_freq * 2 * M_PI / (accel_sample_hz * nsamples);
-                phase += phase_incr;
-                if (phase_incr > M_PI) {
-                    phase -= 2 * M_PI;
+                uint32_t harmonics = uint32_t(sitl->vibe_motor_harmonics);
+                const float base_freq = calculate_noise(sitl->state.rpm[sitl->state.vtol_motor_start+i] / 60.0f, freq_variation);
+                while (harmonics != 0) {
+                    const uint8_t bit = __builtin_ffs(harmonics);
+                    harmonics &= ~(1U<<(bit-1U));
+                    const float phase = accel_motor_phase[i] * float(bit);
+                    accel.x += sinf(phase) * calculate_noise(accel_noise * sitl->vibe_motor_scale, noise_variation);
+                    accel.y += sinf(phase) * calculate_noise(accel_noise * sitl->vibe_motor_scale, noise_variation);
+                    accel.z += sinf(phase) * calculate_noise(accel_noise * sitl->vibe_motor_scale, noise_variation);
                 }
-                else if (phase_incr < -M_PI) {
-                    phase += 2 * M_PI;
-                }
-                accel.x += sinf(phase) * calculate_noise(accel_noise * sitl->vibe_motor_scale, noise_variation);
-                accel.y += sinf(phase) * calculate_noise(accel_noise * sitl->vibe_motor_scale, noise_variation);
-                accel.z += sinf(phase) * calculate_noise(accel_noise * sitl->vibe_motor_scale, noise_variation);
+                const float phase_incr = base_freq * 2 * M_PI / (accel_sample_hz * nsamples);
+                accel_motor_phase[i] = wrap_PI(accel_motor_phase[i] + phase_incr);
             }
         }
 
@@ -175,7 +176,10 @@ void AP_InertialSensor_SITL::generate_accel()
             accel.x = accel.y = accel.z = sitl->accel_fail[accel_instance];
         }
 
+#if HAL_INS_TEMPERATURE_CAL_ENABLE
+        const float T = get_temperature();
         sitl->imu_tcal[gyro_instance].sitl_apply_accel(T, accel);
+#endif
 
         _notify_new_accel_sensor_rate_sample(accel_instance, accel);
 
@@ -242,25 +246,26 @@ void AP_InertialSensor_SITL::generate_gyro()
         // VIB_MOT_MAX is a rpm-scaled vibration applied to each axis
         if (!is_zero(sitl->vibe_motor) && motors_on) {
             for (uint8_t i = 0; i < sitl->state.num_motors; i++) {
-                float motor_freq = calculate_noise(sitl->state.rpm[sitl->state.vtol_motor_start+i] / 60.0f, freq_variation);
-                float phase_incr = motor_freq * 2 * M_PI / (gyro_sample_hz * nsamples);
-                float &phase = gyro_motor_phase[i];
-                phase += phase_incr;
-                if (phase_incr > M_PI) {
-                    phase -= 2 * M_PI;
+                uint32_t harmonics = uint32_t(sitl->vibe_motor_harmonics);
+                const float base_freq = calculate_noise(sitl->state.rpm[sitl->state.vtol_motor_start+i] / 60.0f, freq_variation);
+                while (harmonics != 0) {
+                    const uint8_t bit = __builtin_ffs(harmonics);
+                    harmonics &= ~(1U<<(bit-1U));
+                    const float phase = gyro_motor_phase[i] * float(bit);
+                    p += sinf(phase) * calculate_noise(gyro_noise * sitl->vibe_motor_scale, noise_variation);
+                    q += sinf(phase) * calculate_noise(gyro_noise * sitl->vibe_motor_scale, noise_variation);
+                    r += sinf(phase) * calculate_noise(gyro_noise * sitl->vibe_motor_scale, noise_variation);
                 }
-                else if (phase_incr < -M_PI) {
-                    phase += 2 * M_PI;
-                }
-                p += sinf(phase) * calculate_noise(gyro_noise * sitl->vibe_motor_scale, noise_variation);
-                q += sinf(phase) * calculate_noise(gyro_noise * sitl->vibe_motor_scale, noise_variation);
-                r += sinf(phase) * calculate_noise(gyro_noise * sitl->vibe_motor_scale, noise_variation);
+                const float phase_incr = base_freq * 2 * M_PI / (gyro_sample_hz * nsamples);
+                gyro_motor_phase[i] = wrap_PI(gyro_motor_phase[i] + phase_incr);
             }
         }
 
         Vector3f gyro = Vector3f(p, q, r);
 
+#if HAL_INS_TEMPERATURE_CAL_ENABLE
         sitl->imu_tcal[gyro_instance].sitl_apply_gyro(get_temperature(), gyro);
+#endif
 
         // add in gyro scaling
         Vector3f scale = sitl->gyro_scale[gyro_instance];
@@ -351,4 +356,4 @@ void AP_InertialSensor_SITL::start()
     hal.scheduler->register_timer_process(FUNCTOR_BIND_MEMBER(&AP_InertialSensor_SITL::timer_update, void));
 }
 
-#endif // HAL_BOARD_SITL
+#endif // AP_SIM_INS_ENABLED

@@ -4,7 +4,7 @@
 
 include ../fmuv3/hwdef.dat
 
-define HAL_CHIBIOS_ARCH_CUBEBLACK 1
+define HAL_CHIBIOS_ARCH_CUBE 1
 
 env OPTIMIZE -O2
 
@@ -96,3 +96,6 @@ PE3 VDD_3V3_SENSORS_EN OUTPUT LOW
 # in MAVLink2 or in PM message in logs
 # undef HAL_STORAGE_SIZE
 # define HAL_STORAGE_SIZE 32768
+
+
+define HAL_IMU_TEMP_MARGIN_LOW_DEFAULT 5

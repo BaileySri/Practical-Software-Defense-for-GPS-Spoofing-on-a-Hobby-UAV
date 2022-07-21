@@ -17,6 +17,7 @@
 #include "AP_EFI_Serial_MS.h"
 
 #if HAL_EFI_ENABLED
+#include <AP_Math/AP_Math.h>
 #include <AP_SerialManager/AP_SerialManager.h>
 
 extern const AP_HAL::HAL &hal;
@@ -25,7 +26,7 @@ AP_EFI_Serial_MS::AP_EFI_Serial_MS(AP_EFI &_frontend):
     AP_EFI_Backend(_frontend)
 {
     internal_state.estimated_consumed_fuel_volume_cm3 = 0; // Just to be sure
-    port = AP::serialmanager().find_serial(AP_SerialManager::SerialProtocol_EFI_MS, 0);
+    port = AP::serialmanager().find_serial(AP_SerialManager::SerialProtocol_EFI, 0);
 }
 
 
@@ -110,12 +111,12 @@ bool AP_EFI_Serial_MS::read_incoming_realtime_data()
             case MAT_MSB:
                 temp_float = (float)((data << 8) + read_byte_CRC32())/10.0f;
                 offset++;
-                internal_state.intake_manifold_temperature = f_to_k(temp_float);
+                internal_state.intake_manifold_temperature = degF_to_Kelvin(temp_float);
                 break;
             case CHT_MSB:
                 temp_float = (float)((data << 8) + read_byte_CRC32())/10.0f;
                 offset++;
-                internal_state.cylinder_status[0].cylinder_head_temperature = f_to_k(temp_float);
+                internal_state.cylinder_status[0].cylinder_head_temperature = degF_to_Kelvin(temp_float);
                 break;
             case TPS_MSB:
                 temp_float = (float)((data << 8) + read_byte_CRC32())/10.0f;
@@ -162,7 +163,7 @@ bool AP_EFI_Serial_MS::read_incoming_realtime_data()
     float duty_cycle = (internal_state.cylinder_status[0].injection_time_ms * internal_state.engine_speed_rpm)/600.0f;
     uint32_t current_time = AP_HAL::millis();
     // Super Simplified integration method - Error Analysis TBD
-    // This calcualtion gives erroneous results when the engine isn't running
+    // This calculation gives erroneous results when the engine isn't running
     if (internal_state.engine_speed_rpm > RPM_THRESHOLD) {
         internal_state.fuel_consumption_rate_cm3pm = duty_cycle*get_coef1() - get_coef2();
         internal_state.estimated_consumed_fuel_volume_cm3 += internal_state.fuel_consumption_rate_cm3pm * (current_time - internal_state.last_updated_ms)/60000.0f;

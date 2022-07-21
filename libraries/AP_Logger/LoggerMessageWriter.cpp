@@ -211,9 +211,18 @@ void LoggerMessageWriter_WriteSysInfo::process() {
     switch(stage) {
 
     case Stage::FIRMWARE_STRING:
+#ifdef AP_CUSTOM_FIRMWARE_STRING
+        // also log original firmware string if different
+        if (! _logger_backend->Write_MessageF("%s [%s]",
+                                              fwver.fw_string,
+                                              fwver.fw_string_original)) {
+            return; // call me again
+        }
+#else
         if (! _logger_backend->Write_Message(fwver.fw_string)) {
             return; // call me again
         }
+#endif
         stage = Stage::GIT_VERSIONS;
         FALLTHROUGH;
 
@@ -233,9 +242,16 @@ void LoggerMessageWriter_WriteSysInfo::process() {
                 return; // call me again
             }
         }
-        stage = Stage::SYSTEM_ID;
+        stage = Stage::VER;
         FALLTHROUGH;
 
+    case Stage::VER: {
+        if (!_logger_backend->Write_VER()) {
+            return;
+        }
+        stage = Stage::SYSTEM_ID;
+        FALLTHROUGH;
+    }
     case Stage::SYSTEM_ID:
         char sysid[40];
         if (hal.util->get_system_id(sysid)) {

@@ -1318,7 +1318,7 @@ void AP_OSD_Screen::draw_rssi(uint8_t x, uint8_t y)
 {
     AP_RSSI *ap_rssi = AP_RSSI::get_singleton();
     if (ap_rssi) {
-        const uint8_t rssiv = ap_rssi->read_receiver_rssi() * 99;
+        const uint8_t rssiv = ap_rssi->read_receiver_rssi() * 100;
         backend->write(x, y, rssiv < osd->warn_rssi, "%c%2d", SYMBOL(SYM_RSSI), rssiv);
     }
 }
@@ -1559,7 +1559,7 @@ void AP_OSD_Screen::draw_home(uint8_t x, uint8_t y)
     AP_AHRS &ahrs = AP::ahrs();
     WITH_SEMAPHORE(ahrs.get_semaphore());
     Location loc;
-    if (ahrs.get_position(loc) && ahrs.home_is_set()) {
+    if (ahrs.get_location(loc) && ahrs.home_is_set()) {
         const Location &home_loc = ahrs.get_home();
         float distance = home_loc.get_distance(loc);
         int32_t angle = wrap_360_cd(loc.get_bearing_to(home_loc) - ahrs.yaw_sensor);
@@ -1862,7 +1862,7 @@ void AP_OSD_Screen::draw_temp(uint8_t x, uint8_t y)
 void AP_OSD_Screen::draw_hdop(uint8_t x, uint8_t y)
 {
     AP_GPS & gps = AP::gps();
-    float hdp = gps.get_hdop() / 100.0f;
+    float hdp = gps.get_hdop() * 0.01f;
     backend->write(x, y, false, "%c%c%3.2f", SYMBOL(SYM_HDOP_L), SYMBOL(SYM_HDOP_R), (double)hdp);
 }
 
@@ -1973,6 +1973,7 @@ void AP_OSD_Screen::draw_btemp(uint8_t x, uint8_t y)
 
 void AP_OSD_Screen::draw_atemp(uint8_t x, uint8_t y)
 {
+#if AP_AIRSPEED_ENABLED
     AP_Airspeed *airspeed = AP_Airspeed::get_singleton();
     if (!airspeed) {
         return;
@@ -1984,6 +1985,7 @@ void AP_OSD_Screen::draw_atemp(uint8_t x, uint8_t y)
     } else {
         backend->write(x, y, false, "--%c", u_icon(TEMPERATURE));
     }
+#endif
 }
 
 void AP_OSD_Screen::draw_bat2_vlt(uint8_t x, uint8_t y)
@@ -2007,6 +2009,7 @@ void AP_OSD_Screen::draw_bat2used(uint8_t x, uint8_t y)
 
 void AP_OSD_Screen::draw_aspd1(uint8_t x, uint8_t y)
 {
+#if AP_AIRSPEED_ENABLED
     AP_Airspeed *airspeed = AP_Airspeed::get_singleton();
     if (!airspeed) {
         return;
@@ -2017,10 +2020,12 @@ void AP_OSD_Screen::draw_aspd1(uint8_t x, uint8_t y)
     } else {
         backend->write(x, y, false, "%c ---%c", SYMBOL(SYM_ASPD), u_icon(SPEED));
     }
+#endif
 }
 
 void AP_OSD_Screen::draw_aspd2(uint8_t x, uint8_t y)
 {
+#if AP_AIRSPEED_ENABLED
     AP_Airspeed *airspeed = AP_Airspeed::get_singleton();
     if (!airspeed) {
         return;
@@ -2031,6 +2036,7 @@ void AP_OSD_Screen::draw_aspd2(uint8_t x, uint8_t y)
     } else {
         backend->write(x, y, false, "%c ---%c", SYMBOL(SYM_ASPD), u_icon(SPEED));
     }
+#endif
 }
 
 void AP_OSD_Screen::draw_clk(uint8_t x, uint8_t y)
@@ -2141,7 +2147,7 @@ void AP_OSD_Screen::draw_rngf(uint8_t x, uint8_t y)
     if (rangefinder->status_orient(ROTATION_PITCH_270) <= RangeFinder::Status::NoData) {
         backend->write(x, y, false, "%c----%c", SYMBOL(SYM_RNGFD), u_icon(DISTANCE));
     } else {
-        const float distance = rangefinder->distance_cm_orient(ROTATION_PITCH_270) * 0.01f;
+        const float distance = rangefinder->distance_orient(ROTATION_PITCH_270);
         const char *format = distance < 9.995 ? "%c %1.2f%c" : "%c%2.2f%c";
         backend->write(x, y, false, format, SYMBOL(SYM_RNGFD), u_scale(DISTANCE, distance), u_icon(DISTANCE));
     }

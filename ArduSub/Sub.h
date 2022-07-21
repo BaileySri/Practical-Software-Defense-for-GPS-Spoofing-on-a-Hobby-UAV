@@ -32,7 +32,6 @@
 #include <AP_Common/Location.h>
 #include <AP_Param/AP_Param.h>
 #include <StorageManager/StorageManager.h>
-#include <GCS_MAVLink/GCS.h>
 #include <AP_AccelCal/AP_AccelCal.h>                // interface and maths for accelerometer calibration
 #include <AP_Math/AP_Math.h>            // ArduPilot Mega Vector/Matrix math Library
 #include <AP_Declination/AP_Declination.h>     // ArduPilot Mega Declination Helper Library
@@ -47,20 +46,19 @@
 #include <AP_AHRS/AP_AHRS.h>
 #include <AP_Mission/AP_Mission.h>         // Mission command library
 #include <AC_AttitudeControl/AC_AttitudeControl_Sub.h> // Attitude control library
-#include <AC_AttitudeControl/AC_PosControl_Sub.h>      // Position control library
+#include <AC_AttitudeControl/AC_PosControl.h>      // Position control library
 #include <AP_Motors/AP_Motors.h>          // AP Motors library
 #include <Filter/Filter.h>             // Filter library
 #include <AP_Relay/AP_Relay.h>           // APM relay
 #include <AP_Mount/AP_Mount.h>           // Camera/Antenna mount
 #include <AP_Vehicle/AP_Vehicle.h>         // needed for AHRS build
-#include <AP_InertialNav/AP_InertialNav_NavEKF.h>     // ArduPilot Mega inertial navigation library
+#include <AP_InertialNav/AP_InertialNav.h>     // inertial navigation library
 #include <AC_WPNav/AC_WPNav.h>           // Waypoint navigation library
 #include <AC_WPNav/AC_Loiter.h>
 #include <AC_WPNav/AC_Circle.h>          // circle navigation library
 #include <AC_Fence/AC_Fence.h>           // Fence library
 #include <AP_Scheduler/AP_Scheduler.h>       // main loop scheduler
 #include <AP_Scheduler/PerfInfo.h>       // loop perf monitoring
-#include <AP_Notify/AP_Notify.h>          // Notify library
 #include <AP_BattMonitor/AP_BattMonitor.h>     // Battery monitor library
 #include <AP_Terrain/AP_Terrain.h>
 #include <AP_JSButton/AP_JSButton.h>   // Joystick/gamepad button function assignment
@@ -77,11 +75,9 @@
 #include "AP_Arming_Sub.h"
 #include "GCS_Sub.h"
 
-// libraries which are dependent on #defines in defines.h and/or config.h
-#if OPTFLOW == ENABLED
 #include <AP_OpticalFlow/AP_OpticalFlow.h>     // Optical Flow library
-#endif
 
+// libraries which are dependent on #defines in defines.h and/or config.h
 #if RCMAP_ENABLED == ENABLED
 #include <AP_RCMapper/AP_RCMapper.h>        // RC input mapping library
 #endif
@@ -106,12 +102,8 @@
 #include <AP_Camera/AP_Camera.h>          // Photo or video camera
 #endif
 
-#ifdef ENABLE_SCRIPTING
+#if AP_SCRIPTING_ENABLED
 #include <AP_Scripting/AP_Scripting.h>
-#endif
-
-#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
-#include <SITL/SITL.h>
 #endif
 
 class Sub : public AP_Vehicle {
@@ -164,10 +156,6 @@ private:
     AP_RPM rpm_sensor;
 #endif
 
-#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
-    SITL::SIM sitl;
-#endif
-
     // Mission library
     AP_Mission mission{
             FUNCTOR_BIND_MEMBER(&Sub::start_command, bool, const AP_Mission::Mission_Command &),
@@ -175,7 +163,7 @@ private:
             FUNCTOR_BIND_MEMBER(&Sub::exit_mission, void)};
 
     // Optical flow sensor
-#if OPTFLOW == ENABLED
+#if AP_OPTICALFLOW_ENABLED
     OpticalFlow optflow;
 #endif
 
@@ -245,7 +233,6 @@ private:
 
     // sensor health for logging
     struct {
-        uint8_t baro        : 1;    // true if any single baro is healthy
         uint8_t depth       : 1;    // true if depth sensor is healthy
         uint8_t compass     : 1;    // true if compass is healthy
     } sensor_health;
@@ -333,7 +320,7 @@ private:
     uint32_t condition_start;
 
     // Inertial Navigation
-    AP_InertialNav_NavEKF inertial_nav;
+    AP_InertialNav inertial_nav;
 
     AP_AHRS_View ahrs_view;
 
@@ -341,7 +328,7 @@ private:
     // To-Do: move inertial nav up or other navigation variables down here
     AC_AttitudeControl_Sub attitude_control;
 
-    AC_PosControl_Sub pos_control;
+    AC_PosControl pos_control;
 
     AC_WPNav wp_nav;
     AC_Loiter loiter_nav;
@@ -373,7 +360,7 @@ private:
 
     // terrain handling
 #if AP_TERRAIN_AVAILABLE
-    AP_Terrain terrain{mission};
+    AP_Terrain terrain;
 #endif
 
     // used to allow attitude and depth control without a position system
@@ -396,7 +383,7 @@ private:
     static const AP_Param::Info var_info[];
     static const struct LogStructure log_structure[];
 
-    void fast_loop() override;
+    void run_rate_controller();
     void fifty_hz_loop();
     void update_batt_compass(void);
     void ten_hz_logging_loop();
@@ -414,20 +401,14 @@ private:
     float get_look_ahead_yaw();
     float get_pilot_desired_climb_rate(float throttle_control);
     float get_surface_tracking_climb_rate(int16_t target_rate, float current_alt_target, float dt);
-    void update_poscon_alt_max();
     void rotate_body_frame_to_NE(float &x, float &y);
-#if RPM_ENABLED == ENABLED
-    void rpm_update();
-#endif
     void Log_Write_Control_Tuning();
     void Log_Write_Attitude();
-    void Log_Write_MotBatt();
     void Log_Write_Data(LogDataID id, int32_t value);
     void Log_Write_Data(LogDataID id, uint32_t value);
     void Log_Write_Data(LogDataID id, int16_t value);
     void Log_Write_Data(LogDataID id, uint16_t value);
     void Log_Write_Data(LogDataID id, float value);
-    void Log_Sensor_Health();
     void Log_Write_GuidedTarget(uint8_t target_type, const Vector3f& pos_target, const Vector3f& vel_target);
     void Log_Write_Vehicle_Startup_Messages();
     void load_parameters(void) override;
@@ -530,8 +511,6 @@ private:
     void set_surfaced(bool at_surface);
     void set_bottomed(bool at_bottom);
     void motors_output();
-    Vector3f pv_location_to_vector(const Location& loc);
-    float pv_alt_above_origin(float alt_above_home_cm);
     void init_rc_in();
     void init_rc_out();
     void enable_motor_output();
@@ -591,7 +570,6 @@ private:
     bool verify_nav_delay(const AP_Mission::Mission_Command& cmd);
 
     void log_init(void);
-    void read_airspeed();
 
     void failsafe_leak_check();
     void failsafe_internal_pressure_check();

@@ -23,61 +23,23 @@
 // Libraries
 #include <AP_Common/AP_Common.h>
 #include <AP_HAL/AP_HAL.h>
-#include <AC_PID/AC_P.h>
-#include <AC_PID/AC_PID.h>
-#include <AP_AccelCal/AP_AccelCal.h>                // interface and maths for accelerometer calibration
-#include <AP_AHRS/AP_AHRS.h>                        // ArduPilot Mega DCM Library
-#include <AP_Airspeed/AP_Airspeed.h>                // needed for AHRS build
-#include <AP_Baro/AP_Baro.h>
 #include <AP_BattMonitor/AP_BattMonitor.h>          // Battery monitor library
-#include <AP_Beacon/AP_Beacon.h>
 #include <AP_Camera/AP_Camera.h>                    // Camera triggering
-#include <AP_Compass/AP_Compass.h>                  // ArduPilot Mega Magnetometer Library
-#include <AP_Declination/AP_Declination.h>          // Compass declination library
-#include <AP_InertialSensor/AP_InertialSensor.h>    // Inertial Sensor (uncalibated IMU) Library
-#include <AP_L1_Control/AP_L1_Control.h>
-#include <AP_Math/AP_Math.h>                        // ArduPilot Mega Vector/Matrix math Library
-#include <AP_Mission/AP_Mission.h>                  // Mission command library
 #include <AP_Mount/AP_Mount.h>                      // Camera/Antenna mount
-#include <AP_NavEKF2/AP_NavEKF2.h>
-#include <AP_NavEKF3/AP_NavEKF3.h>
-#include <AP_Navigation/AP_Navigation.h>
-#include <AP_OpticalFlow/AP_OpticalFlow.h>          // Optical Flow library
 #include <AP_Param/AP_Param.h>
 #include <AP_RangeFinder/AP_RangeFinder.h>          // Range finder library
 #include <AP_RCMapper/AP_RCMapper.h>                // RC input mapping library
+#include <AP_RPM/AP_RPM.h>                          // RPM input library
 #include <AP_Scheduler/AP_Scheduler.h>              // main loop scheduler
-#include <AP_Stats/AP_Stats.h>                      // statistics library
-#include <AP_Terrain/AP_Terrain.h>
 #include <AP_Vehicle/AP_Vehicle.h>                  // needed for AHRS build
 #include <AP_WheelEncoder/AP_WheelEncoder.h>
 #include <AP_WheelEncoder/AP_WheelRateControl.h>
-#include <APM_Control/AR_AttitudeControl.h>
-#include <AR_WPNav/AR_WPNav.h>
-#include <AP_SmartRTL/AP_SmartRTL.h>
 #include <AP_Logger/AP_Logger.h>
-#include <Filter/AverageFilter.h>                   // Mode Filter from Filter library
-#include <Filter/Butter.h>                          // Filter library - butterworth filter
-#include <Filter/Filter.h>                          // Filter library
-#include <Filter/LowPassFilter.h>
-#include <Filter/ModeFilter.h>                      // Mode Filter from Filter library
-#include <AC_Fence/AC_Fence.h>
-#include <AP_Proximity/AP_Proximity.h>
-#include <AC_Avoidance/AC_Avoid.h>
-#include <AC_Avoidance/AP_OAPathPlanner.h>
-#include <AP_Follow/AP_Follow.h>
 #include <AP_OSD/AP_OSD.h>
-#include <AP_WindVane/AP_WindVane.h>
 #include <AR_Motors/AP_MotorsUGV.h>
-#include <AP_Torqeedo/AP_Torqeedo.h>
-#include <AP_AIS/AP_AIS.h>
 
-#ifdef ENABLE_SCRIPTING
+#if AP_SCRIPTING_ENABLED
 #include <AP_Scripting/AP_Scripting.h>
-#endif
-
-#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
-#include <SITL/SITL.h>
 #endif
 
 // Local modules
@@ -160,16 +122,12 @@ private:
     // Arming/Disarming management class
     AP_Arming_Rover arming;
 
-    AP_L1_Control L1_controller{ahrs, nullptr};
-
+#if AP_OPTICALFLOW_ENABLED
     OpticalFlow optflow;
+#endif
 
 #if OSD_ENABLED || OSD_PARAM_ENABLED
     AP_OSD osd;
-#endif
-
-#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
-    SITL::SIM sitl;
 #endif
 
     // GCS handling
@@ -273,12 +231,18 @@ private:
 private:
 
     // Rover.cpp
-#ifdef ENABLE_SCRIPTING
+#if AP_SCRIPTING_ENABLED
     bool set_target_location(const Location& target_loc) override;
     bool set_target_velocity_NED(const Vector3f& vel_ned) override;
     bool set_steering_and_throttle(float steering, float throttle) override;
+    // set desired turn rate (degrees/sec) and speed (m/s). Used for scripting
+    bool set_desired_turn_rate_and_speed(float turn_rate, float speed) override;
+    bool set_desired_speed(float speed) override;
     bool get_control_output(AP_Vehicle::ControlOutput control_output, float &control_value) override;
-#endif // ENABLE_SCRIPTING
+    bool nav_scripting_enable(uint8_t mode) override;
+    bool nav_script_time(uint16_t &id, uint8_t &cmd, float &arg1, float &arg2) override;
+    void nav_script_time_done(uint16_t id) override;
+#endif // AP_SCRIPTING_ENABLED
     void stats_update();
     void ahrs_update();
     void gcs_failsafe_check(void);
@@ -286,7 +250,6 @@ private:
     void update_logging2(void);
     void one_second_loop(void);
     void update_current_mode(void);
-    void update_mission(void);
 
     // balance_bot.cpp
     void balancebot_pitch_control(float &throttle);
@@ -332,7 +295,6 @@ private:
     void Log_Write_GuidedTarget(uint8_t target_type, const Vector3f& pos_target, const Vector3f& vel_target);
     void Log_Write_Nav_Tuning();
     void Log_Write_Sail();
-    void Log_Write_Startup(uint8_t type);
     void Log_Write_Steering();
     void Log_Write_Throttle();
     void Log_Write_RC(void);
@@ -352,15 +314,12 @@ private:
     void rudder_arm_disarm_check();
     void read_radio();
     void radio_failsafe_check(uint16_t pwm);
-    bool trim_radio();
 
     // sensors.cpp
     void update_compass(void);
     void compass_save(void);
     void update_wheel_encoder();
     void read_rangefinders(void);
-    void read_airspeed();
-    void rpm_update(void);
 
     // Steering.cpp
     void set_servos(void);

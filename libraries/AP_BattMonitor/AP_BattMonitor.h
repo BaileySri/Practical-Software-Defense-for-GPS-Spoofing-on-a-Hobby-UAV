@@ -27,12 +27,12 @@
 #define AP_BATT_MONITOR_CELLS_MAX           12
 #endif
 
-#ifndef HAL_BATTMON_SMBUS_ENABLE
-#define HAL_BATTMON_SMBUS_ENABLE 1
+#ifndef AP_BATTMON_SMBUS_ENABLE
+#define AP_BATTMON_SMBUS_ENABLE 1
 #endif
 
-#ifndef HAL_BATTMON_FUEL_ENABLE
-#define HAL_BATTMON_FUEL_ENABLE 1
+#ifndef AP_BATTMON_FUEL_ENABLE
+#define AP_BATTMON_FUEL_ENABLE 1
 #endif
 
 // declare backend class
@@ -45,9 +45,9 @@ class AP_BattMonitor_SMBus_Maxell;
 class AP_BattMonitor_SMBus_Rotoye;
 class AP_BattMonitor_UAVCAN;
 class AP_BattMonitor_Generator;
-class AP_BattMonitor_MPPT_PacketDigital;
-class AP_BattMonitor_INA231;
+class AP_BattMonitor_INA2XX;
 class AP_BattMonitor_LTC2946;
+class AP_BattMonitor_Torqeedo;
 
 class AP_BattMonitor
 {
@@ -63,9 +63,10 @@ class AP_BattMonitor
     friend class AP_BattMonitor_FuelFlow;
     friend class AP_BattMonitor_FuelLevel_PWM;
     friend class AP_BattMonitor_Generator;
-    friend class AP_BattMonitor_MPPT_PacketDigital;
-    friend class AP_BattMonitor_INA231;
+    friend class AP_BattMonitor_INA2XX;
     friend class AP_BattMonitor_LTC2946;
+
+    friend class AP_BattMonitor_Torqeedo;
 
 public:
 
@@ -96,9 +97,10 @@ public:
         GENERATOR_ELEC             = 17,
         GENERATOR_FUEL             = 18,
         Rotoye                     = 19,
-        MPPT_PacketDigital         = 20,
-        INA231                     = 21,
+        // 20 was MPPT_PacketDigital
+        INA2XX                     = 21,
         LTC2946                    = 22,
+        Torqeedo                   = 23,
     };
 
     FUNCTOR_TYPEDEF(battery_failsafe_handler_fn_t, void, const char *, const int8_t);
@@ -141,8 +143,7 @@ public:
         const struct AP_Param::GroupInfo *var_info;
     };
 
-    static const struct AP_Param::GroupInfo *backend_analog_var_info[AP_BATT_MONITOR_MAX_INSTANCES];
-    static const struct AP_Param::GroupInfo *backend_smbus_var_info[AP_BATT_MONITOR_MAX_INSTANCES];
+    static const struct AP_Param::GroupInfo *backend_var_info[AP_BATT_MONITOR_MAX_INSTANCES];
 
     // Return the number of battery monitor instances
     uint8_t num_instances(void) const { return _num_instances; }
@@ -155,11 +156,17 @@ public:
 
     // healthy - returns true if monitor is functioning
     bool healthy(uint8_t instance) const;
-    bool healthy() const { return healthy(AP_BATT_PRIMARY_INSTANCE); }
+
+    // return true if all configured battery monitors are healthy
+    bool healthy() const;
 
     /// voltage - returns battery voltage in volts
     float voltage(uint8_t instance) const;
     float voltage() const { return voltage(AP_BATT_PRIMARY_INSTANCE); }
+
+    // voltage for a GCS, may be resistance compensated
+    float gcs_voltage(uint8_t instance) const;
+    float gcs_voltage(void) const { return gcs_voltage(AP_BATT_PRIMARY_INSTANCE); }
 
     /// get voltage with sag removed (based on battery current draw and resistance)
     /// this will always be greater than or equal to the raw voltage
@@ -238,6 +245,9 @@ public:
     // Returns mavlink charge state
     MAV_BATTERY_CHARGE_STATE get_mavlink_charge_state(const uint8_t instance) const;
 
+    // Returns mavlink fault state
+    uint32_t get_mavlink_fault_bitmask(const uint8_t instance) const;
+
     static const struct AP_Param::GroupInfo var_info[];
 
 protected:
@@ -253,7 +263,6 @@ private:
     uint32_t    _log_battery_bit;
     uint8_t     _num_instances;                                     /// number of monitors
 
-    void convert_params(void);
     void convert_dynamic_param_groups(uint8_t instance);
 
     /// returns the failsafe state of the battery

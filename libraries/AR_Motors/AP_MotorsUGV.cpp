@@ -287,6 +287,10 @@ void AP_MotorsUGV::output(bool armed, float ground_speed, float dt)
         _throttle = 0.0f;
     }
 
+    // clear limit flags
+    // output_ methods are responsible for setting them to true if required on each iteration
+    limit.steer_left = limit.steer_right = limit.throttle_lower = limit.throttle_upper = false;
+
     // sanity check parameters
     sanity_check_parameters();
 
@@ -500,6 +504,8 @@ void AP_MotorsUGV::setup_pwm_type()
 {
     _motor_mask = 0;
 
+    hal.rcout->set_dshot_esc_type(SRV_Channels::get_dshot_esc_type());
+
     // work out mask of channels assigned to motors
     _motor_mask |= SRV_Channels::get_output_channel_mask(SRV_Channel::k_throttle);
     _motor_mask |= SRV_Channels::get_output_channel_mask(SRV_Channel::k_throttleLeft);
@@ -630,7 +636,7 @@ void AP_MotorsUGV::output_regular(bool armed, float ground_speed, float steering
 
                 // normalise desired steering and throttle to ease calculations
                 float steering_norm = steering / 4500.0f;
-                const float throttle_norm = throttle / 100.0f;
+                const float throttle_norm = throttle * 0.01f;
 
                 // steering can never be more than throttle * tan(_vector_angle_max)
                 const float vector_angle_max_rad = radians(constrain_float(_vector_angle_max, 0.0f, 90.0f));
@@ -663,12 +669,6 @@ void AP_MotorsUGV::output_regular(bool armed, float ground_speed, float steering
                     const float throttle_scaler_inv = cosf(steering_angle_rad);
                     if (!is_zero(throttle_scaler_inv)) {
                         throttle /= throttle_scaler_inv;
-                        if (throttle >= 100.0f) {
-                            limit.throttle_upper = true;
-                        }
-                        if (throttle <= -100.0f) {
-                            limit.throttle_lower = true;
-                        }
                     }
                 }
             } else {
@@ -741,7 +741,7 @@ void AP_MotorsUGV::output_skid_steering(bool armed, float steering, float thrott
 
     // skid steering mixer
     float steering_scaled = steering / 4500.0f; // steering scaled -1 to +1
-    float throttle_scaled = throttle / 100.0f;  // throttle scaled -1 to +1
+    float throttle_scaled = throttle * 0.01f;  // throttle scaled -1 to +1
 
     // apply constraints
     steering_scaled = constrain_float(steering_scaled, -1.0f, 1.0f);
@@ -750,6 +750,10 @@ void AP_MotorsUGV::output_skid_steering(bool armed, float steering, float thrott
     // check for saturation and scale back throttle and steering proportionally
     const float saturation_value = fabsf(steering_scaled) + fabsf(throttle_scaled);
     if (saturation_value > 1.0f) {
+        // store pre-scaled values so we can set limit flags afterwards
+        const float steering_scaled_orig = steering_scaled;
+        const float throttle_scaled_orig = throttle_scaled;
+
         const float str_thr_mix = constrain_float(_steering_throttle_mix, 0.0f, 1.0f);
         const float fair_scaler = 1.0f / saturation_value;
         if (str_thr_mix >= 0.5f) {
@@ -760,6 +764,16 @@ void AP_MotorsUGV::output_skid_steering(bool armed, float steering, float thrott
             // prioritise throttle over steering
             throttle_scaled *= linear_interpolate(fair_scaler, 1.0f, 0.5f - str_thr_mix, 0.0f, 0.5f);
             steering_scaled = (1.0f - fabsf(throttle_scaled)) * (is_negative(steering_scaled) ? -1.0f : 1.0f);
+        }
+
+        // update limits if either steering or throttle has been reduced
+        if (fabsf(steering_scaled) < fabsf(steering_scaled_orig)) {
+            limit.steer_left |= is_negative(steering_scaled_orig);
+            limit.steer_right |= is_positive(steering_scaled_orig);
+        }
+        if (fabsf(throttle_scaled) < fabsf(throttle_scaled_orig)) {
+            limit.throttle_lower |= is_negative(throttle_scaled_orig);
+            limit.throttle_upper |= is_positive(throttle_scaled_orig);
         }
     }
 
@@ -788,9 +802,9 @@ void AP_MotorsUGV::output_omni(bool armed, float steering, float throttle, float
         steering = constrain_float(steering, -4500.0f, 4500.0f);
 
         // scale throttle, steering and lateral inputs to -1 to 1
-        const float scaled_throttle = throttle / 100.0f;
+        const float scaled_throttle = throttle * 0.01f;
         const float scaled_steering = steering / 4500.0f;
-        const float scaled_lateral = lateral / 100.0f;
+        const float scaled_lateral = lateral * 0.01f;
 
         float thr_str_ltr_out[AP_MOTORS_NUM_MOTORS_MAX];
         float thr_str_ltr_max = 1;
@@ -927,10 +941,10 @@ void AP_MotorsUGV::slew_limit_throttle(float dt)
 void AP_MotorsUGV::set_limits_from_input(bool armed, float steering, float throttle)
 {
     // set limits based on inputs
-    limit.steer_left = !armed || (steering <= -4500.0f);
-    limit.steer_right = !armed || (steering >= 4500.0f);
-    limit.throttle_lower = !armed || (throttle <= -_throttle_max);
-    limit.throttle_upper = !armed || (throttle >= _throttle_max);
+    limit.steer_left |= !armed || (steering <= -4500.0f);
+    limit.steer_right |= !armed || (steering >= 4500.0f);
+    limit.throttle_lower |= !armed || (throttle <= -_throttle_max);
+    limit.throttle_upper |= !armed || (throttle >= _throttle_max);
 }
 
 // scale a throttle using the _throttle_min and _thrust_curve_expo parameters.  throttle should be in the range -100 to +100
@@ -944,9 +958,9 @@ float AP_MotorsUGV::get_scaled_throttle(float throttle) const
     // scale using throttle_min
     if (_throttle_min > 0) {
         if (is_negative(throttle)) {
-            throttle = -_throttle_min + (throttle * ((100.0f - _throttle_min) / 100.0f));
+            throttle = -_throttle_min + (throttle * ((100.0f - _throttle_min) * 0.01f));
         } else {
-            throttle = _throttle_min + (throttle * ((100.0f - _throttle_min) / 100.0f));
+            throttle = _throttle_min + (throttle * ((100.0f - _throttle_min) * 0.01f));
         }
     }
 
@@ -957,7 +971,7 @@ float AP_MotorsUGV::get_scaled_throttle(float throttle) const
 
     // calculate scaler
     const float sign = (throttle < 0.0f) ? -1.0f : 1.0f;
-    const float throttle_pct = constrain_float(throttle, -100.0f, 100.0f) / 100.0f;
+    const float throttle_pct = constrain_float(throttle, -100.0f, 100.0f) * 0.01f;
     return 100.0f * sign * ((_thrust_curve_expo - 1.0f) + safe_sqrt((1.0f - _thrust_curve_expo) * (1.0f - _thrust_curve_expo) + 4.0f * _thrust_curve_expo * fabsf(throttle_pct))) / (2.0f * _thrust_curve_expo);
 }
 

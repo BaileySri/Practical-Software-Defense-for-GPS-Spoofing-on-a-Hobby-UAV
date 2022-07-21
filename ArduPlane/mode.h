@@ -3,7 +3,6 @@
 #include <AP_Param/AP_Param.h>
 #include <AP_Common/Location.h>
 #include <stdint.h>
-#include <AP_Common/Location.h>
 #include <AP_Soaring/AP_Soaring.h>
 #include <AP_ADSB/AP_ADSB.h>
 #include <AP_Vehicle/ModeReason.h>
@@ -174,9 +173,9 @@ public:
 
     bool allows_throttle_nudging() const override { return true; }
 
-    bool does_auto_navigation() const override { return true; }
+    bool does_auto_navigation() const override;
 
-    bool does_auto_throttle() const override { return true; }
+    bool does_auto_throttle() const override;
 
 protected:
 
@@ -272,6 +271,8 @@ public:
     bool does_auto_navigation() const override { return true; }
 
     bool does_auto_throttle() const override { return true; }
+    
+    bool allows_terrain_disable() const override { return true; }
 
 protected:
 
@@ -593,9 +594,18 @@ public:
 
     bool update_target_altitude() override;
 
+    bool allows_throttle_nudging() const override;
+
 protected:
 
     bool _enter() override;
+
+private:
+
+    enum class SubMode {
+        climb,
+        RTL,
+    } submode;
 };
 
 class ModeQAcro : public Mode

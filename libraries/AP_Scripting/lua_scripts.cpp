@@ -16,8 +16,11 @@
 #include "lua_scripts.h"
 #include <AP_HAL/AP_HAL.h>
 #include "AP_Scripting.h"
+#include <AP_Logger/AP_Logger.h>
 
 #include <AP_Scripting/lua_generated_bindings.h>
+
+#define DISABLE_INTERRUPTS_FOR_SCRIPT_RUN 0
 
 extern const AP_HAL::HAL& hal;
 
@@ -27,11 +30,15 @@ char *lua_scripts::error_msg_buf;
 uint8_t lua_scripts::print_error_count;
 uint32_t lua_scripts::last_print_ms;
 
-lua_scripts::lua_scripts(const AP_Int32 &vm_steps, const AP_Int32 &heap_size, const AP_Int8 &debug_level, struct AP_Scripting::terminal_s &_terminal)
+lua_scripts::lua_scripts(const AP_Int32 &vm_steps, const AP_Int32 &heap_size, const AP_Int8 &debug_options, struct AP_Scripting::terminal_s &_terminal)
     : _vm_steps(vm_steps),
-      _debug_level(debug_level),
+      _debug_options(debug_options),
      terminal(_terminal) {
     _heap = hal.util->allocate_heap_memory(heap_size);
+}
+
+lua_scripts::~lua_scripts() {
+    free(_heap);
 }
 
 void lua_scripts::hook(lua_State *L, lua_Debug *ar) {
@@ -66,7 +73,7 @@ void lua_scripts::set_and_print_new_error_message(MAV_SEVERITY severity, const c
     va_copy(arg_list_copy, arg_list);
 
     // dry run to work out the required length
-    int len = hal.util->vsnprintf(NULL, 0, fmt, arg_list_copy);
+    int len = hal.util->vsnprintf(nullptr, 0, fmt, arg_list_copy);
 
     // finished with copy
     va_end(arg_list_copy);
@@ -90,7 +97,7 @@ void lua_scripts::set_and_print_new_error_message(MAV_SEVERITY severity, const c
     va_end(arg_list);
 
     // print to cosole and GCS
-    hal.console->printf("Lua: %s\n", error_msg_buf);
+    DEV_PRINTF("Lua: %s\n", error_msg_buf);
     print_error(severity);
 }
 
@@ -160,7 +167,6 @@ void lua_scripts::create_sandbox(lua_State *L) {
     lua_pushstring(L, "utf8");
     luaopen_utf8(L);
     lua_settable(L, -3);
-    load_lua_bindings(L);
     load_generated_sandbox(L);
 
 }
@@ -205,6 +211,11 @@ void lua_scripts::load_all_scripts_in_dir(lua_State *L, const char *dirname) {
         }
         reschedule_script(script);
 
+#if HAL_LOGGER_FILE_CONTENTS_ENABLED
+        if ((_debug_options.get() & uint8_t(DebugLevel::SUPPRESS_SCRIPT_LOG)) == 0) {
+            AP::logger().log_file_content(filename);
+        }
+#endif
     }
     AP::FS().closedir(d);
 }
@@ -429,7 +440,7 @@ void lua_scripts::run(void) {
     succeeded_initial_load = true;
 #endif // __clang_analyzer__
 
-    while (AP_Scripting::get_singleton()->enabled()) {
+    while (AP_Scripting::get_singleton()->should_run()) {
         // handle terminal data if we have any
         if (terminal.session) {
             doREPL(L);
@@ -460,9 +471,15 @@ void lua_scripts::run(void) {
                 hal.scheduler->delay(scripts->next_run_ms - now_ms);
             }
 
-            if (_debug_level > 1) {
+            if ((_debug_options.get() & uint8_t(DebugLevel::RUNTIME_MSG)) != 0) {
                 gcs().send_text(MAV_SEVERITY_DEBUG, "Lua: Running %s", scripts->name);
             }
+            // copy name for logging, cant do it after as script reschedule moves the pointers
+            const char * script_name = scripts->name;
+
+#if DISABLE_INTERRUPTS_FOR_SCRIPT_RUN
+            void *istate = hal.scheduler->disable_interrupts_save();
+#endif
 
             const int startMem = lua_gc(L, LUA_GCCOUNT, 0) * 1024 + lua_gc(L, LUA_GCCOUNTB, 0);
             const uint32_t loadEnd = AP_HAL::micros();
@@ -471,18 +488,41 @@ void lua_scripts::run(void) {
 
             const uint32_t runEnd = AP_HAL::micros();
             const int endMem = lua_gc(L, LUA_GCCOUNT, 0) * 1024 + lua_gc(L, LUA_GCCOUNTB, 0);
-            if (_debug_level > 1) {
+
+#if DISABLE_INTERRUPTS_FOR_SCRIPT_RUN
+            hal.scheduler->restore_interrupts(istate);
+#endif
+
+            if ((_debug_options.get() & uint8_t(DebugLevel::RUNTIME_MSG)) != 0) {
                 gcs().send_text(MAV_SEVERITY_DEBUG, "Lua: Time: %u Mem: %d + %d",
                                                     (unsigned int)(runEnd - loadEnd),
                                                     (int)endMem,
                                                     (int)(endMem - startMem));
             }
+            if ((_debug_options.get() & uint8_t(DebugLevel::LOG_RUNTIME)) != 0) {
+                struct log_Scripting pkt{
+                    LOG_PACKET_HEADER_INIT(LOG_SCRIPTING_MSG),
+                    time_us      : AP_HAL::micros64(),
+                    name         : {},
+                    run_time     : runEnd - loadEnd,
+                    total_mem    : endMem,
+                    run_mem      : endMem - startMem,
+                };
+                const char * name_short = strrchr(script_name, '/');
+                if ((strlen(script_name) > sizeof(pkt.name)) && (name_short != nullptr)) {
+                    strncpy_noterm(pkt.name, name_short+1, sizeof(pkt.name));
+                } else {
+                    strncpy_noterm(pkt.name, script_name, sizeof(pkt.name));
+                }
+                AP::logger().WriteBlock(&pkt, sizeof(pkt));
+            }
+
 
             // garbage collect after each script, this shouldn't matter, but seems to resolve a memory leak
             lua_gc(L, LUA_GCCOLLECT, 0);
 
         } else {
-            if (_debug_level > 0) {
+            if ((_debug_options.get() & uint8_t(DebugLevel::NO_SCRIPTS_TO_RUN)) != 0) {
                 gcs().send_text(MAV_SEVERITY_DEBUG, "Lua: No scripts to run");
             }
             hal.scheduler->delay(1000);
@@ -498,5 +538,20 @@ void lua_scripts::run(void) {
                 error_msg_buf = nullptr;
             }
         }
+    }
+
+    // make sure all scripts have been removed
+    while (scripts != nullptr) {
+        remove_script(lua_state, scripts);
+    }
+
+    if (lua_state != nullptr) {
+        lua_close(lua_state); // shutdown the old state
+        lua_state = nullptr;
+    }
+
+    if (error_msg_buf != nullptr) {
+        hal.util->heap_realloc(_heap, error_msg_buf, 0);
+        error_msg_buf = nullptr;
     }
 }

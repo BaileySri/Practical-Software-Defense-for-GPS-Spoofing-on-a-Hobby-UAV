@@ -27,7 +27,6 @@
 #include <stdio.h>
 
 #include <AP_Common/AP_Common.h>
-#include <AP_HAL/AP_HAL.h>
 #include <AP_Param/AP_Param.h>
 #include <AP_Math/AP_Math.h>        // ArduPilot Mega Vector/Matrix math Library
 #include <AP_AHRS/AP_AHRS.h>         // ArduPilot Mega DCM Library
@@ -54,12 +53,8 @@
 
 #include "AP_Arming.h"
 
-#ifdef ENABLE_SCRIPTING
+#if AP_SCRIPTING_ENABLED
 #include <AP_Scripting/AP_Scripting.h>
-#endif
-
-#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
-#include <SITL/SITL.h>
 #endif
 
 #include "mode.h"
@@ -85,10 +80,6 @@ private:
 
     AP_Logger logger;
 
-#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
-    SITL::SIM sitl;
-#endif
-    
     /**
        antenna control channels
     */
@@ -124,7 +115,7 @@ private:
     ModeServoTest mode_servotest;
     ModeStop mode_stop;
 
-#ifdef ENABLE_SCRIPTING
+#if AP_SCRIPTING_ENABLED
     AP_Scripting scripting;
 #endif
 

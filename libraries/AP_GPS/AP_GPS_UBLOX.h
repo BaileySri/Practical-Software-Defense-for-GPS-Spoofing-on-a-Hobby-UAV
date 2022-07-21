@@ -20,10 +20,12 @@
 //  UBlox Lea6H protocol: http://www.u-blox.com/images/downloads/Product_Docs/u-blox6_ReceiverDescriptionProtocolSpec_%28GPS.G6-SW-10018%29.pdf
 #pragma once
 
-#include <AP_HAL/AP_HAL.h>
-
 #include "AP_GPS.h"
 #include "GPS_Backend.h"
+
+#if AP_GPS_UBLOX_ENABLED
+
+#include <AP_HAL/AP_HAL.h>
 
 /*
  *  try to put a UBlox into binary mode. This is in two parts. 
@@ -49,6 +51,9 @@
 #define UBLOX_MAX_RXM_RAW_SATS 22
 #define UBLOX_MAX_RXM_RAWX_SATS 32
 #define UBLOX_GNSS_SETTINGS 1
+#ifndef UBLOX_TIM_TM2_LOGGING
+    #define UBLOX_TIM_TM2_LOGGING (BOARD_FLASH_SIZE>1024)
+#endif
 
 #define UBLOX_MAX_GNSS_CONFIG_BLOCKS 7
 
@@ -65,6 +70,7 @@
 #define RATE_DOP 1
 #define RATE_HW 5
 #define RATE_HW2 5
+#define RATE_TIM_TM2 1
 
 #define CONFIG_RATE_NAV      (1<<0)
 #define CONFIG_RATE_POSLLH   (1<<1)
@@ -84,7 +90,8 @@
 #define CONFIG_RATE_TIMEGPS  (1<<15)
 #define CONFIG_TMODE_MODE    (1<<16)
 #define CONFIG_RTK_MOVBASE   (1<<17)
-#define CONFIG_LAST          (1<<18) // this must always be the last bit
+#define CONFIG_TIM_TM2       (1<<18)
+#define CONFIG_LAST          (1<<19) // this must always be the last bit
 
 #define CONFIG_REQUIRED_INITIAL (CONFIG_RATE_NAV | CONFIG_RATE_POSLLH | CONFIG_RATE_STATUS | CONFIG_RATE_VELNED)
 
@@ -341,7 +348,7 @@ private:
         uint8_t flags2; 
         uint8_t num_sv; 
         int32_t lon, lat; 
-        int32_t height, h_msl; 
+        int32_t h_ellipsoid, h_msl;
         uint32_t h_acc, v_acc; 
         int32_t velN, velE, velD, gspeed; 
         int32_t head_mot; 
@@ -516,6 +523,19 @@ private:
         uint32_t loadMask;
     };
 
+    struct PACKED ubx_tim_tm2 {
+        uint8_t ch;
+        uint8_t flags;
+        uint16_t count;
+        uint16_t wnR;
+        uint16_t wnF;
+        uint32_t towMsR;
+        uint32_t towSubMsR;
+        uint32_t towMsF;
+        uint32_t towSubMsF;
+        uint32_t accEst;
+    };
+
     // Receive buffer
     union PACKED {
         DEFINE_BYTE_ARRAY_METHODS
@@ -548,6 +568,7 @@ private:
         ubx_rxm_rawx rxm_rawx;
 #endif
         ubx_ack_ack ack;
+        ubx_tim_tm2 tim_tm2;
     } _buffer;
 
     enum class RELPOSNED {
@@ -573,6 +594,7 @@ private:
         CLASS_CFG = 0x06,
         CLASS_MON = 0x0A,
         CLASS_RXM = 0x02,
+        CLASS_TIM = 0x0d,
         MSG_ACK_NACK = 0x00,
         MSG_ACK_ACK = 0x01,
         MSG_POSLLH = 0x2,
@@ -598,7 +620,8 @@ private:
         MSG_MON_VER = 0x04,
         MSG_NAV_SVINFO = 0x30,
         MSG_RXM_RAW = 0x10,
-        MSG_RXM_RAWX = 0x15
+        MSG_RXM_RAWX = 0x15,
+        MSG_TIM_TM2 = 0x03
     };
     enum ubx_gnss_identifier {
         GNSS_GPS     = 0x00,
@@ -655,6 +678,7 @@ private:
         STEP_RAWX,
         STEP_VERSION,
         STEP_RTK_MOVBASE, // setup moving baseline
+        STEP_TIM_TM2,
         STEP_LAST
     };
 
@@ -715,7 +739,7 @@ private:
     void        _configure_rate(void);
     void        _configure_sbas(bool enable);
     void        _update_checksum(uint8_t *data, uint16_t len, uint8_t &ck_a, uint8_t &ck_b);
-    bool        _send_message(uint8_t msg_class, uint8_t msg_id, void *msg, uint16_t size);
+    bool        _send_message(uint8_t msg_class, uint8_t msg_id, const void *msg, uint16_t size);
     void	send_next_rate_update(void);
     bool        _request_message_rate(uint8_t msg_class, uint8_t msg_id);
     void        _request_next_config(void);
@@ -728,13 +752,14 @@ private:
     void unexpected_message(void);
     void log_mon_hw(void);
     void log_mon_hw2(void);
+    void log_tim_tm2(void);
     void log_rxm_raw(const struct ubx_rxm_raw &raw);
     void log_rxm_rawx(const struct ubx_rxm_rawx &raw);
 
 #if GPS_MOVING_BASELINE
     // see if we should use uart2 for moving baseline config
     bool mb_use_uart2(void) const {
-        return (driver_options() & DriverOptions::UBX_MBUseUart2)?true:false;
+        return option_set(AP_GPS::DriverOptions::UBX_MBUseUart2)?true:false;
     }
 #endif
 
@@ -759,6 +784,12 @@ private:
     // return true if GPS is capable of F9 config
     bool supports_F9_config(void) const;
 
+    uint8_t _pps_freq = 1;
+#ifdef HAL_GPIO_PPS
+    void pps_interrupt(uint8_t pin, bool high, uint32_t timestamp_us);
+    void set_pps_desired_freq(uint8_t freq) override;
+#endif
+
 #if GPS_MOVING_BASELINE
     // config for moving baseline base
     static const config_list config_MB_Base_uart1[];
@@ -780,3 +811,5 @@ private:
     RTCM3_Parser *rtcm3_parser;
 #endif // GPS_MOVING_BASELINE
 };
+
+#endif

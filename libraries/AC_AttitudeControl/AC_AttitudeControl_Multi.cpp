@@ -322,6 +322,20 @@ void AC_AttitudeControl_Multi::update_throttle_rpy_mix()
     } else if (_throttle_rpy_mix > _throttle_rpy_mix_desired) {
         // reduce more slowly (from 0.9 to 0.1 in 1.6 seconds)
         _throttle_rpy_mix -= MIN(0.5f * _dt, _throttle_rpy_mix - _throttle_rpy_mix_desired);
+
+        // if the mix is still higher than that being used, reset immediately
+        const float throttle_hover = _motors.get_throttle_hover();
+        const float throttle_in = _motors.get_throttle();
+        const float throttle_out = MAX(_motors.get_throttle_out(), throttle_in);
+        float mix_used;
+        // since throttle_out >= throttle_in at this point we don't need to check throttle_in < throttle_hover
+        if (throttle_out < throttle_hover) {
+            mix_used = (throttle_out - throttle_in) / (throttle_hover - throttle_in);
+        } else {
+            mix_used = throttle_out / throttle_hover;
+        }
+
+        _throttle_rpy_mix = MIN(_throttle_rpy_mix, MAX(mix_used, _throttle_rpy_mix_desired));
     }
     _throttle_rpy_mix = constrain_float(_throttle_rpy_mix, 0.1f, AC_ATTITUDE_CONTROL_MAX);
 }
@@ -354,18 +368,18 @@ void AC_AttitudeControl_Multi::rate_controller_run()
 void AC_AttitudeControl_Multi::parameter_sanity_check()
 {
     // sanity check throttle mix parameters
-    if (_thr_mix_man < 0.1f || _thr_mix_man > 4.0f) {
+    if (_thr_mix_man < 0.1f || _thr_mix_man > AC_ATTITUDE_CONTROL_MAN_LIMIT) {
         // parameter description recommends thr-mix-man be no higher than 0.9 but we allow up to 4.0
         // which can be useful for very high powered copters with very low hover throttle
-        _thr_mix_man.set_and_save(AC_ATTITUDE_CONTROL_MAN_DEFAULT);
+        _thr_mix_man.set_and_save(constrain_float(_thr_mix_man, 0.1, AC_ATTITUDE_CONTROL_MAN_LIMIT));
     }
-    if (_thr_mix_min < 0.1f || _thr_mix_min > 0.25f) {
-        _thr_mix_min.set_and_save(AC_ATTITUDE_CONTROL_MIN_DEFAULT);
+    if (_thr_mix_min < 0.1f || _thr_mix_min > AC_ATTITUDE_CONTROL_MIN_LIMIT) {
+        _thr_mix_min.set_and_save(constrain_float(_thr_mix_min, 0.1, AC_ATTITUDE_CONTROL_MIN_LIMIT));
     }
     if (_thr_mix_max < 0.5f || _thr_mix_max > AC_ATTITUDE_CONTROL_MAX) {
         // parameter description recommends thr-mix-max be no higher than 0.9 but we allow up to 5.0
         // which can be useful for very high powered copters with very low hover throttle
-        _thr_mix_max.set_and_save(AC_ATTITUDE_CONTROL_MAX_DEFAULT);
+        _thr_mix_max.set_and_save(constrain_float(_thr_mix_max, 0.5, AC_ATTITUDE_CONTROL_MAX));
     }
     if (_thr_mix_min > _thr_mix_max) {
         _thr_mix_min.set_and_save(AC_ATTITUDE_CONTROL_MIN_DEFAULT);

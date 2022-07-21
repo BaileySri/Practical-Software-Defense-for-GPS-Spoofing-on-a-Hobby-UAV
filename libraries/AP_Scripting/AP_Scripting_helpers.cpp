@@ -12,6 +12,38 @@ bool Parameter::init(const char *name)
     return true;
 }
 
+// init by info, to get the value of old params
+bool Parameter::init_by_info(uint16_t key, uint32_t group_element, enum ap_var_type type)
+{
+    switch (type) {
+    case AP_PARAM_INT8:
+        vp = new AP_Int8;
+        break;
+    case AP_PARAM_INT16:
+        vp = new AP_Int16;
+        break;
+    case AP_PARAM_INT32:
+        vp = new AP_Int32;
+        break;
+    case AP_PARAM_FLOAT:
+        vp = new AP_Float;
+        break;
+    default:
+        return false;
+    }
+    if (vp == nullptr) {
+        return false;
+    }
+    vtype = type;
+    AP_Param::ConversionInfo info = {
+        key,
+        group_element,
+        type,
+        nullptr
+    };
+    return AP_Param::find_old_parameter(&info, vp);
+}
+
 // set a value
 bool Parameter::set(float value)
 {
@@ -38,7 +70,7 @@ bool Parameter::set(float value)
     return false;
 }
 
-//  get a value by name
+// get value
 bool Parameter::get(float &value)
 {
     if (vp == nullptr) {
@@ -67,7 +99,7 @@ bool Parameter::get(float &value)
     return true;
 }
 
-// set and save a value by name
+// set and save value
 bool Parameter::set_and_save(float value)
 {
     if (vp == nullptr) {
@@ -93,3 +125,37 @@ bool Parameter::set_and_save(float value)
     return false;
 }
 
+// Check if param had been configured
+bool Parameter::configured()
+{
+    if (vp == nullptr) {
+        return false;
+    }
+    return vp->configured();
+}
+
+// set default value
+bool Parameter::set_default(float value)
+{
+    if (vp == nullptr) {
+        return false;
+    }
+    switch (vtype) {
+    case AP_PARAM_INT8:
+        ((AP_Int8 *)vp)->set_default(value);
+        return true;
+    case AP_PARAM_INT16:
+        ((AP_Int16 *)vp)->set_default(value);
+        return true;
+    case AP_PARAM_INT32:
+        ((AP_Int32 *)vp)->set_default(value);
+        return true;
+    case AP_PARAM_FLOAT:
+        ((AP_Float *)vp)->set_default(value);
+        return true;
+    default:
+        break;
+    }
+    // not a supported type
+    return false;
+}

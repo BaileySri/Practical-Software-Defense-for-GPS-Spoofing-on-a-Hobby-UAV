@@ -1,24 +1,5 @@
 #include "Copter.h"
 
-#if HAL_MAX_CAN_PROTOCOL_DRIVERS
- #include <AP_ToshibaCAN/AP_ToshibaCAN.h>
-#endif
-
-// performs pre-arm checks. expects to be called at 1hz.
-void AP_Arming_Copter::update(void)
-{
-    // perform pre-arm checks & display failures every 30 seconds
-    static uint8_t pre_arm_display_counter = PREARM_DISPLAY_PERIOD/2;
-    pre_arm_display_counter++;
-    bool display_fail = false;
-    if (pre_arm_display_counter >= PREARM_DISPLAY_PERIOD) {
-        display_fail = true;
-        pre_arm_display_counter = 0;
-    }
-
-    pre_arm_checks(display_fail);
-}
-
 bool AP_Arming_Copter::pre_arm_checks(bool display_failure)
 {
     const bool passed = run_pre_arm_checks(display_failure);
@@ -45,10 +26,20 @@ bool AP_Arming_Copter::run_pre_arm_checks(bool display_failure)
 
     // check if motor interlock aux switch is in use
     // if it is, switch needs to be in disabled position to arm
-    // otherwise exit immediately.  This check to be repeated,
-    // as state can change at any time.
+    // otherwise exit immediately.
     if (copter.ap.using_interlock && copter.ap.motor_interlock_switch) {
         check_failed(display_failure, "Motor Interlock Enabled");
+        return false;
+    }
+
+    // if we are using motor Estop switch, it must not be in Estop position
+    if (SRV_Channels::get_emergency_stop()){
+        check_failed(display_failure, "Motor Emergency Stopped");
+        return false;
+    }
+
+    if (!disarm_switch_checks(display_failure)) {
+        return false;
     }
 
     // if pre arm checks are disabled run only the mandatory checks
@@ -58,11 +49,13 @@ bool AP_Arming_Copter::run_pre_arm_checks(bool display_failure)
 
     return parameter_checks(display_failure)
         & motor_checks(display_failure)
-        & pilot_throttle_checks(display_failure)
         & oa_checks(display_failure)
         & gcs_failsafe_check(display_failure)
         & winch_checks(display_failure)
         & alt_checks(display_failure)
+#if AP_AIRSPEED_ENABLED
+        & AP_Arming::airspeed_checks(display_failure)
+#endif
         & AP_Arming::pre_arm_checks(display_failure);
 }
 
@@ -81,7 +74,7 @@ bool AP_Arming_Copter::barometer_checks(bool display_failure)
         nav_filter_status filt_status = copter.inertial_nav.get_filter_status();
         bool using_baro_ref = (!filt_status.flags.pred_horiz_pos_rel && filt_status.flags.pred_horiz_pos_abs);
         if (using_baro_ref) {
-            if (fabsf(copter.inertial_nav.get_altitude() - copter.baro_alt) > PREARM_MAX_ALT_DISPARITY_CM) {
+            if (fabsf(copter.inertial_nav.get_position_z_up_cm() - copter.baro_alt) > PREARM_MAX_ALT_DISPARITY_CM) {
                 check_failed(ARMING_CHECK_BARO, display_failure, "Altitude disparity");
                 ret = false;
             }
@@ -176,7 +169,7 @@ bool AP_Arming_Copter::parameter_checks(bool display_failure)
         }
 
         char fail_msg[50];
-        // check input mangager parameters
+        // check input manager parameters
         if (!copter.input_manager.parameter_check(fail_msg, ARRAY_SIZE(fail_msg))) {
             check_failed(ARMING_CHECK_PARAMETERS, display_failure, "%s", fail_msg);
             return false;
@@ -261,7 +254,7 @@ bool AP_Arming_Copter::parameter_checks(bool display_failure)
 #endif
 
         // ensure controllers are OK with us arming:
-        char failure_msg[50];
+        char failure_msg[50] = {};
         if (!copter.pos_control->pre_arm_checks("PSC", failure_msg, ARRAY_SIZE(failure_msg))) {
             check_failed(ARMING_CHECK_PARAMETERS, display_failure, "Bad parameter: %s", failure_msg);
             return false;
@@ -296,77 +289,13 @@ bool AP_Arming_Copter::motor_checks(bool display_failure)
         return true;
     }
 
-    // if this is a multicopter using ToshibaCAN ESCs ensure MOT_PMW_MIN = 1000, MOT_PWM_MAX = 2000
-#if HAL_MAX_CAN_PROTOCOL_DRIVERS && (FRAME_CONFIG != HELI_FRAME)
-    bool tcan_active = false;
-    uint8_t tcan_index = 0;
-    const uint8_t num_drivers = AP::can().get_num_drivers();
-    for (uint8_t i = 0; i < num_drivers; i++) {
-        if (AP::can().get_driver_type(i) == AP_CANManager::Driver_Type_ToshibaCAN) {
-            tcan_active = true;
-            tcan_index = i;
-        }
-    }
-    if (tcan_active) {
-        // check motor range parameters
-        if (copter.motors->get_pwm_output_min() != 1000) {
-            check_failed(display_failure, "TCAN ESCs require MOT_PWM_MIN=1000");
-            return false;
-        }
-        if (copter.motors->get_pwm_output_max() != 2000) {
-            check_failed(display_failure, "TCAN ESCs require MOT_PWM_MAX=2000");
-            return false;
-        }
-
-        // check we have an ESC present for every SERVOx_FUNCTION = motorx
-        // find and report first missing ESC, extra ESCs are OK
-        AP_ToshibaCAN *tcan = AP_ToshibaCAN::get_tcan(tcan_index);
-        const uint16_t motors_mask = copter.motors->get_motor_mask();
-        const uint16_t esc_mask = tcan->get_present_mask();
-        uint8_t escs_missing = 0;
-        uint8_t first_missing = 0;
-        for (uint8_t i = 0; i < 16; i++) {
-            uint32_t bit = 1UL << i;
-            if (((motors_mask & bit) > 0) && ((esc_mask & bit) == 0)) {
-                escs_missing++;
-                if (first_missing == 0) {
-                    first_missing = i+1;
-                }
-            }
-        }
-        if (escs_missing > 0) {
-            check_failed(display_failure, "TCAN missing %d escs, check #%d", (int)escs_missing, (int)first_missing);
-            return false;
-        }
-    }
-#endif
-
-    return true;
-}
-
-bool AP_Arming_Copter::pilot_throttle_checks(bool display_failure)
-{
-    // check throttle is above failsafe throttle
-    // this is near the bottom to allow other failures to be displayed before checking pilot throttle
-    if ((checks_to_perform == ARMING_CHECK_ALL) || (checks_to_perform & ARMING_CHECK_RC)) {
-        if (copter.g.failsafe_throttle != FS_THR_DISABLED && copter.channel_throttle->get_radio_in() < copter.g.failsafe_throttle_value) {
-            #if FRAME_CONFIG == HELI_FRAME
-            const char *failmsg = "Collective below Failsafe";
-            #else
-            const char *failmsg = "Throttle below Failsafe";
-            #endif
-            check_failed(ARMING_CHECK_RC, display_failure, "%s", failmsg);
-            return false;
-        }
-    }
-
     return true;
 }
 
 bool AP_Arming_Copter::oa_checks(bool display_failure)
 {
 #if AC_OAPATHPLANNER_ENABLED == ENABLED
-    char failure_msg[50];
+    char failure_msg[50] = {};
     if (copter.g2.oa.pre_arm_check(failure_msg, ARRAY_SIZE(failure_msg))) {
         return true;
     }
@@ -652,23 +581,6 @@ bool AP_Arming_Copter::arm_checks(AP_Arming::Method method)
         return false;
     }
 
-    // if we are using motor interlock switch and it's enabled, fail to arm
-    // skip check in Throw mode which takes control of the motor interlock
-    if (copter.ap.using_interlock && copter.ap.motor_interlock_switch) {
-        check_failed(true, "Motor Interlock Enabled");
-        return false;
-    }
-
-    // if we are not using Emergency Stop switch option, force Estop false to ensure motors
-    // can run normally
-    if (!rc().find_channel_for_option(RC_Channel::AUX_FUNC::MOTOR_ESTOP)){
-        SRV_Channels::set_emergency_stop(false);
-        // if we are using motor Estop switch, it must not be in Estop position
-    } else if (SRV_Channels::get_emergency_stop()){
-        check_failed(true, "Motor Emergency Stopped");
-        return false;
-    }
-
     // succeed if arming checks are disabled
     if (checks_to_perform == 0) {
         return true;
@@ -746,7 +658,7 @@ bool AP_Arming_Copter::mandatory_checks(bool display_failure)
         result = false;
     }
 
-    return result;
+    return result & AP_Arming::mandatory_checks(display_failure);
 }
 
 void AP_Arming_Copter::set_pre_arm_check(bool b)
@@ -816,7 +728,7 @@ bool AP_Arming_Copter::arm(const AP_Arming::Method method, const bool do_arming_
         }
 
         // remember the height when we armed
-        copter.arming_altitude_m = copter.inertial_nav.get_altitude() * 0.01;
+        copter.arming_altitude_m = copter.inertial_nav.get_position_z_up_cm() * 0.01;
     }
     copter.update_super_simple_bearing(false);
 

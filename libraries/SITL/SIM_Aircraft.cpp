@@ -16,12 +16,13 @@
   parent class for aircraft simulators
 */
 
+#define ALLOW_DOUBLE_MATH_FUNCTIONS
+
 #include "SIM_Aircraft.h"
 
 #include <stdio.h>
 #include <sys/time.h>
 #include <unistd.h>
-
 
 #if defined(__CYGWIN__) || defined(__CYGWIN64__)
 #include <windows.h>
@@ -35,8 +36,11 @@
 #include <AP_Declination/AP_Declination.h>
 #include <AP_Terrain/AP_Terrain.h>
 #include <AP_Scheduler/AP_Scheduler.h>
+#include <AP_BoardConfig/AP_BoardConfig.h>
 
 using namespace SITL;
+
+extern const AP_HAL::HAL& hal;
 
 /*
   parent class for all simulator types
@@ -279,7 +283,13 @@ void Aircraft::sync_frame_time(void)
     }
     if (sleep_debt_us > min_sleep_time) {
         // sleep if we have built up a debt of min_sleep_tim
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
         usleep(sleep_debt_us);
+#elif CONFIG_HAL_BOARD == HAL_BOARD_CHIBIOS
+        hal.scheduler->delay_microseconds(sleep_debt_us);
+#else
+        // ??
+#endif
         sleep_debt_us -= (get_wall_time_us() - now);
     }
     last_wall_time_us = get_wall_time_us();
@@ -384,7 +394,7 @@ void Aircraft::fill_fdm(struct sitl_fdm &fdm)
     fdm.vtol_motor_start = vtol_motor_start;
     memcpy(fdm.rpm, rpm, num_motors * sizeof(float));
     fdm.rcin_chan_count = rcin_chan_count;
-    fdm.range = range;
+    fdm.range = rangefinder_range();
     memcpy(fdm.rcin, rcin, rcin_chan_count * sizeof(float));
     fdm.bodyMagField = mag_bf;
 
@@ -420,26 +430,9 @@ void Aircraft::fill_fdm(struct sitl_fdm &fdm)
     if (ahrs_orientation != nullptr) {
         enum Rotation imu_rotation = (enum Rotation)ahrs_orientation->get();
         if (imu_rotation != last_imu_rotation) {
-            // Surprisingly, Matrix3<T>::from_rotation(ROTATION_CUSTOM) is the identity matrix
-            // so we must deal with that here
-            if (imu_rotation == ROTATION_CUSTOM) {
-                if ((custom_roll == nullptr) || (custom_pitch == nullptr) || (custom_yaw == nullptr)) {
-                    enum ap_var_type ptype;
-                    custom_roll = (AP_Float *)AP_Param::find("AHRS_CUSTOM_ROLL", &ptype);
-                    custom_pitch = (AP_Float *)AP_Param::find("AHRS_CUSTOM_PIT", &ptype);
-                    custom_yaw = (AP_Float *)AP_Param::find("AHRS_CUSTOM_YAW", &ptype);
-                }
-                if ((custom_roll != nullptr) && (custom_pitch != nullptr) && (custom_yaw != nullptr)) {
-                    sitl->ahrs_rotation.from_euler(radians(*custom_roll), radians(*custom_pitch), radians(*custom_yaw));
-                    sitl->ahrs_rotation_inv = sitl->ahrs_rotation.transposed();
-                } else {
-                    AP_HAL::panic("could not find one or more of parameters AHRS_CUSTOM_ROLL/PITCH/YAW");
-                }
-            } else {
-                sitl->ahrs_rotation.from_rotation(imu_rotation);
-                sitl->ahrs_rotation_inv = sitl->ahrs_rotation.transposed();
-                last_imu_rotation = imu_rotation;
-            }
+            sitl->ahrs_rotation.from_rotation(imu_rotation);
+            sitl->ahrs_rotation_inv = sitl->ahrs_rotation.transposed();
+            last_imu_rotation = imu_rotation;
         }
         if (imu_rotation != ROTATION_NONE) {
             Matrix3f m = dcm;
@@ -477,28 +470,72 @@ void Aircraft::fill_fdm(struct sitl_fdm &fdm)
 // @Field: VN: Velocity north
 // @Field: VE: Velocity east
 // @Field: VD: Velocity down
+// @Field: As: Airspeed
         Vector3d pos = get_position_relhome();
         Vector3f vel = get_velocity_ef();
-        AP::logger().WriteStreaming("SIM2", "TimeUS,PN,PE,PD,VN,VE,VD",
-                                    "Qdddfff",
+        AP::logger().WriteStreaming("SIM2", "TimeUS,PN,PE,PD,VN,VE,VD,As",
+                                    "Qdddffff",
                                     AP_HAL::micros64(),
                                     pos.x, pos.y, pos.z,
-                                    vel.x, vel.y, vel.z);
+                                    vel.x, vel.y, vel.z,
+                                    airspeed_pitot);
+    }
+}
+
+// returns perpendicular height to surface downward-facing rangefinder
+// is bouncing off:
+float Aircraft::perpendicular_distance_to_rangefinder_surface() const
+{
+    switch ((Rotation)sitl->sonar_rot.get()) {
+    case Rotation::ROTATION_PITCH_270:
+        return sitl->height_agl;
+    case ROTATION_NONE ... ROTATION_YAW_315:
+        return sitl->measure_distance_at_angle_bf(location, sitl->sonar_rot.get()*45);
+    default:
+        AP_BoardConfig::config_error("Bad simulated sonar rotation");
     }
 }
 
 float Aircraft::rangefinder_range() const
 {
-    // swiped from sitl_rangefinder.cpp - we should unify them at some stage
 
-    float altitude = range;  // only sub appears to set this
-    if (is_equal(altitude, -1.0f)) {  // Use SITL altitude as reading by default
-        altitude = sitl->height_agl;
+    float roll = sitl->state.rollDeg;
+    float pitch = sitl->state.pitchDeg;
+
+    if (roll > 0) {
+        roll -= rangefinder_beam_width();
+        if (roll < 0) {
+            roll = 0;
+        }
+    } else {
+        roll += rangefinder_beam_width();
+        if (roll > 0) {
+            roll = 0;
+        }
     }
+    if (pitch > 0) {
+        pitch -= rangefinder_beam_width();
+        if (pitch < 0) {
+            pitch = 0;
+        }
+    } else {
+        pitch += rangefinder_beam_width();
+        if (pitch > 0) {
+            pitch = 0;
+        }
+    }
+
+    if (fabs(roll) >= 90.0 || fabs(pitch) >= 90.0) {
+        // not going to hit the ground....
+        return INFINITY;
+    }
+
+    float altitude = perpendicular_distance_to_rangefinder_surface();
 
     // sensor position offset in body frame
     const Vector3f relPosSensorBF = sitl->rngfnd_pos_offset;
 
+    // n.b. the following code is assuming rotation-pitch-270:
     // adjust altitude for position of the sensor on the vehicle if position offset is non-zero
     if (!relPosSensorBF.is_zero()) {
         // get a rotation matrix following DCM conventions (body to earth)
@@ -510,21 +547,17 @@ float Aircraft::rangefinder_range() const
         altitude -= relPosSensorEF.z;
     }
 
-    // If the attidude is non reversed for SITL OR we are using rangefinder from external simulator,
-    // We adjust the reading with noise, glitch and scaler as the reading is on analog port.
-    if ((fabs(sitl->state.rollDeg) < 90.0 && fabs(sitl->state.pitchDeg) < 90.0) || !is_equal(range, -1.0f)) {
-        if (is_equal(range, -1.0f)) {  // disable for external reading that already handle this
-            // adjust for apparent altitude with roll
-            altitude /= cosf(radians(sitl->state.rollDeg)) * cosf(radians(sitl->state.pitchDeg));
-        }
-        // Add some noise on reading
-        altitude += sitl->sonar_noise * rand_float();
-    }
+    // adjust for apparent altitude with roll
+    altitude /= cosf(radians(roll)) * cosf(radians(pitch));
+
+    // Add some noise on reading
+    altitude += sitl->sonar_noise * rand_float();
 
     return altitude;
 }
 
 
+// potentially replace this with a call to AP_HAL::Util::get_hw_rtc
 uint64_t Aircraft::get_wall_time_us() const
 {
 #if defined(__CYGWIN__) || defined(__CYGWIN64__)
@@ -538,10 +571,12 @@ uint64_t Aircraft::get_wall_time_us() const
     last_ret_us += (uint64_t)((now - tPrev)*1000UL);
     tPrev = now;
     return last_ret_us;
-#else
+#elif CONFIG_HAL_BOARD == HAL_BOARD_SITL
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return uint64_t(ts.tv_sec * 1000000ULL + ts.tv_nsec / 1000ULL);
+#else
+    return AP_HAL::micros64();
 #endif
 }
 
@@ -629,9 +664,12 @@ void Aircraft::update_dynamics(const Vector3f &rot_accel)
 
         // get speed of ground movement (for ship takeoff/landing)
         float yaw_rate = 0;
+#if AP_SIM_SHIP_ENABLED
         const Vector2f ship_movement = sitl->shipsim.get_ground_speed_adjustment(location, yaw_rate);
         const Vector3f gnd_movement(ship_movement.x, ship_movement.y, 0);
-
+#else
+        const Vector3f gnd_movement;
+#endif
         switch (ground_behavior) {
         case GROUND_BEHAVIOR_NONE:
             break;
@@ -693,15 +731,24 @@ void Aircraft::update_dynamics(const Vector3f &rot_accel)
             break;
         }
         case GROUND_BEHAVIOR_TAILSITTER: {
-            // point straight up
+            // rotate normal refernce frame to get yaw angle, then rotate back
+            Matrix3f rot;
+            rot.from_rotation(ROTATION_PITCH_270);
             float r, p, y;
-            dcm.to_euler(&r, &p, &y);
+            (dcm * rot).to_euler(&r, &p, &y);
             y = y + yaw_rate * delta_time;
-            dcm.from_euler(0.0f, radians(90), y);
+            dcm.from_euler(0.0, 0.0, y);
+            rot.from_rotation(ROTATION_PITCH_90);
+            dcm *= rot;
             // X, Y movement tracks ground movement
             velocity_ef.x = gnd_movement.x;
             velocity_ef.y = gnd_movement.y;
+            if (velocity_ef.z > 0.0f) {
+                velocity_ef.z = 0.0f;
+            }
             gyro.zero();
+            gyro.x = yaw_rate;
+            use_smoothing = true;
             break;
         }
         }
@@ -906,6 +953,13 @@ void Aircraft::update_external_payload(const struct sitl_input &input)
         external_payload_mass += sprayer->payload_mass();
     }
 
+    {
+        const float range = rangefinder_range();
+        for (uint8_t i=0; i<RANGEFINDER_MAX_INSTANCES; i++) {
+            rangefinder_m[i] = range;
+        }
+    }
+
     // update i2c
     if (i2c) {
         i2c->update(*this);
@@ -949,7 +1003,9 @@ void Aircraft::update_external_payload(const struct sitl_input &input)
         fetteconewireesc->update(*this);
     }
 
+#if AP_SIM_SHIP_ENABLED
     sitl->shipsim.update();
+#endif
 
     // update IntelligentEnergy 2.4kW generator
     if (ie24) {
@@ -994,6 +1050,8 @@ float Aircraft::get_local_updraft(const Vector3d &currentPos)
     int n_thermals = 0;
 
     switch (scenario) {
+        case 0:
+            return 0;
         case 1:
             n_thermals = 1;
             thermals_w[0] =  2.0;
@@ -1015,6 +1073,8 @@ float Aircraft::get_local_updraft(const Vector3d &currentPos)
             thermals_x[0] = -180.0;
             thermals_y[0] = -260.0;
             break;
+        default:
+            AP_BoardConfig::config_error("Bad thermal scenario");
     }
 
     // Wind drift at this altitude
