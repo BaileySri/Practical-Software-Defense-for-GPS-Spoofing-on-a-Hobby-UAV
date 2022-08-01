@@ -249,6 +249,7 @@ void SensorConfirmation::confirmation()
         //alert();
     }
 }
+
 //----Reactive Attacker----//
 float SensorConfirmation::NetGpsLimit() const
 {

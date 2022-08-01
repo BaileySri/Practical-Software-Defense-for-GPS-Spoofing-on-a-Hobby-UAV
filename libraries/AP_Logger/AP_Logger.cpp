@@ -899,7 +899,7 @@ void AP_Logger::Write_SNSR( const Accel &ACO_cAccel, const OF &ACO_cOF,
     struct log_sensors_1 pkt1 = {
         LOG_PACKET_HEADER_INIT(LOG_SNSR_1_MSG),
         time_us : timestamp,
-        acc_us  : ACO_cAccel.Timestamp, // Filtered Accelerometer data
+        acc_us  : ACO_cAccel.Timestamp, // Accelerometer readings rotated to NED and compensating for gravity
         acc_N  : ACO_cAccel.Readings.x, // Same for both CNF and ACO
         acc_E  : ACO_cAccel.Readings.y,
         acc_D  : ACO_cAccel.Readings.z,
@@ -926,18 +926,19 @@ void AP_Logger::Write_SNSR( const Accel &ACO_cAccel, const OF &ACO_cOF,
         OF_BR_E      : ACO_cOF.BodyRate.y,
         rf_ms        : RF.Timestamp, // RF Timestamp is in ms, same for both CNF and ACO
         rf           : RF.rf_raw,
-        rf_filt      : RF.rf_filt.get()
+        rf_filt      : RF.rf_filt.get(),
+        gpAlt        : CNF_cGPS.Altitude // Raw altitude reading, not relative to ground height
     };
 
     //CNF
     struct log_sensors_3 pkt3 = {
         LOG_PACKET_HEADER_INIT(LOG_SNSR_3_MSG),
         time_us : timestamp,
-        acc_us  : CNF_cAccel.Timestamp, // Filtered Accelerometer data
-        acc_N   : CNF_cAccel.Readings.x, //TODO: Change accelerometer log to velocity
-        acc_E   : CNF_cAccel.Readings.y,
-        acc_D   : CNF_cAccel.Readings.z,
-        gps_ms  : CNF_cGPS.Timestamp,
+        acc_us  : CNF_cAccel.Timestamp, 
+        acc_N   : CNF_cAccel.Velocity.x, //Dead-reckoning velocity at point of GPS confirmation
+        acc_E   : CNF_cAccel.Velocity.y, //Not a reliable measurement because the logger is recording
+        acc_D   : CNF_cAccel.Velocity.z, //Every update, not every confirmation timestamp. Need to
+        gps_ms  : CNF_cGPS.Timestamp,    //post process reduce data to confirmation points
         lat     : CNF_cGPS.Latitude,
         lng     : CNF_cGPS.Longitude,
         hacc    : CNF_cGPS.Hacc,
