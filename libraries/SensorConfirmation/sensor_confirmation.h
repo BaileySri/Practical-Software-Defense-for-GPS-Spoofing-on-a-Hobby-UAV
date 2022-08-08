@@ -3,6 +3,7 @@
 //Libraries
 #include <cstdint>
 #include "../AP_Logger/AP_Logger.h"
+#include "AP_HAL/system.h"
 #include "sensor_confirmation_structs.h"
 
 class SensorConfirmation{
@@ -12,12 +13,12 @@ class SensorConfirmation{
         ~SensorConfirmation()
         {}
         
-                //----   Helper Functions  ----//
+        //----   Helper Functions  ----//
         static bool confirm(const float a, const float a_err, const float b, const float b_err, bool);
         static Vector3f abs(const Vector3f &x);
         static Vector2f abs(const Vector2f &x);
 
-                //Sensor Data
+        //Sensor Data
         struct
         {
             Accel currAccel; //Acceleration data within GPS update frame
@@ -45,6 +46,7 @@ class SensorConfirmation{
             bool init = false; //Initialized Structs
             bool gpsAvail;     //GPS Data has been updated
             bool ofAvail;      // OF Data has been updated
+            uint64_t lastUpdate; //Last time an SNS log was written
         } framework;
 
         //----General Functions----//

@@ -1,3 +1,4 @@
+#include "AP_HAL/system.h"
 #include "AP_Logger/AP_Logger.h"
 #include <SensorConfirmation/sensor_confirmation.h>
 
@@ -98,7 +99,9 @@ void SensorConfirmation::initialize()
 
     //Zero framework readings
     framework.gpsAvail = false;
+    framework.ofAvail = false;
     framework.init = true;
+    framework.lastUpdate = 0;
 }
 
 void SensorConfirmation::update()
@@ -221,13 +224,17 @@ void SensorConfirmation::alert()
 
 void SensorConfirmation::log()
 {
-    AP_Logger::get_singleton()->Write_SNSR(//ACO Data
-                          sensors.cOFAccel,
-                          sensors.cOF,
-                          //CNF Data
-                          sensors.currAccel,
-                          sensors.currGps,
-                          sensors.rangefinder);
+    uint32_t ts = AP_HAL::micros64();
+    if(ts != framework.lastUpdate){
+        framework.lastUpdate = ts;
+        AP_Logger::get_singleton()->Write_SNSR(//ACO Data
+                            sensors.cOFAccel,
+                            sensors.cOF,
+                            //CNF Data
+                            sensors.currAccel,
+                            sensors.currGps,
+                            sensors.rangefinder);
+    }
 }
 
 void SensorConfirmation::confirmation()
