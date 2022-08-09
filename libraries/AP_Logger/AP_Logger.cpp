@@ -1,5 +1,6 @@
 #include "AP_Logger.h"
 #include "AP_Logger/LogStructure.h"
+#include "AP_Mount/SoloGimbal_Parameters.h"
 
 #if HAL_LOGGING_ENABLED
 
@@ -893,7 +894,7 @@ void AP_Logger::Write_Rally()
 void AP_Logger::Write_SNSR( const Accel &ACO_cAccel, const OF &ACO_cOF, 
                             const Accel &CNF_cAccel,
                             const GPS &CNF_cGPS, const RF &RF,
-                            const Mag &mag)
+                            const Mag &mag, const Gyro &gyr)
 {
     uint64_t timestamp = AP_HAL::micros64();
 
@@ -956,7 +957,10 @@ void AP_Logger::Write_SNSR( const Accel &ACO_cAccel, const OF &ACO_cOF,
         mag_us      : mag.Timestamp,
         magx        : (int16_t) mag.Readings.x,
         magy        : (int16_t) mag.Readings.y,
-        magz        : (int16_t) mag.Readings.z
+        magz        : (int16_t) mag.Readings.z,
+        gyrx        : gyr.Readings.x,
+        gyry        : gyr.Readings.y,
+        gyrz        : gyr.Readings.z
     };
 
     FOR_EACH_BACKEND(WriteBlock(&pkt1, sizeof(pkt1)));

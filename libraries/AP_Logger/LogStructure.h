@@ -721,6 +721,9 @@ struct PACKED log_sensors_4 {
     int16_t magx;
     int16_t magy;
     int16_t magz;
+    float   gyrx;
+    float   gyry;
+    float   gyrz;
 };
 
 struct PACKED log_confirmation_1 {
@@ -1466,7 +1469,7 @@ LOG_STRUCTURE_FROM_VISUALODOM \
     { LOG_SNSR_3_MSG, sizeof(log_sensors_3), \
       "SNS3", "QIfffILLfffff", "TimeUS,accUS,CVN,CVE,CVD,gpsMS,lat,lng,hacc,vacc,sacc,yaw,yawe", "ssooosDUmmndd", "FF000CGG00000"}, \
     { LOG_SNSR_4_MSG, sizeof(log_sensors_4), \
-      "SNS4", "QIhhh", "TimeUS,magUS,magx,magy,magz", "ssGGG", "FFCCC"}, \
+      "SNS4", "QIhhhfff", "TimeUS,magUS,magx,magy,magz,gyrx,gyry,gyrz", "ssGGGEEE", "FFCCC000"}, \
     { LOG_CNFR_1_MSG, sizeof(log_confirmation_1), \
       "CNF1", "Qffffffff", "TimeUS,COFN,COFE,CNe,CEe,POFN,POFE,PNe,PEe", "snnnnnnnn", "FBBBBBBBB"}, \
     { LOG_CNFR_2_MSG, sizeof(log_confirmation_2), \

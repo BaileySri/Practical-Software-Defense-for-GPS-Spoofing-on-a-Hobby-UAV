@@ -198,7 +198,7 @@ void SensorConfirmation::log() {
         // CNF Data
         sensors.currAccel, sensors.currGps, sensors.rangefinder,
         // Auxiliary Data
-        sensors.mag);
+        sensors.mag, sensors.currGyro);
   }
 }
 
