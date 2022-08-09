@@ -124,6 +124,11 @@ void AP_Compass_Backend::accumulate_sample(Vector3f &field, uint8_t instance,
     WITH_SEMAPHORE(_sem);
 
     Compass::mag_state &state = _compass._state[Compass::StateIndex(instance)];
+    
+    //PADLOCK
+    // Just want the raw reading, not the accumulated average
+    state.reading = field;
+
     state.accum += field;
     state.accum_count++;
     if (max_samples && state.accum_count >= max_samples) {

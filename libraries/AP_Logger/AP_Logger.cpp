@@ -1,4 +1,5 @@
 #include "AP_Logger.h"
+#include "AP_Logger/LogStructure.h"
 
 #if HAL_LOGGING_ENABLED
 
@@ -891,7 +892,8 @@ void AP_Logger::Write_Rally()
 //Logging function
 void AP_Logger::Write_SNSR( const Accel &ACO_cAccel, const OF &ACO_cOF, 
                             const Accel &CNF_cAccel,
-                            const GPS &CNF_cGPS, const RF &RF)
+                            const GPS &CNF_cGPS, const RF &RF,
+                            const Mag &mag)
 {
     uint64_t timestamp = AP_HAL::micros64();
 
@@ -948,9 +950,19 @@ void AP_Logger::Write_SNSR( const Accel &ACO_cAccel, const OF &ACO_cOF,
         yaw_e   : CNF_cGPS.Yaw_Error
     };
 
+    struct log_sensors_4 pkt4 = {
+        LOG_PACKET_HEADER_INIT(LOG_SNSR_4_MSG),
+        time_us     : timestamp,
+        mag_us      : mag.Timestamp,
+        magx        : (int16_t) mag.Readings.x,
+        magy        : (int16_t) mag.Readings.y,
+        magz        : (int16_t) mag.Readings.z
+    };
+
     FOR_EACH_BACKEND(WriteBlock(&pkt1, sizeof(pkt1)));
     FOR_EACH_BACKEND(WriteBlock(&pkt2, sizeof(pkt2)));
     FOR_EACH_BACKEND(WriteBlock(&pkt3, sizeof(pkt3)));
+    FOR_EACH_BACKEND(WriteBlock(&pkt4, sizeof(pkt4)));
 }
 
 //Logger for confirmation variables

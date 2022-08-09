@@ -159,6 +159,11 @@ public:
     const Vector3f &get_field(uint8_t i) const { return _get_state(Priority(i)).field; }
     const Vector3f &get_field(void) const { return get_field(_first_usable); }
 
+    //PADLOCK
+    // Getter method for instantaneous reading
+    const Vector3f &get_reading(uint8_t i) const { return _get_state(Priority(i)).reading; }
+    const Vector3f &get_reading(void) const { return get_reading(_first_usable); }
+
     /// Return true if we have set a scale factor for a compass
     bool have_scale_factor(uint8_t i) const;
 
@@ -502,6 +507,10 @@ private:
 
         // corrected magnetic field strength
         Vector3f    field;
+
+        //PADLOCK
+        // Raw reading, not averaged
+        Vector3f    reading;
 
         // when we last got data
         uint32_t    last_update_ms;
