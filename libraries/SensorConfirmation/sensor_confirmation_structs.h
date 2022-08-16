@@ -2,6 +2,7 @@
 #define SENSOR_CONFIRMATION_STRUCTS_H
 
 #include "../AP_AHRS/AP_AHRS.h"
+#include "../AP_Baro/AP_Baro.h"
 #include "../AP_Common/Location.h"
 #include "../AP_Compass/AP_Compass.h"
 #include "../AP_InertialSensor/AP_InertialSensor.h"
@@ -58,7 +59,9 @@ struct Accel {
       NED newReading = (rot * frontend->get_accel(primary_accel)) + GRAVITY_NED;
 
       // Trapezoidal Integration
-      Velocity += (((newReading + Readings) / 2.0F) * (newTimestamp - Timestamp)) / 1000000;
+      Velocity +=
+          (((newReading + Readings) / 2.0F) * (newTimestamp - Timestamp)) /
+          1000000;
       Readings = newReading;
 
       // Pull accelerometer sampling rate for error calculation
@@ -336,6 +339,32 @@ struct OF {
     VelNE = rhs.VelNE;
     Err = rhs.Err;
     return *this;
+  }
+};
+
+struct Baro {
+  uint32_t Timestamp;   // ms, Timestamp of last healthy RF reading
+  float Altitude;    // meters, Relative to barometer calibration
+  float Pressure;    // Pascal
+  float Temperature; // Celsius
+
+  void update() {
+    const AP_Baro *baro = AP_Baro::get_singleton();
+    const uint32_t &newTimestamp = baro->get_last_update(); // ms
+
+    if ((newTimestamp - Timestamp) > 0) {
+      Pressure = baro->get_pressure();
+      Temperature = baro->get_temperature();
+      Altitude = baro->get_altitude();
+      Timestamp = newTimestamp;
+    }
+  }
+
+  void reset(float newTs = 0) {
+    Timestamp = newTs;
+    Altitude = 0;
+    Pressure = 0;
+    Temperature = 0;
   }
 };
 

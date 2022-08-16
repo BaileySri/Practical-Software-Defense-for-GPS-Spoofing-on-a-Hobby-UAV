@@ -685,10 +685,10 @@ struct PACKED log_sensors_2 {
     float acc_raw_R;
     float acc_raw_D;
     uint32_t of_us; // OF Timestamp
-    float OF_FR_N;
-    float OF_FR_E;
-    float OF_BR_N;
-    float OF_BR_E;
+    float OF_FR_R;
+    float OF_FR_F;
+    float OF_BR_R;
+    float OF_BR_F;
     float rf_ms; // Rangefinder Timestamp in ms
     float rf;
     float rf_filt;
@@ -724,6 +724,10 @@ struct PACKED log_sensors_4 {
     float   gyrx;
     float   gyry;
     float   gyrz;
+    uint32_t   bar_ms;
+    float   bar_alt;
+    float   bar_pres;
+    float   bar_temp;
 };
 
 struct PACKED log_confirmation_1 {
@@ -1465,11 +1469,11 @@ LOG_STRUCTURE_FROM_VISUALODOM \
     { LOG_SNSR_1_MSG, sizeof(log_sensors_1), \
       "SNS1", "QIffffffffffff", "TimeUS,cUS,CAN,CAE,CAD,m00,m01,m02,m10,m11,m12,m20,m21,m22", "ssooo---------", "FF000---------"}, \
     { LOG_SNSR_2_MSG, sizeof(log_sensors_2), \
-      "SNS2", "QfffIfffffffi", "TimeUS,rCAN,rCAE,rCAD,ofUS,frN,frE,brN,brE,rfMS,rf,rfFilt,gpAlt", "sooosEEEEsmmm", "F000F0000CBB0"}, \
+      "SNS2", "QfffIfffffffi", "TimeUS,rCAN,rCAE,rCAD,ofUS,frR,frF,brR,brF,rfMS,rf,rfFilt,gpAlt", "sooosEEEEsmmm", "F000F0000CBB0"}, \
     { LOG_SNSR_3_MSG, sizeof(log_sensors_3), \
       "SNS3", "QIfffILLfffff", "TimeUS,accUS,CVN,CVE,CVD,gpsMS,lat,lng,hacc,vacc,sacc,yaw,yawe", "ssooosDUmmndd", "FF000CGG00000"}, \
     { LOG_SNSR_4_MSG, sizeof(log_sensors_4), \
-      "SNS4", "QIhhhfff", "TimeUS,magUS,magx,magy,magz,gyrx,gyry,gyrz", "ssGGGEEE", "FFCCC000"}, \
+      "SNS4", "QIhhhfffIfff", "TimeUS,magUS,magx,magy,magz,gyrx,gyry,gyrz,barms,bara,barp,bart", "ssGGGEEEsmPO", "FFCCC000C000"}, \
     { LOG_CNFR_1_MSG, sizeof(log_confirmation_1), \
       "CNF1", "Qffffffff", "TimeUS,COFN,COFE,CNe,CEe,POFN,POFE,PNe,PEe", "snnnnnnnn", "FBBBBBBBB"}, \
     { LOG_CNFR_2_MSG, sizeof(log_confirmation_2), \

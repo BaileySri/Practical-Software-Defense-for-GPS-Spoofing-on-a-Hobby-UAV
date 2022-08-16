@@ -894,7 +894,7 @@ void AP_Logger::Write_Rally()
 void AP_Logger::Write_SNSR( const Accel &ACO_cAccel, const OF &ACO_cOF, 
                             const Accel &CNF_cAccel,
                             const GPS &CNF_cGPS, const RF &RF,
-                            const Mag &mag, const Gyro &gyr)
+                            const Mag &mag, const Gyro &gyr, const Baro &bar)
 {
     uint64_t timestamp = AP_HAL::micros64();
 
@@ -923,10 +923,10 @@ void AP_Logger::Write_SNSR( const Accel &ACO_cAccel, const OF &ACO_cOF,
         acc_raw_R    : ACO_cAccel.Raw.y,
         acc_raw_D    : ACO_cAccel.Raw.z,
         of_us        : ACO_cOF.Timestamp, // Optical Flow is same for CNF and ACO at log time
-        OF_FR_N      : ACO_cOF.FlowRate.x, // Optical Flow Flowrate
-        OF_FR_E      : ACO_cOF.FlowRate.y,
-        OF_BR_N      : ACO_cOF.BodyRate.x, // Optical Flow Bodyrate
-        OF_BR_E      : ACO_cOF.BodyRate.y,
+        OF_FR_R      : ACO_cOF.FlowRate.x, // Optical Flow Flowrate
+        OF_FR_F      : ACO_cOF.FlowRate.y,
+        OF_BR_R      : ACO_cOF.BodyRate.x, // Optical Flow Bodyrate
+        OF_BR_F      : ACO_cOF.BodyRate.y,
         rf_ms        : RF.Timestamp, // RF Timestamp is in ms, same for both CNF and ACO
         rf           : RF.rf_raw,
         rf_filt      : RF.rf_filt.get(),
@@ -960,7 +960,11 @@ void AP_Logger::Write_SNSR( const Accel &ACO_cAccel, const OF &ACO_cOF,
         magz        : (int16_t) mag.Readings.z,
         gyrx        : gyr.Readings.x,
         gyry        : gyr.Readings.y,
-        gyrz        : gyr.Readings.z
+        gyrz        : gyr.Readings.z,
+        bar_ms      : bar.Timestamp,
+        bar_alt     : bar.Altitude,
+        bar_pres    : bar.Pressure,
+        bar_temp    : bar.Temperature
     };
 
     FOR_EACH_BACKEND(WriteBlock(&pkt1, sizeof(pkt1)));

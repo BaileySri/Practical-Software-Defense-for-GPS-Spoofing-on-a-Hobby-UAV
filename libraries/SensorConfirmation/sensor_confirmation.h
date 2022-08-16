@@ -39,6 +39,7 @@ public:
 
     // ETC, Sensors I'm recording for auxiliary use
     Mag mag; // Magnetometer instantaneous reading
+    Baro bar; //Barometer readings
   } sensors;
 
   // Confirmation Data

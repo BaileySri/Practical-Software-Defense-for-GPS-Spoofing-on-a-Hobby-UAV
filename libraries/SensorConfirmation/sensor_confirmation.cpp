@@ -76,6 +76,7 @@ void SensorConfirmation::initialize() {
   sensors.nextOF.reset();
   sensors.rangefinder.reset();
   sensors.mag.reset();
+  sensors.bar.reset();
 
   // Zero framework readings
   framework.gpsAvail = false;
@@ -90,6 +91,7 @@ void SensorConfirmation::update() {
 
   // Auxiliary Sensors
   sensors.mag.update();
+  sensors.bar.update();
 
   // ACCOF Sensors
   //  RF
@@ -137,9 +139,6 @@ void SensorConfirmation::update() {
 bool SensorConfirmation::run() {
   bool res = true;
   if (framework.gpsAvail) {
-#if CONFIG_HAL_BOARD == HAL_BOARD_SITL && 0
-    log();
-#endif
     AP_Logger::get_singleton()->Write_CNFR(
         sensors.prevOF, sensors.currOF, sensors.prevGps, sensors.currGps,
         sensors.currAccel, sensors.nextAccel,
@@ -198,7 +197,7 @@ void SensorConfirmation::log() {
         // CNF Data
         sensors.currAccel, sensors.currGps, sensors.rangefinder,
         // Auxiliary Data
-        sensors.mag, sensors.currGyro);
+        sensors.mag, sensors.currGyro, sensors.bar);
   }
 }
 

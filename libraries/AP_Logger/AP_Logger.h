@@ -327,7 +327,7 @@ public:
     void Write_SNSR(const Accel &ACO_cAccel, const OF &ACO_cOF, 
                     const Accel &CNF_cAccel,
                     const GPS &CNF_cGPS, const RF &RF,
-                    const Mag &mag, const Gyro &gyr);
+                    const Mag &mag, const Gyro &gyr, const Baro &bar);
     void Write_CNFR(const OF &pOF,
                     const OF &cOF,
                     const GPS &pGPS,
