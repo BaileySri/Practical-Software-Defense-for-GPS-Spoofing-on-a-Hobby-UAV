@@ -1469,7 +1469,7 @@ LOG_STRUCTURE_FROM_VISUALODOM \
     { LOG_SNSR_1_MSG, sizeof(log_sensors_1), \
       "SNS1", "QIffffffffffff", "TimeUS,cUS,CAN,CAE,CAD,m00,m01,m02,m10,m11,m12,m20,m21,m22", "ssooo---------", "FF000---------"}, \
     { LOG_SNSR_2_MSG, sizeof(log_sensors_2), \
-      "SNS2", "QfffIfffffffi", "TimeUS,rCAN,rCAE,rCAD,ofUS,frR,frF,brR,brF,rfMS,rf,rfFilt,gpAlt", "sooosEEEEsmmm", "F000F0000CBB0"}, \
+      "SNS2", "QfffIfffffffi", "TimeUS,rCAN,rCAE,rCAD,ofMS,frR,frF,brR,brF,rfMS,rf,rfFilt,gpAlt", "sooosEEEEsmmm", "F000F0000CBB0"}, \
     { LOG_SNSR_3_MSG, sizeof(log_sensors_3), \
       "SNS3", "QIfffILLfffff", "TimeUS,accUS,CVN,CVE,CVD,gpsMS,lat,lng,hacc,vacc,sacc,yaw,yawe", "ssooosDUmmndd", "FF000CGG00000"}, \
     { LOG_SNSR_4_MSG, sizeof(log_sensors_4), \

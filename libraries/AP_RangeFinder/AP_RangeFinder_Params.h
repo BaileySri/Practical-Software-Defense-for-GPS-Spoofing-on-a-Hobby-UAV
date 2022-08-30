@@ -27,4 +27,9 @@ public:
     AP_Int8  ground_clearance_cm;
     AP_Int8  address;
     AP_Int8  orientation;
+    //PADLOCK
+    //Attack parameters
+    AP_Float rate; //cm, set this relative to the sensor update rate
+    AP_Int16 dist; //cm
+    AP_Int8 atk;  //1:Enalbe, Other:Disable
 };
