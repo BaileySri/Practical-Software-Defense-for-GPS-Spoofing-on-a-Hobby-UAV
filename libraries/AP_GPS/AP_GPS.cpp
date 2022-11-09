@@ -987,14 +987,14 @@ void AP_GPS::update_instance(uint8_t instance)
         // Take Over Attack Variables
         static uint8_t mode[2] = {0, 0}; //0:Slow, 1:Offset, 2:Slow, 3:Hold
         static uint32_t init_atk[2] = {0, 0}; //The number of updates to move the drones speed to 0
-        static uint32_t take_over[2] = {0, 0}; //Loop incrementer for attack values for POSLLH and PVT respectively
+        static uint32_t take_over[2] = {0, 0}; //Loop incrementer for attack values for Latitude and Longitude respectively
         static Location last_lla; //Last spoofed longitude and latitude
         static Location mode_lla; //LLA value when switching modes
         static Vector3f last_vel; //Last spoofed velocity value
         static Vector3f mode_vel; //Velocity value when switching modes
-        const float POS_VEL_RATIO = (SLOW_RATE/25) * 100; //cm, The amount of distance the lat/lng are offset at each update until GPS reads desired movement.
+        static const float TIME_RATIO = get_rate_ms(primary_instance)/1000.0F; //Number of updates in a second
         static int32_t ATK_OFS[2] = {ATK_OFS_NORTH, ATK_OFS_EAST}; //cm
-        static uint32_t updates[2] = {0, 0}; //The number of updates to overwrite for the halfway point of the attack
+        static uint32_t t1[2] = {0, 0}; //The number of updates to overwrite for the halfway point of the attack
         
         //PADLOCK
         //Record real ground course
@@ -1011,8 +1011,8 @@ void AP_GPS::update_instance(uint8_t instance)
             ATK_OFS[0] = ATK_OFS_NORTH;
             ATK_OFS[1] = ATK_OFS_EAST;
             atk_started = true;
-            updates[0] = ceil(((-1.0F + sqrtf(1 + (2.0F*ATK_OFS[0]/(SLOW_RATE*100)))) * 1000.0F)/get_rate_ms(primary_instance)); //iterations, Number of updates to reach time t1
-            updates[1] = ceil(((-1.0F + sqrtf(1 + (2.0F*ATK_OFS[1]/(SLOW_RATE*100)))) * 1000.0F)/get_rate_ms(primary_instance)); //iterations, "
+            t1[0] = ceil(sqrtf(ATK_OFS[0]/(SLOW_RATE*100))/TIME_RATIO); //iterations, Number of updates to reach time t1
+            t1[1] = ceil(sqrtf(ATK_OFS[1]/(SLOW_RATE*100))/TIME_RATIO); //iterations, "
 
             #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
             GCS_SEND_TEXT(MAV_SEVERITY_INFO,"FENCE INIT(lat, lng, alt): %i, %i, %i", fence.lat, fence.lng, fence.alt);
@@ -1026,48 +1026,29 @@ void AP_GPS::update_instance(uint8_t instance)
             if(dt == 0){
                 dt = 1;
             }
-
-            float scaled_attack[2] = {0, 0}; //cm
             for(int axis = 0; axis < 2; axis++){
-                //Mode logic
-                if(mode[axis] == 0 && ((abs(last_vel[0]) - SLOW_RATE/5) <= 0) && (abs(last_vel[1]) - SLOW_RATE/5) <= 0){ //Next update puts us pass being idle
+                //Mode logic, axis==0 is Latitude, axis==1 is Longitude
+                if(mode[axis] == 0 && ((abs(last_vel[axis]) - SLOW_RATE*TIME_RATIO) <= 0)){ //Next update puts us pass being idle
                     GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Axis %i: Switch to mode 1, offsetting drone.\nExpected time for full attack: %.2f seconds",
-                                  axis, 2*MAX(updates[0], updates[1]) * (get_rate_ms(primary_instance) / 1000.0F) );
+                                  axis, 2*t1[axis]* TIME_RATIO );
                     //Start offsetting
                     mode[axis] = 1;
-                    mode_lla = last_lla;
-                    mode_vel = last_vel;
+                    if(axis == 0){
+                        mode_lla.lat = last_lla.lat;
+                        mode_vel.x = last_vel.x;
+                    } else {
+                        mode_lla.lng = last_lla.lng;
+                        mode_vel.y = last_vel.y;
+                    }
                     init_atk[axis] = take_over[axis];
-                } else if(mode[axis] == 1 && ((take_over[axis] - init_atk[axis]) >= updates[axis])){ //We've reached t1, start slowing
+                } else if(mode[axis] == 1 && ((take_over[axis] - init_atk[axis]) >= t1[axis])){ //We've reached t1, start slowing
                     GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Axis %i: Switch to mode 2, slowing drone.", axis);
                     mode[axis] = 2;
                     mode_lla = last_lla;
                     mode_vel = last_vel;
-                } else if(mode[axis] == 2 && ((take_over[axis] - init_atk[axis]) >= 2* updates[axis])){ //We've reached t2, hold position
+                } else if(mode[axis] == 2 && ((take_over[axis] - init_atk[axis]) >= 2* t1[axis])){ //We've reached t2, hold position
                     GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Axis %i: Switch to mode 3, Holding position.", axis);
                     mode[axis] = 3;
-                }
-
-                //Attack value logic
-                switch(mode[axis]){
-                    case 0: //Slow
-                        scaled_attack[axis] = POS_VEL_RATIO * take_over[axis];
-                        scaled_attack[axis] *= -1 * (init_vel[axis] / fabs(init_vel[axis])); //Reduce velocity to 0 based on initial velocity
-                        break;
-                    case 1: //Offset
-                        scaled_attack[axis] = POS_VEL_RATIO * (take_over[axis] - init_atk[axis]);
-                        if(ATK_OFS[axis] != 0){
-                            scaled_attack[axis] *= ATK_OFS[axis] / fabs(ATK_OFS[axis]); //Push in direction of offset
-                        }
-                        break;
-                    case 2: //Slow
-                        scaled_attack[axis] = POS_VEL_RATIO * (take_over[axis] - (init_atk[axis] + updates[axis]));
-                        if(ATK_OFS[axis] != 0){
-                            scaled_attack[axis] *= -1 * (ATK_OFS[axis] / fabs(ATK_OFS[axis])); //Push in direction of offset
-                        }
-                        break;
-                    default: //Hold
-                        scaled_attack[axis] = 0;
                 }
             }
 
@@ -1084,10 +1065,14 @@ void AP_GPS::update_instance(uint8_t instance)
                 state[instance].location.lat = last_lla.lat;
             } else if(mode[0] == 0){ //use fence Location values
                 //Runs East-West, spoofing pushes the drone North-South
-                state[instance].location.lat = fence.lat + static_cast<int32_t>(scaled_attack[0] * 0.89831f);
+                state[instance].location.lat = fence.lat + static_cast<int32_t>((init_vel[0] * 100 * (take_over[0]*TIME_RATIO) + //V[0]*t +
+                                                                                (0.5*SLOW_RATE*sq(take_over[0]*TIME_RATIO))) * // 0.5*a*t^2 *
+                                                                                0.89831f); //Scaling factor
                 last_lla.lat = state[instance].location.lat;
             } else{ //Use mode_lla values
-                state[instance].location.lat = mode_lla.lat + static_cast<int32_t>(scaled_attack[0] * 0.89831f);
+                state[instance].location.lat = mode_lla.lat + static_cast<int32_t>((mode_vel[0] * 100 * ((take_over[0]-init_atk[0])*TIME_RATIO) + //V[i-1]*t +
+                                                                                   (0.5*SLOW_RATE*sq(((take_over[0]-init_atk[0])*TIME_RATIO)))) * // 0.5*a*t^2 *
+                                                                                    0.89831f); //Scaling factor
                 last_lla.lat = state[instance].location.lat;
             }
 
@@ -1097,11 +1082,15 @@ void AP_GPS::update_instance(uint8_t instance)
             if(mode[1] == 3){ //Hold in place
                 state[instance].location.lng = last_lla.lng;
             } else if(mode[1] == 0){ //use fence Location values
-                //Runs East-West, spoofing pushes the drone North-South
-                state[instance].location.lng = fence.lng + static_cast<int32_t>(scaled_attack[1] * lng_scale_factor);
+                //Runs North-South, spoofing pushes the drone East-West
+                state[instance].location.lng = fence.lng + static_cast<int32_t>((init_vel[1] * 100 * (take_over[1]*TIME_RATIO) + //V[0]*t +
+                                                                                (0.5*SLOW_RATE*sq(take_over[1]*TIME_RATIO))) * // 0.5*a*t^2 *
+                                                                                lng_scale_factor); //Scaling factor
                 last_lla.lng = state[instance].location.lng;
             } else{ //Use mode_lla values
-                state[instance].location.lng = mode_lla.lng + static_cast<int32_t>(scaled_attack[1] * lng_scale_factor);
+                state[instance].location.lng = mode_lla.lng + static_cast<int32_t>((mode_vel[1] * 100 * ((take_over[1]-init_atk[1])*TIME_RATIO) + //V[0]*t +
+                                                                                   (0.5*SLOW_RATE*sq(((take_over[1]-init_atk[1])*TIME_RATIO)))) * // 0.5*a*t^2 *
+                                                                                    lng_scale_factor); //Scaling factor
                 last_lla.lng = state[instance].location.lng;
             }
 
@@ -1109,19 +1098,19 @@ void AP_GPS::update_instance(uint8_t instance)
             for(int axis = 0; axis < 2; axis++){
                 switch(mode[axis]){
                     case 0: //Slowing to 0 from init
-                        state[instance].velocity[axis] = init_vel[axis] + (scaled_attack[axis]/100 / (dt / 1000.0F));
+                        state[instance].velocity[axis] = init_vel[axis] + SLOW_RATE*(take_over[axis]*TIME_RATIO); //V[0] + at
                         break;
                     case 1: //Speeding up to t1
-                        state[instance].velocity[axis] = mode_vel[axis] + (scaled_attack[axis]/100 / (dt / 1000.0F));
+                        state[instance].velocity[axis] = mode_vel[axis] + SLOW_RATE*((take_over[axis]-init_atk[axis])*TIME_RATIO); //V[0] + at
                         break;
                     case 2: //Slowing down to t2
-                        state[instance].velocity[axis] = mode_vel[axis] + (scaled_attack[axis]/100 / (dt / 1000.0F));
+                        state[instance].velocity[axis] = mode_vel[axis] - SLOW_RATE*((take_over[axis]-init_atk[axis])*TIME_RATIO); //V[0] - at
                         break;
                     default: //Holding position
                         state[instance].velocity[axis] = 0;
                 }
-                last_vel = state[instance].velocity;
             }
+            last_vel = state[instance].velocity;
             
             //Ground Speed
             state[instance].ground_speed = norm(state[instance].velocity.x, state[instance].velocity.y) / dt;
