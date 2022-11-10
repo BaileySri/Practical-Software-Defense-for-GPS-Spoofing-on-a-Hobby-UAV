@@ -47,6 +47,10 @@
 // Needed for advanced attacker
 #include <SensorConfirmation/sensor_confirmation.h>
 #include <AP_Vehicle/AP_Vehicle.h>
+// Gets the sign for the attack
+template <typename T> int sgn(T val) {
+    return (T(0) < val) - (val < T(0));
+}
 
 #if HAL_ENABLE_LIBUAVCAN_DRIVERS
 #include <AP_CANManager/AP_CANManager.h>
@@ -983,7 +987,6 @@ void AP_GPS::update_instance(uint8_t instance)
         static bool fenced = false;
         static bool atk_started = false;
         static Location fence = { };
-        static Vector3f init_vel = {0, 0, 0};
         // Take Over Attack Variables
         static uint8_t mode[2] = {0, 0}; //0:Slow, 1:Offset, 2:Slow, 3:Hold
         static uint32_t init_atk[2] = {0, 0}; //The number of updates to move the drones speed to 0
@@ -1005,8 +1008,7 @@ void AP_GPS::update_instance(uint8_t instance)
         if(!atk_started && attack){
             //As the attack is enabled
             fence = state[instance].location;
-            init_vel = state[instance].velocity;
-            last_vel = init_vel;
+            last_vel = state[instance].velocity;
             last_lla = state[instance].location;
             ATK_OFS[0] = ATK_OFS_NORTH;
             ATK_OFS[1] = ATK_OFS_EAST;
@@ -1044,8 +1046,13 @@ void AP_GPS::update_instance(uint8_t instance)
                 } else if(mode[axis] == 1 && ((take_over[axis] - init_atk[axis]) >= t1[axis])){ //We've reached t1, start slowing
                     GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Axis %i: Switch to mode 2, slowing drone.", axis);
                     mode[axis] = 2;
-                    mode_lla = last_lla;
-                    mode_vel = last_vel;
+                    if(axis == 0){
+                        mode_lla.lat = last_lla.lat;
+                        mode_vel.x = last_vel.x;
+                    } else {
+                        mode_lla.lng = last_lla.lng;
+                        mode_vel.y = last_vel.y;
+                    }
                 } else if(mode[axis] == 2 && ((take_over[axis] - init_atk[axis]) >= 2* t1[axis])){ //We've reached t2, hold position
                     GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Axis %i: Switch to mode 3, Holding position.", axis);
                     mode[axis] = 3;
@@ -1061,50 +1068,62 @@ void AP_GPS::update_instance(uint8_t instance)
             */
             
             //Latitude Spoofing
-            if(mode[0] == 3){ //Hold in place
-                state[instance].location.lat = last_lla.lat;
-            } else if(mode[0] == 0){ //use fence Location values
-                //Runs East-West, spoofing pushes the drone North-South
-                state[instance].location.lat = fence.lat + static_cast<int32_t>((init_vel[0] * 100 * (take_over[0]*TIME_RATIO) + //V[0]*t +
-                                                                                (0.5*SLOW_RATE*sq(take_over[0]*TIME_RATIO))) * // 0.5*a*t^2 *
-                                                                                0.89831f); //Scaling factor
-                last_lla.lat = state[instance].location.lat;
-            } else{ //Use mode_lla values
-                state[instance].location.lat = mode_lla.lat + static_cast<int32_t>((mode_vel[0] * 100 * ((take_over[0]-init_atk[0])*TIME_RATIO) + //V[i-1]*t +
-                                                                                   (0.5*SLOW_RATE*sq(((take_over[0]-init_atk[0])*TIME_RATIO)))) * // 0.5*a*t^2 *
-                                                                                    0.89831f); //Scaling factor
-                last_lla.lat = state[instance].location.lat;
+            switch(mode[0]){
+                case 0: //Slowing to 0 from init
+                    state[instance].location.lat = last_lla.lat + static_cast<int32_t>((last_vel[0] * 100 * dt/1000.0F + //V[i-1]*t +
+                                                                                        sgn(last_vel[0])*(0.5*SLOW_RATE*sq(dt/1000.0F))) * // 0.5*a*t^2 *
+                                                                                        0.89831f); //Scaling factor
+                    break;
+                case 1: //Speeding up to t1
+                    state[instance].location.lat = last_lla.lat + static_cast<int32_t>((last_vel[0] * 100 * dt/1000.0F + //V[i-1]*t +
+                                                                                       (0.5*SLOW_RATE*sq(dt/1000.0F))) * // 0.5*a*t^2 *
+                                                                                        0.89831f); //Scaling factor
+                    break;
+                case 2: //Slowing down to t2
+                    state[instance].location.lat = last_lla.lat + static_cast<int32_t>((last_vel[0] * 100 * dt/1000.0F - //V[i-1]*t -
+                                                                                       (0.5*SLOW_RATE*sq(dt/1000.0F))) * // 0.5*a*t^2 *
+                                                                                        0.89831f); //Scaling factor
+                    break;
+                default: //Holding position
+                    state[instance].location.lat = last_lla.lat;
             }
-
+            last_lla.lat = state[instance].location.lat;
+            
             float lng_scale_factor = 1/((3.14/180) * 6378.137 * cos(atan(0.99664719F* tan(last_lla.lat/10000000.0F))) / 100);
 
             //Longitude Spoofing
-            if(mode[1] == 3){ //Hold in place
-                state[instance].location.lng = last_lla.lng;
-            } else if(mode[1] == 0){ //use fence Location values
-                //Runs North-South, spoofing pushes the drone East-West
-                state[instance].location.lng = fence.lng + static_cast<int32_t>((init_vel[1] * 100 * (take_over[1]*TIME_RATIO) + //V[0]*t +
-                                                                                (0.5*SLOW_RATE*sq(take_over[1]*TIME_RATIO))) * // 0.5*a*t^2 *
-                                                                                lng_scale_factor); //Scaling factor
-                last_lla.lng = state[instance].location.lng;
-            } else{ //Use mode_lla values
-                state[instance].location.lng = mode_lla.lng + static_cast<int32_t>((mode_vel[1] * 100 * ((take_over[1]-init_atk[1])*TIME_RATIO) + //V[0]*t +
-                                                                                   (0.5*SLOW_RATE*sq(((take_over[1]-init_atk[1])*TIME_RATIO)))) * // 0.5*a*t^2 *
-                                                                                    lng_scale_factor); //Scaling factor
-                last_lla.lng = state[instance].location.lng;
+            switch(mode[1]){
+                case 0: //Slowing to 0 from init
+                    state[instance].location.lng = last_lla.lng + static_cast<int32_t>((last_vel[1] * 100 * dt/1000.0F + //V[i-1]*t +
+                                                                                        sgn(last_vel[1])*(0.5*SLOW_RATE*sq(dt/1000.0F))) * // 0.5*a*t^2 *
+                                                                                        lng_scale_factor); //Scaling factor
+                    break;
+                case 1: //Speeding up to t1
+                    state[instance].location.lng = last_lla.lng + static_cast<int32_t>((last_vel[1] * 100 * dt/1000.0F + //V[i-1]*t +
+                                                                                       (0.5*SLOW_RATE*sq(dt/1000.0F))) * // 0.5*a*t^2 *
+                                                                                        lng_scale_factor); //Scaling factor
+                    break;
+                case 2: //Slowing down to t2
+                    state[instance].location.lng = last_lla.lng + static_cast<int32_t>((last_vel[1] * 100 * dt/1000.0F - //V[i-1]*t -
+                                                                                       (0.5*SLOW_RATE*sq(dt/1000.0F))) * // 0.5*a*t^2 *
+                                                                                        lng_scale_factor); //Scaling factor
+                    break;
+                default: //Holding position
+                    state[instance].location.lng = last_lla.lng;
             }
+            last_lla.lng = state[instance].location.lng;
 
             //Velocity spoofing
             for(int axis = 0; axis < 2; axis++){
                 switch(mode[axis]){
                     case 0: //Slowing to 0 from init
-                        state[instance].velocity[axis] = init_vel[axis] + SLOW_RATE*(take_over[axis]*TIME_RATIO); //V[0] + at
+                        state[instance].velocity[axis] = last_vel[axis] - sgn(last_vel[axis])*SLOW_RATE*dt/1000.0F; //V[i-1] + at
                         break;
                     case 1: //Speeding up to t1
-                        state[instance].velocity[axis] = mode_vel[axis] + SLOW_RATE*((take_over[axis]-init_atk[axis])*TIME_RATIO); //V[0] + at
+                        state[instance].velocity[axis] = last_vel[axis] + SLOW_RATE*dt/1000.0F; //V[i-1] + at
                         break;
                     case 2: //Slowing down to t2
-                        state[instance].velocity[axis] = mode_vel[axis] - SLOW_RATE*((take_over[axis]-init_atk[axis])*TIME_RATIO); //V[0] - at
+                        state[instance].velocity[axis] = last_vel[axis] - SLOW_RATE*dt/1000.0F; //V[i-1] - at
                         break;
                     default: //Holding position
                         state[instance].velocity[axis] = 0;
@@ -1113,7 +1132,7 @@ void AP_GPS::update_instance(uint8_t instance)
             last_vel = state[instance].velocity;
             
             //Ground Speed
-            state[instance].ground_speed = norm(state[instance].velocity.x, state[instance].velocity.y) / dt;
+            state[instance].ground_speed = norm(state[instance].velocity.x, state[instance].velocity.y);
             //Ground Course
             state[instance].ground_course = wrap_360(degrees(atan2f(state[instance].velocity.y, state[instance].velocity.x)));
 
