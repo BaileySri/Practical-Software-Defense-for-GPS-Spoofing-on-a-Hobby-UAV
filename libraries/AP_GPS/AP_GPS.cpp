@@ -481,7 +481,16 @@ const AP_Param::GroupInfo AP_GPS::var_info[] = {
     // @Range: INT8_MIN INT8_MAX
     // @Increment: 1
     // @User: Advanced
-    AP_GROUPINFO("_PDLK_SLW_RAT", 40, AP_GPS, SLOW_RATE, 0),
+    AP_GROUPINFO("_PDLK_SLW_RAT", 40, AP_GPS, SLOW_RATE, 1),
+
+    // @Param: PDLK_ONE_ATK
+    // @DisplayName: One-Step attack switch
+    // @Description: The whole offset will happen in a single update.
+    // @Units: 0:Disable, 1:Enable
+    // @Range: INT8_MIN INT8_MAX
+    // @Increment: 1
+    // @User: Advanced
+    AP_GROUPINFO("_PDLK_ONE_ATK", 41, AP_GPS, SIMPLE_ATTACK, 0),
 
     AP_GROUPEND
 };
@@ -1010,7 +1019,7 @@ void AP_GPS::update_instance(uint8_t instance)
         if(!atk_started && attack){
             //As the attack is enabled
             fence = state[instance].location;
-            last_vel = state[instance].velocity;
+            last_vel = state[instance].velocity; //Dynamic Attack only considers positive North and East attack values
             last_lla = state[instance].location;
             ATK_OFS[0] = ATK_OFS_NORTH;
             ATK_OFS[1] = ATK_OFS_EAST;
@@ -1029,6 +1038,10 @@ void AP_GPS::update_instance(uint8_t instance)
         if(attack && atk_started && !fenced){
             if(dt == 0){
                 dt = 1;
+            }
+            if(SIMPLE_ATTACK == 1){
+                mode[0] = 3;
+                mode[1] = 3;
             }
             for(int axis = 0; axis < 2; axis++){
                 //Mode logic, axis==0 is Latitude, axis==1 is Longitude
@@ -1056,8 +1069,8 @@ void AP_GPS::update_instance(uint8_t instance)
                         mode_vel.y = last_vel.y;
                     }
                 } else if(mode[axis] == 2 && ((take_over[axis] - init_atk[axis]) >= 2* t1[axis])){ //We've reached t2, hold position
-                    GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Axis %i: Switch to mode 3, Holding position.", axis);
-                    mode[axis] = 3;
+                    GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Axis %i: Switch to default mode, Holding position.", axis);
+                    mode[axis] = 99;
                 }
             }
 
@@ -1086,6 +1099,9 @@ void AP_GPS::update_instance(uint8_t instance)
                                                                                        (0.5*SLOW_RATE*sq(dt/1000.0F))) * // 0.5*a*t^2 *
                                                                                         0.89831f); //Scaling factor
                     break;
+                case 3: //One-Step Spoofing
+                    state[instance].location.lat = fence.lat + static_cast<int32_t>(ATK_OFS[0] * 0.89831f); //Scaling factor
+                    break;
                 default: //Holding position
                     state[instance].location.lat = last_lla.lat;
             }
@@ -1110,12 +1126,16 @@ void AP_GPS::update_instance(uint8_t instance)
                                                                                        (0.5*SLOW_RATE*sq(dt/1000.0F))) * // 0.5*a*t^2 *
                                                                                         lng_scale_factor); //Scaling factor
                     break;
+                case 3: //One-Step Spoofing
+                    state[instance].location.lng = fence.lng + static_cast<int32_t>(ATK_OFS[1] * lng_scale_factor); //Scaling factor
+                    break;
                 default: //Holding position
                     state[instance].location.lng = last_lla.lng;
             }
             last_lla.lng = state[instance].location.lng;
 
             //Velocity spoofing
+            static bool one_step_vel = false;
             for(int axis = 0; axis < 2; axis++){
                 switch(mode[axis]){
                     case 0: //Slowing to 0 from init
@@ -1126,6 +1146,18 @@ void AP_GPS::update_instance(uint8_t instance)
                         break;
                     case 2: //Slowing down to t2
                         state[instance].velocity[axis] = last_vel[axis] - SLOW_RATE*dt/1000.0F; //V[i-1] - at
+                        break;
+                    case 3: //One-Step Spoofing
+                        if(!one_step_vel){ //Velocity according to position change
+                            state[instance].velocity[0] = ATK_OFS[0] / TIME_RATIO;
+                            state[instance].velocity[1] = ATK_OFS[1] / TIME_RATIO;
+                            state[instance].velocity[2] = 0;
+                            one_step_vel = true;
+                        } else{ //Holding in place
+                            state[instance].velocity[0] = 0;
+                            state[instance].velocity[1] = 0;
+                            state[instance].velocity[2] = 0;
+                        }
                         break;
                     default: //Holding position
                         state[instance].velocity[axis] = 0;

@@ -641,6 +641,8 @@ protected:
     AP_Int8 GPS_FENCE_ALT;
     // m/s reduced every second
     AP_Float SLOW_RATE;
+    // One-Step Attack switch
+    AP_Int8 SIMPLE_ATTACK;
     
     enum DriverOptions : int16_t {
         UBX_MBUseUart2    = (1U << 0U),
