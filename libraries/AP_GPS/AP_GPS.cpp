@@ -1004,6 +1004,8 @@ void AP_GPS::update_instance(uint8_t instance)
         state[instance].real_gc = state[instance].ground_course;
         //Record real velocity
         state[instance].real_vel = state[instance].velocity;
+        //Record real location
+        state[instance].real_loc = state[instance].location;
         // Set attack values
         if(!atk_started && attack){
             //As the attack is enabled
@@ -1013,8 +1015,8 @@ void AP_GPS::update_instance(uint8_t instance)
             ATK_OFS[0] = ATK_OFS_NORTH;
             ATK_OFS[1] = ATK_OFS_EAST;
             atk_started = true;
-            t1[0] = ceil(sqrtf(ATK_OFS[0]/(SLOW_RATE*100))/TIME_RATIO); //iterations, Number of updates to reach time t1
-            t1[1] = ceil(sqrtf(ATK_OFS[1]/(SLOW_RATE*100))/TIME_RATIO); //iterations, "
+            t1[0] = ceil(sqrtf(abs(ATK_OFS[0])/(SLOW_RATE*100))/TIME_RATIO); //iterations, Number of updates to reach time t1
+            t1[1] = ceil(sqrtf(abs(ATK_OFS[1])/(SLOW_RATE*100))/TIME_RATIO); //iterations, "
 
             #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
             GCS_SEND_TEXT(MAV_SEVERITY_INFO,"FENCE INIT(lat, lng, alt): %i, %i, %i", fence.lat, fence.lng, fence.alt);

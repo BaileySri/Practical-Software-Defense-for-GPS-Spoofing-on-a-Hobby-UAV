@@ -37,29 +37,13 @@ void OpticalFlow_backend::_update_frontend(const struct OpticalFlow::OpticalFlow
 {
     //PADLOCK
     if(frontend._pdlk_attack_enable == 1){
-        if(frontend._pdlk_adv_atk == 1){
-            // Advanced Attacker only attacks East-West for simplicity
-            const SensorConfirmation &PDLK = AP_Vehicle::get_singleton()->PDLK;
-            const float attack_limit = PDLK.NetOFLimit() - 0.01;
-            if(attack_limit <= 0){
-                gcs().send_text(MAV_SEVERITY_INFO, "PDLK: Attack Limit is 0");
-                pdlkState = state;
-            } else{
-                Vector2f attack{attack_limit + state.bodyRate.x,
-                                state.bodyRate.y};
-                pdlkState = OpticalFlow::OpticalFlow_state{ state.surface_quality,
-                                                            attack,
-                                                            state.bodyRate};
-            }
-        } else{
         Vector2f attack{frontend._pdlk_attack_x + state.bodyRate.x,
                         frontend._pdlk_attack_y + state.bodyRate.y};
         pdlkState = OpticalFlow::OpticalFlow_state{ state.surface_quality,
                                                     attack,
                                                     state.bodyRate};
-        }
         frontend.update_state(pdlkState);
-    }else{
+    } else{
         frontend.update_state(state);
     }
 }

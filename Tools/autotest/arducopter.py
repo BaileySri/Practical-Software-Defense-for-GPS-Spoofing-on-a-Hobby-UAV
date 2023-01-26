@@ -693,13 +693,12 @@ class AutoTestCopter(AutoTest):
             raise e
 
 	    # Adjust the below parameter to change attack strength in autotest
-        # Attack value is in cm
-        self.set_parameter("GPS_PDLK_N", -250)
-        self.set_parameter("GPS_PDLK_SLW_RAT", 1)
-        self.set_parameter("GPS_PDLK_ATK", 1)
+        self.set_parameter("GPS_PDLK_N", -250) #cm
+        self.set_parameter("GPS_PDLK_SLW_RAT", 1) #m
+        self.set_parameter("GPS_PDLK_ATK", 1) #bool
 
         # Allow the attack time to deviate the QuadCopters path
-        self.delay_sim_time(60)
+        self.delay_sim_time(60) #seconds
         self.set_parameter("GPS_PDLK_ATK", 0)
         self.change_mode("LAND")
         # wait for disarm
