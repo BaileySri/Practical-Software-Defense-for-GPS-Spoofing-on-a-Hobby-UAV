@@ -659,8 +659,7 @@ class AutoTestCopter(AutoTest):
         
         self.progress("Setting sensor parameters")        
         # Set sensor parameters
-        self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
-        #self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
+        self.set_parameter("SIM_PDLK_GPS", 0.4) #meters
         self.set_parameter("SIM_PDLK_GPS_SPD", 50) #mm/s
         self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
         self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
@@ -678,7 +677,7 @@ class AutoTestCopter(AutoTest):
         self.set_parameter("WPNAV_SPEED", 1000)
 
         self.progress("test: Fly a mission from 1 to %u" % num_wp)
-        self.takeoff(10)
+        self.takeoff(20)
 
         # switch into AUTO mode
         self.change_mode("AUTO")
@@ -686,15 +685,15 @@ class AutoTestCopter(AutoTest):
         # fly the mission
         # wait until 100m from home
         try:
-            self.wait_distance(distance=150, accuracy=5, timeout=120)
+            self.wait_current_waypoint(wpnum=2, timeout=120)
         except Exception as e:
             if self.use_map:
                 self.show_gps_and_sim_positions(False)
             raise e
 
 	    # Adjust the below parameter to change attack strength in autotest
-        self.set_parameter("GPS_PDLK_N", -250) #cm
-        self.set_parameter("GPS_PDLK_SLW_RAT", 1) #m
+        self.set_parameter("GPS_PDLK_N", -500) #cm
+        self.set_parameter("GPS_PDLK_SLW_RAT", 0.1) #m/s
         self.set_parameter("GPS_PDLK_ATK", 1) #bool
 
         # Allow the attack time to deviate the QuadCopters path
@@ -719,8 +718,8 @@ class AutoTestCopter(AutoTest):
         
         self.progress("Setting sensor parameters")        
         # Set sensor parameters
-        self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
-        #self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
+        self.set_parameter("SIM_PDLK_GPS", 0.4) #meters
+        #self.set_parameter("SIM_PDLK_GPS", 0.01) #meters
         self.set_parameter("SIM_PDLK_GPS_SPD", 50) #mm/s
         self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
         self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
