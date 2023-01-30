@@ -730,6 +730,13 @@ struct PACKED log_sensors_4 {
     float   bar_temp;
 };
 
+struct PACKED log_sensors_5 {
+    LOG_PACKET_HEADER;
+    uint64_t time_us;
+    int32_t rlat;
+    int32_t rlng;
+};
+
 struct PACKED log_confirmation_1 {
     LOG_PACKET_HEADER;
     uint64_t time_us;
@@ -1474,6 +1481,8 @@ LOG_STRUCTURE_FROM_VISUALODOM \
       "SNS3", "QIfffILLfffff", "TimeUS,accUS,CVN,CVE,CVD,gpsMS,lat,lng,hacc,vacc,sacc,yaw,yawe", "ssooosDUmmndd", "FF000CGG00000"}, \
     { LOG_SNSR_4_MSG, sizeof(log_sensors_4), \
       "SNS4", "QIhhhfffIfff", "TimeUS,magUS,magx,magy,magz,gyrx,gyry,gyrz,barms,bara,barp,bart", "ssGGGEEEsmPO", "FFCCC000C000"}, \
+    { LOG_SNSR_5_MSG, sizeof(log_sensors_5), \
+      "SNS5", "QLL", "TimeUS,rlat,rlng", "sDU", "FGG"}, \
     { LOG_CNFR_1_MSG, sizeof(log_confirmation_1), \
       "CNF1", "Qffffffff", "TimeUS,COFN,COFE,CNe,CEe,POFN,POFE,PNe,PEe", "snnnnnnnn", "FBBBBBBBB"}, \
     { LOG_CNFR_2_MSG, sizeof(log_confirmation_2), \
@@ -1576,6 +1585,7 @@ enum LogMessages : uint8_t {
     LOG_SNSR_2_MSG,
     LOG_SNSR_3_MSG,
     LOG_SNSR_4_MSG,
+    LOG_SNSR_5_MSG,
     LOG_CNFR_1_MSG,
     LOG_CNFR_2_MSG,
     LOG_CNFR_3_MSG,

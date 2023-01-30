@@ -967,10 +967,20 @@ void AP_Logger::Write_SNSR( const Accel &ACO_cAccel, const OF &ACO_cOF,
         bar_temp    : bar.Temperature
     };
 
+    // Real GPS information
+    const AP_GPS *gps = AP::gps().get_singleton();
+    struct log_sensors_5 pkt5 = {
+        LOG_PACKET_HEADER_INIT(LOG_SNSR_5_MSG),
+        time_us  : timestamp,
+        rlat     : gps->real_loc().lat,
+        rlng     : gps->real_loc().lng
+    };
+
     FOR_EACH_BACKEND(WriteBlock(&pkt1, sizeof(pkt1)));
     FOR_EACH_BACKEND(WriteBlock(&pkt2, sizeof(pkt2)));
     FOR_EACH_BACKEND(WriteBlock(&pkt3, sizeof(pkt3)));
     FOR_EACH_BACKEND(WriteBlock(&pkt4, sizeof(pkt4)));
+    FOR_EACH_BACKEND(WriteBlock(&pkt5, sizeof(pkt5)));
 }
 
 //Logger for confirmation variables
