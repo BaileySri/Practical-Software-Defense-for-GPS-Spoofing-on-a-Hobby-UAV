@@ -5,14 +5,14 @@
 // populate the invariant model and parameters here
 // =================================================================================================================
 // invariant Model : ArduCopter
-static const float    A[3][3] = {{ 0.9889, -0.0275, -0.0322}, {0.0025, 1.0000, -0.0000}, {0.0000, 0.0025, 1.0000}};
-static const float    B[3] = {0.0025, 0.0000, 0.0000};
-static const float    C[3] = {2.7868, 7.8927, 12.6882};
+static const float    A[3][3] = {{ -0.000000018536, -0.0176, -0.0074}, {0.0000010503, 1.0000, -0.00018407}, {0.0000000026247, 0.0025, 1.0000}};
+static const float    B[3] = {0.0000010503, 0.0000000026247, 0.0000000000032796};
+static const float    C[3] = {2.2332, -0.7369, -0.6200};
 static const float    D = 0.0;
 
 // monitoring parameters
-static const uint32_t  window = 1040;   // window size x 40 (26 * 40)
-static const float  threshold = 400000;  // threshold x 10000 (40 * 10000)
+static const uint32_t  window = 11*10;   // window size x 10 (11 * 10)
+static const float  threshold = 10262;  // threshold
 // =================================================================================================================
 
 // invariant state variables

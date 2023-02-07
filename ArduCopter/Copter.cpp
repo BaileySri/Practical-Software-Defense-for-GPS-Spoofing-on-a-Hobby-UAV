@@ -723,7 +723,7 @@ void Copter::read_AHRS(void)
     ahrs.update(true);
     
     //@@INVARIANT check
-    copter_invariants_check(attitude_control->get_att_target_euler_cd().x, ahrs.roll_sensor);   // in centi-degree
+    copter_invariants_check(pos_control->get_pos_target_cm().x,  inertial_nav.get_position_neu_cm().x); 
 
     //PADLOCK
     if(g.confirmation == 1){
