@@ -17,13 +17,6 @@ we demonstrate that built-in sensor fusion mechanisms were
 unable to detect GPS spoofing, and that our method could
 detect subtle GPS spoofing using multiple different sensors.
 
-## Authors
-<ins>Bailey Srimoungchanh</ins> (srimoungchanh.bailey@ku.edu)
-
-Drew Davidson
-
-J. Garrett Morris
-
 ## How to install
 The modifications to ArduPilot for our defense can be built using the normal [ArduPilot install instructions](https://ardupilot.org/dev/docs/building-the-code.html).
 
