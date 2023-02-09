@@ -45,5 +45,8 @@ For the fence using real GPS values even during spoofing:
 
 ## Files for quick reference
 *  [Defense files](/libraries/SensorDefense/)
+    * /libraries/SensorDefense/
 *  [GPS Spoofing](/libraries/AP_GPS/AP_GPS.cpp#L954)
+    * Updates are made to /libraries/AP_GPS/AP_GPS.cpp#L954
 *  [Choi model](/ArduCopter/copter_invariants.cpp)
+    * /ArduCopter/copter_invariants.cpp
