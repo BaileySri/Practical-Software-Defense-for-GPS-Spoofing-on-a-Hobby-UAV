@@ -20,9 +20,9 @@ detect subtle GPS spoofing using multiple different sensors.
 ## Authors
 <ins>Bailey Srimoungchanh</ins> (srimoungchanh.bailey@ku.edu)
 
-[Drew Davidson](https://drew.davidson.cool/)
+Drew Davidson
 
-[J. Garrett Morris](https://homepage.cs.uiowa.edu/~jgmorrs/)
+J. Garrett Morris
 
 ## How to install
 The modifications to ArduPilot for our defense can be built using the normal [ArduPilot install instructions](https://ardupilot.org/dev/docs/building-the-code.html).
