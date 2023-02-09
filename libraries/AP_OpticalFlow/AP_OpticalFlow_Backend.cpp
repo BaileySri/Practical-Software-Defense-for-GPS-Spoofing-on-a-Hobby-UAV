@@ -16,7 +16,7 @@
 #include "AP_OpticalFlow.h"
 //PADLOCK
 // Needed for advanced attacker
-#include <SensorConfirmation/sensor_confirmation.h>
+#include <SensorDefense/sensor_defense.h>
 #include <AP_Vehicle/AP_Vehicle.h>
 
 #if AP_OPTICALFLOW_ENABLED

@@ -1,9 +1,9 @@
 #include "AP_HAL/system.h"
 #include "AP_Logger/AP_Logger.h"
-#include <SensorConfirmation/sensor_confirmation.h>
+#include <SensorDefense/sensor_defense.h>
 
 //----   Helper Functions  ----//
-bool SensorConfirmation::confirm(const float a, const float a_err,
+bool SensorDefense::confirm(const float a, const float a_err,
                                  const float b, const float b_err, bool wrap) {
   if (!wrap) {
     if (a >= b) {
@@ -55,16 +55,16 @@ bool SensorConfirmation::confirm(const float a, const float a_err,
     return false;
   }
 }
-Vector3f SensorConfirmation::abs(const Vector3f &x) {
+Vector3f SensorDefense::abs(const Vector3f &x) {
   return Vector3f{std::abs(x.x), std::abs(x.y), std::abs(x.z)};
 };
-Vector2f SensorConfirmation::abs(const Vector2f &x) {
+Vector2f SensorDefense::abs(const Vector2f &x) {
   return Vector2f{std::abs(x.x), std::abs(x.y)};
 };
 
 //----General Functions----//
 
-void SensorConfirmation::initialize() {
+void SensorDefense::initialize() {
   // Reset sensors
   sensors.currAccel.reset();
   sensors.nextAccel.reset();
@@ -85,7 +85,7 @@ void SensorConfirmation::initialize() {
   framework.lastUpdate = 0;
 }
 
-void SensorConfirmation::update() {
+void SensorDefense::update() {
   const AP_InertialSensor *IMU = AP_InertialSensor::get_singleton();
   const OpticalFlow *AP_OF = OpticalFlow::get_singleton();
 
@@ -136,7 +136,7 @@ void SensorConfirmation::update() {
   log();
 }
 
-bool SensorConfirmation::run() {
+bool SensorDefense::run() {
   bool res = true;
   if (framework.gpsAvail) {
     AP_Logger::get_singleton()->Write_CNFR(
@@ -183,11 +183,11 @@ bool SensorConfirmation::run() {
   return res;
 }
 
-void SensorConfirmation::alert() {
+void SensorDefense::alert() {
   gcs().send_text(MAV_SEVERITY_WARNING, "ALERT");
 }
 
-void SensorConfirmation::log() {
+void SensorDefense::log() {
   uint32_t ts = AP_HAL::micros64();
   if (ts != framework.lastUpdate) {
     framework.lastUpdate = ts;
@@ -201,7 +201,7 @@ void SensorConfirmation::log() {
   }
 }
 
-void SensorConfirmation::confirmation() {
+void SensorDefense::confirmation() {
   // Initialize struct data
   if (!framework.init) {
     initialize();
@@ -219,7 +219,7 @@ void SensorConfirmation::confirmation() {
 }
 
 //----Reactive Attacker----//
-float SensorConfirmation::NetGpsLimit() const {
+float SensorDefense::NetGpsLimit() const {
   float ret = 0;
   float currGps = sensors.currGps.Airspeed.length();
   float currGpsNE =
@@ -240,7 +240,7 @@ float SensorConfirmation::NetGpsLimit() const {
   return ret;
 }
 
-float SensorConfirmation::NetOFLimit() const {
+float SensorDefense::NetOFLimit() const {
   float ret = 0;
   float currGpsNE =
       Vector2f{sensors.currGps.Airspeed.x, sensors.currGps.Airspeed.y}.length();
@@ -269,7 +269,7 @@ float SensorConfirmation::NetOFLimit() const {
 //----Confirmation Functions----//
 
 // AccGPS Net
-bool SensorConfirmation::AccGPS() {
+bool SensorDefense::AccGPS() {
   float dAccVel = sensors.currAccel.Velocity.length();
   Vector3f dGpsVel = sensors.currGps.Airspeed - sensors.prevGps.Airspeed;
   return (confirm(dAccVel, sensors.currAccel.Error * sqrtf(3.0F),
@@ -278,7 +278,7 @@ bool SensorConfirmation::AccGPS() {
 }
 
 // AccOF Net
-bool SensorConfirmation::AccOF() {
+bool SensorDefense::AccOF() {
   float dAccVel =
       Vector2f{sensors.cOFAccel.Velocity.x, sensors.cOFAccel.Velocity.y}
           .length();
@@ -289,7 +289,7 @@ bool SensorConfirmation::AccOF() {
 }
 
 // GPSOF Net
-bool SensorConfirmation::GpsOF() {
+bool SensorDefense::GpsOF() {
   Vector2f GpsNE =
       Vector2f{sensors.currGps.Airspeed.x, sensors.currGps.Airspeed.y};
   return (confirm(sensors.currOF.VelNE.length(), sensors.currOF.Err.length(),
@@ -298,7 +298,7 @@ bool SensorConfirmation::GpsOF() {
 }
 
 // Confirm ground course based on GPS movement and Magnetometer heading
-bool SensorConfirmation::GpsMagGC() {
+bool SensorDefense::GpsMagGC() {
   if (std::abs(sensors.currGps.Airspeed[0]) < 0.05 &&
       std::abs(sensors.currGps.Airspeed[1]) < 0.05) {
     // Speed is below potential error, GpsMag is unusable
@@ -337,7 +337,7 @@ bool SensorConfirmation::GpsMagGC() {
 
 // Confirm ground course based on GPS movement and Optical Flow movement with
 // Magnetometer for rotation
-bool SensorConfirmation::GpsOFGC() {
+bool SensorDefense::GpsOFGC() {
   if (std::abs(sensors.currGps.Airspeed[0]) < 0.05 &&
       std::abs(sensors.currGps.Airspeed[1]) < 0.05) {
     // Speed is below potential error, GpsOF is unusable
@@ -382,7 +382,7 @@ bool SensorConfirmation::GpsOFGC() {
 
 // Confirm ground course based on GPS movement and Accelerometer movement with
 // Magnetometer for rotation
-bool SensorConfirmation::AccGpsGC() {
+bool SensorDefense::AccGpsGC() {
   if (std::abs(sensors.currGps.Airspeed[0]) < 0.05 &&
       std::abs(sensors.currGps.Airspeed[1]) < 0.05) {
     // Speed is below potential error, GpsAcc is unusable
@@ -426,7 +426,7 @@ bool SensorConfirmation::AccGpsGC() {
 
 // Confirm ground course based on Accelerometer and Optical Flow movement with
 // Magnetometer for rotation
-bool SensorConfirmation::AccOFGC() {
+bool SensorDefense::AccOFGC() {
   if (std::abs(sensors.cOFAccel.Velocity[0]) < sensors.cOFAccel.Error &&
       std::abs(sensors.cOFAccel.Velocity[1]) < sensors.cOFAccel.Error) {
     // Speed is below potential error, GpsAcc is unusable

@@ -29,7 +29,7 @@ def build(bld):
             'AP_OSD',
             'AC_AutoTune',
             'AP_KDECAN',
-            'SensorConfirmation',
+            'SensorDefense',
             'AP_Follow',
         ],
     )

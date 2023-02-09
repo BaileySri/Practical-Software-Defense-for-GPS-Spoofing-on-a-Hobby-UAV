@@ -3,13 +3,13 @@
 // Libraries
 #include "../AP_Logger/AP_Logger.h"
 #include "AP_HAL/system.h"
-#include "sensor_confirmation_structs.h"
+#include "sensor_defense_structs.h"
 #include <cstdint>
 
-class SensorConfirmation {
+class SensorDefense {
 public:
-  SensorConfirmation() {}
-  ~SensorConfirmation() {}
+  SensorDefense() {}
+  ~SensorDefense() {}
 
   //----   Helper Functions  ----//
   static bool confirm(const float a, const float a_err, const float b,

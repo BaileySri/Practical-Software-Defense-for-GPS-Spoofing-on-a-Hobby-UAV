@@ -55,7 +55,7 @@
 #include <AP_AIS/AP_AIS.h>
 //PADLOCK
 // Sensor confirmation library
-#include <SensorConfirmation/sensor_confirmation.h>
+#include <SensorDefense/sensor_defense.h>
 
 class AP_Vehicle : public AP_HAL::HAL::Callbacks {
 
@@ -298,7 +298,7 @@ public:
 #endif
 
     //PADLOCK
-    SensorConfirmation PDLK;
+    SensorDefense PDLK;
     /*
      get the target body-frame angular velocities in rad/s (Z-axis component used by some gimbals)
      */

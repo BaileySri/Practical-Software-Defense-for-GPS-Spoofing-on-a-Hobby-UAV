@@ -71,7 +71,7 @@
 #include "LoggerMessageWriter.h"
 
 //PADLOCK
-#include "../../SensorConfirmation/sensor_confirmation_structs.h"
+#include "../../SensorDefense/sensor_defense_structs.h"
 
 class AP_Logger_Backend;
 class AP_AHRS;
