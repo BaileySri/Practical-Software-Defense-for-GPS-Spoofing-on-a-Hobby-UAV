@@ -727,7 +727,7 @@ void Copter::read_AHRS(void)
 
     //PADLOCK
     if(g.confirmation == 1){
-        AP_Vehicle::get_singleton()->PDLK.confirmation();
+        AP_Vehicle::get_singleton()->PDLK.checkSensors();
     }
 }
 

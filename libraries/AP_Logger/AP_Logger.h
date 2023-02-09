@@ -333,8 +333,7 @@ public:
                     const GPS &pGPS,
                     const GPS &cGPS,
                     const Accel &cACC,
-                    const Accel &nACC,
-                    const float Gyro_Err);
+                    const Accel &nACC);
     void Write_ACO(const Vector2f &P_OF, const Vector2f &P_OF_Err,
                     const Vector2f &C_OF, const Vector2f &C_OF_Err,
                     const Vector3f &C_ACC, const float C_ACC_Err);

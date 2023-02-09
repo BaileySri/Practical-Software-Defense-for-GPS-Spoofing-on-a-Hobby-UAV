@@ -989,8 +989,7 @@ void AP_Logger::Write_CNFR(const OF &pOF,
                            const GPS &pGPS,
                            const GPS &cGPS,
                            const Accel &cACC,
-                           const Accel &nACC,
-                           const float Gyro_Err)
+                           const Accel &nACC)
 {
     uint32_t timestamp = AP_HAL::micros64();
     struct log_confirmation_1 pkt1 = {
@@ -999,12 +998,8 @@ void AP_Logger::Write_CNFR(const OF &pOF,
         //Optical Flow and Error
         C_OF_North : cOF.VelNE.x,
         C_OF_East : cOF.VelNE.y,
-        C_OF_North_Err : cOF.Err.x,
-        C_OF_East_Err : cOF.Err.y,
         P_OF_North : pOF.VelNE.x,
         P_OF_East : pOF.VelNE.y,
-        P_OF_North_Err : pOF.Err.x,
-        P_OF_East_Err : pOF.Err.y,
     };
 
     struct log_confirmation_2 pkt2 = {
@@ -1030,14 +1025,11 @@ void AP_Logger::Write_CNFR(const OF &pOF,
         C_ACC_North : cACC.Velocity.x,
         C_ACC_East : cACC.Velocity.y,
         C_ACC_Down : cACC.Velocity.z,
-        C_ACC_Err : cACC.Error,
         N_ACC_North : nACC.Velocity.x,
         N_ACC_East : nACC.Velocity.y,
         N_ACC_Down : nACC.Velocity.z,
-        N_ACC_Err : nACC.Error,
         M_1_0 : dcm.b[0],
         M_0_0 : dcm.a[0],
-        GYRO_Err : Gyro_Err,
     };
 
     float Sacc; //m/s GPS 3D RMS Speed Accuracy
@@ -1084,12 +1076,8 @@ void AP_Logger::Write_ACO(const Vector2f &P_OF, const Vector2f &P_OF_Err,
         time_us : timestamp,
         C_OF_North : C_OF.x,
         C_OF_East : C_OF.y,
-        C_OF_North_Err : C_OF_Err.x,
-        C_OF_East_Err : C_OF_Err.y,
         P_OF_North : P_OF.x,
         P_OF_East : P_OF.y,
-        P_OF_North_Err : P_OF_Err.x,
-        P_OF_East_Err : P_OF_Err.y,
     };
 
     struct log_accof_2 pkt2 = {
@@ -1098,7 +1086,6 @@ void AP_Logger::Write_ACO(const Vector2f &P_OF, const Vector2f &P_OF_Err,
         C_ACC_North : C_ACC.x,
         C_ACC_East : C_ACC.y,
         C_ACC_Down : C_ACC.z,
-        C_ACC_Err : C_ACC_Err,
     };
 
     FOR_EACH_BACKEND(WriteBlock(&pkt1, sizeof(pkt1)));

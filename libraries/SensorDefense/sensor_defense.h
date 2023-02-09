@@ -42,52 +42,31 @@ public:
     Baro bar; //Barometer readings
   } sensors;
 
-  // Confirmation Data
+  // Data book keeping
   struct {
     bool init = false;   // Initialized Structs
     bool gpsAvail;       // GPS Data has been updated
     bool ofAvail;        // OF Data has been updated
+    bool gyr_gps_init;   // GPS has met minimum speed before
+    float gyr_yaw = 0;   // Gyroscope yaw for Gyro GPS check
+    float gps_gc = 0;    // GPS gc for Gyro GPS check
+    uint32_t lastAlert[2] = {0, 0}; //Avoid spamming alerts so only send 1 for each check every 1 second.
     uint64_t lastUpdate; // Last time an SNS log was written
   } framework;
 
   //----General Functions----//
   void initialize();
   void update();
-  bool run();
-  void alert();
+  void run();
   void log();
-  void confirmation();
-  // The max velocity allowed before confirmation fails
-  float NetGpsLimit() const;
-  // The max flowrate with bodyrate allowed before confirmation fails
-  float NetOFLimit() const;
-  // Depending on selected mode return the limited GPS value
-  //  1: Acc
-  //  2: OF
-  //  3: Mag
-  //  4: Acc/OF
-  //  5: Acc/Mag
-  //  6: OF/Mag
-  float GCGpsLimit(const int mode) const;
+  void checkSensors();
 
-  //----Confirmation Functions----//
-  // Confirm change in velocity of GPS and Accelerometer
-  bool AccGPS();
-  // Confirm change in velocity of Accelerometer and OF
-  bool AccOF();
-  // Confirm velocity of GPS and Optical Flow Sensor
-  bool GpsOF();
-  // Confirm ground course based on GPS movement and Magnetometer heading
-  bool GpsMagGC();
-  // Confirm ground course based on GPS movement and Optical Flow movement with
-  // Magnetometer for rotation
-  bool GpsOFGC();
-  // Confirm ground course based on GPS movement and Accelerometer movement with
-  // Magnetometer for rotation
-  bool AccGpsGC();
-  // Confirm ground course based on Accelerometer and Optical Flow movement with
-  // Magnetometer for rotation
-  bool AccOFGC();
+  //----Sensor Check Functions----//
+  // Check disagreement in yaw of GPS and Gyro
+  void yawGyroGPS();
+  // Check disagreement in velocity of GPS and OF
+  void velOFGPS();
+
 
 private:
 };

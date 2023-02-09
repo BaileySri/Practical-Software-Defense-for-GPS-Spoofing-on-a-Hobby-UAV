@@ -743,12 +743,8 @@ struct PACKED log_confirmation_1 {
     //Optical Flow and Error
     float C_OF_North;
     float C_OF_East;
-    float C_OF_North_Err;
-    float C_OF_East_Err;
     float P_OF_North;
     float P_OF_East;
-    float P_OF_North_Err;
-    float P_OF_East_Err;
 };
 
 struct PACKED log_confirmation_2 {
@@ -772,14 +768,11 @@ struct PACKED log_confirmation_3 {
     float C_ACC_North;
     float C_ACC_East;
     float C_ACC_Down;
-    float C_ACC_Err;
     float N_ACC_North;
     float N_ACC_East;
     float N_ACC_Down;
-    float N_ACC_Err;
     float M_1_0;
     float M_0_0;
-    float GYRO_Err;
 };
 
 struct PACKED log_confirmation_4 {
@@ -796,12 +789,8 @@ struct PACKED log_accof_1 {
     uint64_t time_us;
     float C_OF_North;
     float C_OF_East;
-    float C_OF_North_Err;
-    float C_OF_East_Err;
     float P_OF_North;
     float P_OF_East;
-    float P_OF_North_Err;
-    float P_OF_East_Err;
 };
 
 struct PACKED log_accof_2{
@@ -810,7 +799,6 @@ struct PACKED log_accof_2{
   float C_ACC_North;
   float C_ACC_East;
   float C_ACC_Down;
-  float C_ACC_Err;
 };
 struct PACKED log_File {
     LOG_PACKET_HEADER;
@@ -1484,17 +1472,17 @@ LOG_STRUCTURE_FROM_VISUALODOM \
     { LOG_SNSR_5_MSG, sizeof(log_sensors_5), \
       "SNS5", "QLL", "TimeUS,rlat,rlng", "sDU", "FGG"}, \
     { LOG_CNFR_1_MSG, sizeof(log_confirmation_1), \
-      "CNF1", "Qffffffff", "TimeUS,COFN,COFE,CNe,CEe,POFN,POFE,PNe,PEe", "snnnnnnnn", "FBBBBBBBB"}, \
+      "CNF1", "Qffff", "TimeUS,COFN,COFE,POFN,POFE", "snnnn", "FBBBB"}, \
     { LOG_CNFR_2_MSG, sizeof(log_confirmation_2), \
       "CNF2", "Qffffffff", "TimeUS,CGpN,CGpE,CGpD,CGpe,PGpN,PGpE,PGpD,PGpe", "snnnnnnnn", "F00000000"}, \
     { LOG_CNFR_3_MSG, sizeof(log_confirmation_3), \
-      "CNF3", "Qfffffffffff", "TimeUS,CAN,CAE,CAD,CAe,NAN,NAE,NAD,NAe,m10,m00,Gye", "snnnnnnnn---", "F00000000---"}, \
+      "CNF3", "Qffffffff", "TimeUS,CAN,CAE,CAD,NAN,NAE,NAD,m10,m00", "snnnnnn--", "F000000--"}, \
     { LOG_CNFR_4_MSG, sizeof(log_confirmation_4), \
       "CNF4", "Qfff", "TimeUS,gpSA,gpHA,gpVA", "snmm", "F000"}, \
     { LOG_ACCOF_1_MSG, sizeof(log_accof_1), \
-      "ACO1", "Qffffffff", "TimeUS,COFN,COFE,CNe,CEe,POFN,POFE,PNe,PEe", "snnnnnnnn", "F00000000"}, \
+      "ACO1", "Qffff", "TimeUS,COFN,COFE,POFN,POFE", "snnnn", "F0000"}, \
     { LOG_ACCOF_2_MSG, sizeof(log_accof_2), \
-      "ACO2", "Qffff", "TimeUS,CAN,CAE,CAD,CAe", "snnnn", "F0000"}, \
+      "ACO2", "Qfff", "TimeUS,CAN,CAE,CAD", "snnn", "F000"}, \
     { LOG_FILE_MSG, sizeof(log_File), \
       "FILE",   "NIBZ",       "FileName,Offset,Length,Data", "----", "----" }, \
 LOG_STRUCTURE_FROM_AIS \
