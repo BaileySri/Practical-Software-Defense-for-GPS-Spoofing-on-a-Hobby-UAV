@@ -70,7 +70,7 @@
 
 #include "LoggerMessageWriter.h"
 
-//PADLOCK
+//xxxxxxx
 #include "../../SensorDefense/sensor_defense_structs.h"
 
 class AP_Logger_Backend;
@@ -322,7 +322,7 @@ public:
     void Write_PSCN(float pos_target, float pos, float vel_desired, float vel_target, float vel, float accel_desired, float accel_target, float accel);
     void Write_PSCE(float pos_target, float pos, float vel_desired, float vel_target, float vel, float accel_desired, float accel_target, float accel);
     void Write_PSCD(float pos_target, float pos, float vel_desired, float vel_target, float vel, float accel_desired, float accel_target, float accel);
-    //PADLOCK
+    //xxxxxxx
     //Log write function
     void Write_SNSR(const Accel &ACO_cAccel, const OF &ACO_cOF, 
                     const Accel &CNF_cAccel,

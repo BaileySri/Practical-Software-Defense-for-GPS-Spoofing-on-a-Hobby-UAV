@@ -889,7 +889,7 @@ void AP_Logger::Write_Rally()
 }
 #endif
 
-//PADLOCK
+//xxxxxxx
 //Logging function
 void AP_Logger::Write_SNSR( const Accel &ACO_cAccel, const OF &ACO_cOF, 
                             const Accel &CNF_cAccel,

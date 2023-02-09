@@ -335,7 +335,7 @@ void GPS::update_ubx(const struct gps_data *d)
     pos.latitude  = d->latitude * 1.0e7;
     pos.altitude_ellipsoid = d->altitude * 1000.0f;
     pos.altitude_msl = d->altitude * 1000.0f;
-    //PADLOCK
+    //xxxxxxx
     pos.horizontal_accuracy = _sitl->gps_accuracy[0]*1000;
     pos.vertical_accuracy = _sitl->gps_accuracy[0]*1000;
 
@@ -357,7 +357,7 @@ void GPS::update_ubx(const struct gps_data *d)
     if (velned.heading_2d < 0.0f) {
         velned.heading_2d += 360.0f * 100000.0f;
     }
-    //PADLOCK
+    //xxxxxxx
     // units appear to be in mm, using datasheet values to subsitute here
     velned.speed_accuracy = velned.speed_3d >= 3000 ? 25 : 50; //NEO-M8N
     velned.heading_accuracy = 4;
@@ -397,21 +397,21 @@ void GPS::update_ubx(const struct gps_data *d)
     pvt.height = d->altitude * 1000.0f;
     pvt.h_msl = d->altitude * 1000.0f;
 
-    //PADLOCK
+    //xxxxxxx
     // units appear to be in mm, using datasheet values to subsitute here
     // _sitl->gps_accuracy[instance]*1000
     // The above is connected to parameters and can be reused, for now static for testing
-    pvt.h_acc = _sitl->pdlk_gps_noise * 1000;
-    pvt.v_acc = _sitl->pdlk_gps_noise * 1000;
+    pvt.h_acc = _sitl->xxxxxxx_gps_noise * 1000;
+    pvt.v_acc = _sitl->xxxxxxx_gps_noise * 1000;
     pvt.velN = 1000.0f * d->speedN;
     pvt.velE = 1000.0f * d->speedE;
     pvt.velD = 1000.0f * d->speedD;
     pvt.gspeed = norm(d->speedN, d->speedE) * 1000; 
     pvt.head_mot = ToDeg(atan2f(d->speedE, d->speedN)) * 1.0e5; 
     
-    //PADLOCK
+    //xxxxxxx
     // units appear to be in mm, using datasheet values to subsitute here
-    pvt.s_acc = velned.speed_3d >= 3000 ? _sitl->pdlk_gps_spd/2 : _sitl->pdlk_gps_spd;
+    pvt.s_acc = velned.speed_3d >= 3000 ? _sitl->xxxxxxx_gps_spd/2 : _sitl->xxxxxxx_gps_spd;
     pvt.head_acc = 38 * 1.0e5; 
     pvt.p_dop = 65535; 
     memset(pvt.reserved1, '\0', ARRAY_SIZE(pvt.reserved1));
@@ -1045,7 +1045,7 @@ void GPS::update_file()
 }
 #endif  // AP_SIM_GPS_FILE_ENABLED
 
-//PADLOCK
+//xxxxxxx
 static double rand_normal(double mean, double stddev)
 {
     static double n2 = 0.0;
@@ -1135,12 +1135,12 @@ void GPS::update()
         // add an altitude error controlled by a slow sine wave
         d.altitude = altitude + _sitl->gps_noise[idx] * sinf(now_ms * 0.0005f) + _sitl->gps_alt_offset[idx];
 
-        //PADLOCK
+        //xxxxxxx
         // Adding simulated error to Lat/Long values
         // Using the notion that CEP of n is 50%, n to 2n is 43.7%, and 2n to 3n is 6.1%
         static float prev_lat = d.latitude;
         static float prev_lon = d.longitude;
-        const float CEP = _sitl->pdlk_gps_noise;
+        const float CEP = _sitl->xxxxxxx_gps_noise;
         double const earth_rad_inv = 1.569612305760477e-7; // use Authalic/Volumetric radius
         // Converting CEP to DRMS by dividing by sqrt(2)
         float noise_lat = rand_normal(0, CEP / sqrt(2));

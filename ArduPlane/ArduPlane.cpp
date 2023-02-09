@@ -191,7 +191,7 @@ void Plane::ahrs_update()
 #endif
 
     if(g.confirmation == 1){
-        PDLK.confirmation();
+        xxxxxxx.confirmation();
     }
     if (should_log(MASK_LOG_VIDEO_STABILISATION)) {
         ahrs.write_video_stabilisation();

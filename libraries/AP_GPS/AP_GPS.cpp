@@ -43,7 +43,7 @@
 #include "AP_GPS_SITL.h"
 #endif
 
-//PADLOCK
+//xxxxxxx
 // Needed for advanced attacker
 #include <SensorDefense/sensor_defense.h>
 #include <AP_Vehicle/AP_Vehicle.h>
@@ -405,59 +405,59 @@ const AP_Param::GroupInfo AP_GPS::var_info[] = {
 #endif // GPS_MAX_RECEIVERS > 1
 #endif // HAL_ENABLE_LIBUAVCAN_DRIVERS
 
-    //PADLOCK
+    //xxxxxxx
     //var_info declarations for GPS
-    // @Param: PDLK_ATK
+    // @Param: xxxxxxx_ATK
     // @DisplayName: GPS Sensor Attack
     // @Description: Enable/Disable the GPS Sensor Attack
     // @Values: 0:Disable, 1:Enable
     // @User: Advanced
-    AP_GROUPINFO("_PDLK_ATK", 32, AP_GPS, GPS_ATK, 0),
+    AP_GROUPINFO("_xxxxxxx_ATK", 32, AP_GPS, GPS_ATK, 0),
 
-    // @Param: PDLK_N
+    // @Param: xxxxxxx_N
     // @DisplayName: North/South spoofed value
     // @Description: Set the spoofed North/South position of the drone relative to the drone
     // @Units: Centimeters
     // @Range: ITN32_MIN INT32_MAX
     // @Increment: 1
     // @User: Advanced
-    AP_GROUPINFO("_PDLK_N", 33, AP_GPS, ATK_OFS_NORTH, 0),
+    AP_GROUPINFO("_xxxxxxx_N", 33, AP_GPS, ATK_OFS_NORTH, 0),
 
-    // @Param: PDLK_E
+    // @Param: xxxxxxx_E
     // @DisplayName: East/West spoofed value
     // @Description: Set the spoofed East/West position of the drone relative to the drone
     // @Units: Centimeter
     // @Range: INT32_MIN INT32_MAX
     // @Increment: 1
     // @User: Advanced
-    AP_GROUPINFO("_PDLK_E", 34, AP_GPS, ATK_OFS_EAST, 0),
+    AP_GROUPINFO("_xxxxxxx_E", 34, AP_GPS, ATK_OFS_EAST, 0),
     
     // @Param: GPS_FEN
     // @DisplayName: Disable/Enable the fence around GPS Spoofing
     // @Description: Turns on or off the fencing around gps spoofing for safety.
     // @Values: 0:Disabled, 1:Enabled
     // @User: Advanced
-    AP_GROUPINFO("_PDLK_FEN", 35, AP_GPS, GPS_FENCE, 0),
+    AP_GROUPINFO("_xxxxxxx_FEN", 35, AP_GPS, GPS_FENCE, 0),
 
-    // @Param: PDLK_FEN_SIZ
+    // @Param: xxxxxxx_FEN_SIZ
     // @DisplayName: Box size of GPS Fence
     // @Description: Defines a box around the starting GPS Value that the attack disables at
     // @Units: Centimeter
     // @Range: INT8_MIN INT8_MAX
     // @Increment: 1
     // @User: Advanced
-    AP_GROUPINFO("_PDLK_FEN_SIZ", 36, AP_GPS, GPS_FENCE_SIZE, 5),
+    AP_GROUPINFO("_xxxxxxx_FEN_SIZ", 36, AP_GPS, GPS_FENCE_SIZE, 5),
 
-    // @Param: PDLK_FEN_ALT
+    // @Param: xxxxxxx_FEN_ALT
     // @DisplayName: Fence height above and below
     // @Description: Defines height based on starting GPS Value that the attack disables at
     // @Units: Meters
     // @Range: INT8_MIN INT8_MAX
     // @Increment: 1
     // @User: Advanced
-    AP_GROUPINFO("_PDLK_FEN_ALT", 37, AP_GPS, GPS_FENCE_ALT, 5),
+    AP_GROUPINFO("_xxxxxxx_FEN_ALT", 37, AP_GPS, GPS_FENCE_ALT, 5),
 
-    // @Param: PDLK_FAIL
+    // @Param: xxxxxxx_FAIL
     // @DisplayName: The number of frames allowed to fail
     // @Description: Adjustable number of attacked frames so the attacker can avoid threshold
     // @Units: Frames
@@ -465,32 +465,32 @@ const AP_Param::GroupInfo AP_GPS::var_info[] = {
     // @Values: -1: Always Attack, 0: Never Attack, Int: 1/INT frames will be attacked
     // @Increment: 1
     // @User: Advanced
-    AP_GROUPINFO("_PDLK_FAIL", 38, AP_GPS, FAILED_FRAMES, -1),
+    AP_GROUPINFO("_xxxxxxx_FAIL", 38, AP_GPS, FAILED_FRAMES, -1),
 
-    // @Param: PDLK_ADV_ATK
+    // @Param: xxxxxxx_ADV_ATK
     // @DisplayName: GPS Advanced Sensor Attack
-    // @Description: Enable/Disable the advanced attacker mode of sensor spoofing, requires PDLK_ATK == 1
+    // @Description: Enable/Disable the advanced attacker mode of sensor spoofing, requires xxxxxxx_ATK == 1
     // @Values: 0:Disable, 1:Enable
     // @User: Advanced
-    AP_GROUPINFO("_PDLK_ADV_ATK", 39, AP_GPS, ADV_ATK, 0),
+    AP_GROUPINFO("_xxxxxxx_ADV_ATK", 39, AP_GPS, ADV_ATK, 0),
 
-    // @Param: PDLK_SLW_RAT
+    // @Param: xxxxxxx_SLW_RAT
     // @DisplayName: Rate of which the GPS is slowed
-    // @Description: When performing a basic attack the drone will be slowed by PDLK_SLW_RAT m/s every second on each axis
+    // @Description: When performing a basic attack the drone will be slowed by xxxxxxx_SLW_RAT m/s every second on each axis
     // @Units: m/s
     // @Range: INT8_MIN INT8_MAX
     // @Increment: 1
     // @User: Advanced
-    AP_GROUPINFO("_PDLK_SLW_RAT", 40, AP_GPS, SLOW_RATE, 1),
+    AP_GROUPINFO("_xxxxxxx_SLW_RAT", 40, AP_GPS, SLOW_RATE, 1),
 
-    // @Param: PDLK_ONE_ATK
+    // @Param: xxxxxxx_ONE_ATK
     // @DisplayName: One-Step attack switch
     // @Description: The whole offset will happen in a single update.
     // @Units: 0:Disable, 1:Enable
     // @Range: INT8_MIN INT8_MAX
     // @Increment: 1
     // @User: Advanced
-    AP_GROUPINFO("_PDLK_ONE_ATK", 41, AP_GPS, SIMPLE_ATTACK, 0),
+    AP_GROUPINFO("_xxxxxxx_ONE_ATK", 41, AP_GPS, SIMPLE_ATTACK, 0),
 
     AP_GROUPEND
 };
@@ -979,14 +979,14 @@ void AP_GPS::update_instance(uint8_t instance)
     if (_auto_config >= GPS_AUTO_CONFIG_ENABLE_SERIAL_ONLY) {
         send_blob_update(instance);
     }
-    //PADLOCK
+    //xxxxxxx
     //Need to record time for injecting speed adjustments
     uint32_t dt            = AP_HAL::millis64() - state[instance].last_gps_time_ms; //ms
     
     // we have an active driver for this instance
     bool result = drivers[instance]->read();
     
-    //PADLOCK
+    //xxxxxxx
     // Only trigger spoofing on updates
     if(result){
         //  RC Trigger for Spoofing
@@ -1008,7 +1008,7 @@ void AP_GPS::update_instance(uint8_t instance)
         static int32_t ATK_OFS[2] = {ATK_OFS_NORTH, ATK_OFS_EAST}; //cm
         static uint32_t t1[2] = {0, 0}; //The number of updates to overwrite for the halfway point of the attack
         
-        //PADLOCK
+        //xxxxxxx
         //Record real ground course
         state[instance].real_gc = state[instance].ground_course;
         //Record real velocity

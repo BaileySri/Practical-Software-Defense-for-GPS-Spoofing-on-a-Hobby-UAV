@@ -14,7 +14,7 @@
  */
 
 #include "AP_OpticalFlow.h"
-//PADLOCK
+//xxxxxxx
 // Needed for advanced attacker
 #include <SensorDefense/sensor_defense.h>
 #include <AP_Vehicle/AP_Vehicle.h>
@@ -35,14 +35,14 @@ OpticalFlow_backend::~OpticalFlow_backend(void)
 // update the frontend
 void OpticalFlow_backend::_update_frontend(const struct OpticalFlow::OpticalFlow_state &state)
 {
-    //PADLOCK
-    if(frontend._pdlk_attack_enable == 1){
-        Vector2f attack{frontend._pdlk_attack_x + state.bodyRate.x,
-                        frontend._pdlk_attack_y + state.bodyRate.y};
-        pdlkState = OpticalFlow::OpticalFlow_state{ state.surface_quality,
+    //xxxxxxx
+    if(frontend._xxxxxxx_attack_enable == 1){
+        Vector2f attack{frontend._xxxxxxx_attack_x + state.bodyRate.x,
+                        frontend._xxxxxxx_attack_y + state.bodyRate.y};
+        xxxxxxxState = OpticalFlow::OpticalFlow_state{ state.surface_quality,
                                                     attack,
                                                     state.bodyRate};
-        frontend.update_state(pdlkState);
+        frontend.update_state(xxxxxxxState);
     } else{
         frontend.update_state(state);
     }

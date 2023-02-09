@@ -626,7 +626,7 @@ void Frame::calculate_forces(const Aircraft &aircraft,
         thrust -= drag_bf;
     }
 
-    //PADLOCK
+    //xxxxxxx
     // Originally the body_accel here was modified to
     // add our own SITL accelerometer noise distributions.
     // This has been changed but only noticed when updating

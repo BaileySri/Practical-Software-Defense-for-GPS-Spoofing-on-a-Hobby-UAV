@@ -160,12 +160,12 @@ public:
     const Vector3f     &get_accel(uint8_t i) const { return _accel[i]; }
     const Vector3f     &get_accel(void) const { return get_accel(_primary_accel); }
 
-    //PADLOCK
+    //xxxxxxx
     // Get current raw accelerometer values (Scaled and Rotated into BF)
     const Vector3f     &get_accel_raw(uint8_t i) const { return _accel_raw[i]; }
     const Vector3f     &get_accel_raw(void) const { return get_accel(_primary_accel); }
 
-    //PADLOCK
+    //xxxxxxx
     // Get current raw gyro values (Scaled and Rotated into BF)
     const Vector3f     &get_gyro_raw(uint8_t i) const { return _last_raw_gyro[i]; }
     const Vector3f     &get_gyro_raw(void) const { return get_gyro_raw(_primary_gyro); }
@@ -521,7 +521,7 @@ private:
     // Most recent accelerometer reading
     Vector3f _accel[INS_MAX_INSTANCES];
 
-    //PADLOCK
+    //xxxxxxx
     // Raw accelerometer readings for logging
     Vector3f _accel_raw[INS_MAX_INSTANCES];
 

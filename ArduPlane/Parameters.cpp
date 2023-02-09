@@ -988,12 +988,12 @@ const AP_Param::Info Plane::var_info[] = {
     // @Path: ../libraries/AP_Landing/AP_Landing.cpp
     GOBJECT(landing, "LAND_", AP_Landing),
 
-    // @Param: PDLK_SNSR_CONF
+    // @Param: xxxxxxx_SNSR_CONF
     // @DisplayName: Sensor Confirmation 
     // @Description: Enables or Disables the Sensor Confirmation
     // @Values: 0: Disabled, 1:Enabled
     // @User: Advanced
-    GSCALAR(confirmation, "PDLK_SNSR_CONF", SNSR_CONF_DEFAULT),
+    GSCALAR(confirmation, "xxxxxxx_SNSR_CONF", SNSR_CONF_DEFAULT),
 
 #if OSD_ENABLED || OSD_PARAM_ENABLED
     // @Group: OSD

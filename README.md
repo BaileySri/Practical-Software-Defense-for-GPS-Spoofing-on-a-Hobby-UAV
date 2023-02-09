@@ -28,20 +28,20 @@ Parameters for the defense and GPS spoofing code are controlled by ArduPilot par
 An additional trigger for the attack is set to RC Channel 7, enabling the attack if the channel signal is greater than 1600.
 
 For GPS spoofing the relevant parameters are:
-* GPS_PDLK_ATK - (0 or 1) Disable or Enable the attack
-* GPS_PDLK_N - (centimeters) How far to spoof the UAV north
-* GPS_PDLK_E - (centimeters) How far to spoof the UAV east
-* GPS_PDLK_SLW_RAT - (meter/second<sup>2</sup>) Acceleration to apply to UAV with spoofing
-* GPS_PDLK_ONE_ATK - (0 or 1) Disable or Enable Overt attack
+* GPS_xxxxxxx_ATK - (0 or 1) Disable or Enable the attack
+* GPS_xxxxxxx_N - (centimeters) How far to spoof the UAV north
+* GPS_xxxxxxx_E - (centimeters) How far to spoof the UAV east
+* GPS_xxxxxxx_SLW_RAT - (meter/second<sup>2</sup>) Acceleration to apply to UAV with spoofing
+* GPS_xxxxxxx_ONE_ATK - (0 or 1) Disable or Enable Overt attack
 
 For the defense or logging:
-*  PDLK_SNSR_CONF - (0 or 1) Disable or Enable defense and logging
-*  PDLK_CHOI_CI - (0 or 1) Disable or Enable the [Choi](https://doi.org/10.1145/3243734.3243752) control invariant approach
+*  xxxxxxx_SNSR_CONF - (0 or 1) Disable or Enable defense and logging
+*  xxxxxxx_CHOI_CI - (0 or 1) Disable or Enable the [Choi](https://doi.org/10.1145/3243734.3243752) control invariant approach
 
 For the fence using real GPS values even during spoofing:
-*  GPS_PDLK_FEN - (0 or 1) Disable or Enable fence, disables attack when leaving area
-*  GPS_PDLK_FEN_ALT - (meters) Allowed change in altitude
-*  GPS_PDLK_FEN_SIZ - (centimeters) A square fence of size GPS_PDLK_FEN_SIZ cm<sup>2</sup>
+*  GPS_xxxxxxx_FEN - (0 or 1) Disable or Enable fence, disables attack when leaving area
+*  GPS_xxxxxxx_FEN_ALT - (meters) Allowed change in altitude
+*  GPS_xxxxxxx_FEN_SIZ - (centimeters) A square fence of size GPS_xxxxxxx_FEN_SIZ cm<sup>2</sup>
 
 ## Files for quick reference
 *  [Defense files](/libraries/SensorDefense/)

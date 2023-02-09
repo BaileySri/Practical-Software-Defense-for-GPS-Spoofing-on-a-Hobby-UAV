@@ -93,36 +93,36 @@ const AP_Param::GroupInfo OpticalFlow::var_info[] = {
     // @User: Advanced
     AP_GROUPINFO("_ADDR", 5,  OpticalFlow, _address,   0),
 
-    //PADLOCK
-    // @Param: _PDLK_X
+    //xxxxxxx
+    // @Param: _xxxxxxx_X
     // @DisplayName: Replace rotation about x axis
     // @Description: Value to replace actual flow rate X reading with. Indicates right/left tilt and compensates for body rate.
     // @Units: rad/s
     // @Range: -3.14 3.14
     // @User: Advanced
-    AP_GROUPINFO("_PDLK_X", 6,  OpticalFlow, _pdlk_attack_x,   0),
+    AP_GROUPINFO("_xxxxxxx_X", 6,  OpticalFlow, _xxxxxxx_attack_x,   0),
 
-    // @Param: _PDLK_Y
+    // @Param: _xxxxxxx_Y
     // @DisplayName: Replace rotation about x axis
     // @Description: Value to replace actual flow rate X reading with. Indicates front/back tilt and compensates for body rate.
     // #Units: rad/s
     // @Range: -3.14 3.14
     // @User: Advanced
-    AP_GROUPINFO("_PDLK_Y", 7,  OpticalFlow, _pdlk_attack_y,   0),
+    AP_GROUPINFO("_xxxxxxx_Y", 7,  OpticalFlow, _xxxxxxx_attack_y,   0),
 
-    // @Param: _PDLK_ENABLE
+    // @Param: _xxxxxxx_ENABLE
     // @DisplayName: Enable OF spoofing
     // @Description: Enables or Disables optical flow spoofing.
     // @Values: 0:Disabled 1:Enabled Other:Disabled
     // @User: Advanced
-    AP_GROUPINFO("_PDLK_ATK", 8,  OpticalFlow, _pdlk_attack_enable,   0),
+    AP_GROUPINFO("_xxxxxxx_ATK", 8,  OpticalFlow, _xxxxxxx_attack_enable,   0),
 
-    // @Param: _PDLK_ADV
+    // @Param: _xxxxxxx_ADV
     // @DisplayName: Enable Reactive Attacker for OF
     // @Description: Enable or Disable Reactive Attacker for OF.
     // @Values: 0:Disabled 1:Enabled Other:Disabled
     // @User: Advanced
-    AP_GROUPINFO("_PDLK_ADV", 9,  OpticalFlow, _pdlk_adv_atk,   0),
+    AP_GROUPINFO("_xxxxxxx_ADV", 9,  OpticalFlow, _xxxxxxx_adv_atk,   0),
     
     AP_GROUPEND
 };

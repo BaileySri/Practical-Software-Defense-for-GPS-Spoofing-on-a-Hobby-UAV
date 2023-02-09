@@ -18,7 +18,7 @@
 #include "AP_RangeFinder.h"
 #include "AP_RangeFinder/AP_RangeFinder_Params.h"
 #include "AP_RangeFinder_Backend.h"
-//PADLOCK
+//xxxxxxx
 #include "GCS_MAVLink/GCS.h"
 
 extern const AP_HAL::HAL& hal;

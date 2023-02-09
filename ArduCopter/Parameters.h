@@ -377,7 +377,7 @@ public:
 
         k_param_vehicle = 257, // vehicle common block of parameters
 
-        //PADLOCK
+        //xxxxxxx
         //Parameter Identities
         k_param_choi_ci = 258,
         k_param_choi_attack,
@@ -387,7 +387,7 @@ public:
         // 511: reserved
     };
 
-    //PADLOCK 
+    //xxxxxxx 
     //Defined parameters
     AP_Int8         choi_ci;
     AP_Int8         choi_attack;

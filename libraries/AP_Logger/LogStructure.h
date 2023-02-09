@@ -656,7 +656,7 @@ struct PACKED log_STAK {
     char name[16];
 };
 
-//PADLOCK
+//xxxxxxx
 //Log packet definitions
 //ACO Data with filtered accelerometer
 struct PACKED log_sensors_1 {

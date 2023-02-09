@@ -53,7 +53,7 @@
 #include <SITL/SITL.h>
 #include <AP_CustomRotations/AP_CustomRotations.h>
 #include <AP_AIS/AP_AIS.h>
-//PADLOCK
+//xxxxxxx
 // Sensor confirmation library
 #include <SensorDefense/sensor_defense.h>
 
@@ -297,8 +297,8 @@ public:
     virtual void get_osd_roll_pitch_rad(float &roll, float &pitch) const;
 #endif
 
-    //PADLOCK
-    SensorDefense PDLK;
+    //xxxxxxx
+    SensorDefense xxxxxxx;
     /*
      get the target body-frame angular velocities in rad/s (Z-axis component used by some gimbals)
      */

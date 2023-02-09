@@ -202,11 +202,11 @@ public:
     AP_Float gps_accuracy[2];
     AP_Vector3f gps_vel_err[2]; // Velocity error offsets in NED (x = N, y = E, z = D)
 
-    //PADLOCK
-    AP_Float pdlk_gps_noise; //meters, Noise in simulated Latitude/Longitude
-    AP_Float pdlk_gps_spd; //m/s, Speed Accuracy provided by datasheets
-    AP_Float pdlk_acc_noise; //m/s/s, Noise in simulated accelerometer
-    AP_Float pdlk_gyro_noise; //rad/s, Noise in simulated gyroscope
+    //xxxxxxx
+    AP_Float xxxxxxx_gps_noise; //meters, Noise in simulated Latitude/Longitude
+    AP_Float xxxxxxx_gps_spd; //m/s, Speed Accuracy provided by datasheets
+    AP_Float xxxxxxx_acc_noise; //m/s/s, Noise in simulated accelerometer
+    AP_Float xxxxxxx_gyro_noise; //rad/s, Noise in simulated gyroscope
     // initial offset on GPS lat/lon, used to shift origin
     AP_Float gps_init_lat_ofs;
     AP_Float gps_init_lon_ofs;

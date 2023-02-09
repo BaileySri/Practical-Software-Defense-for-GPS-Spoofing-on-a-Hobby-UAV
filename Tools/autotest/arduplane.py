@@ -131,7 +131,7 @@ class AutoTestPlane(AutoTest):
 
         self.progress("TAKEOFF COMPLETE")
     
-    #PADLOCK
+    #xxxxxxx
     # Pulled from arducopter.py
     def configure_EKFs_to_use_optical_flow_instead_of_GPS(self):
         '''configure EKF to use optical flow instead of GPS'''
@@ -145,22 +145,22 @@ class AutoTestPlane(AutoTest):
                 "EK3_SRC1_VELZ": 0,
             })
 
-    #PADLOCK
+    #xxxxxxx
     # Flies a square for benign data
     def fly_delivery(self, timeout=360):
-        self.progress("# Load PDLK Square Waypoints")
+        self.progress("# Load xxxxxxx Square Waypoints")
         # load the waypoint count
-        num_wp = self.load_mission("pdlk_auto_square.txt")
+        num_wp = self.load_mission("xxxxxxx_auto_square.txt")
         if not num_wp:
-            raise NotAchievedException("load pdlk_auto_square.txt failed")
+            raise NotAchievedException("load xxxxxxx_auto_square.txt failed")
         
         self.progress("Setting sensor parameters")  
         # Set sensor parameters
-        self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
-        #self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
-        self.set_parameter("SIM_PDLK_GPS_SPD", 50) #mm/s
-        self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
-        self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
+        self.set_parameter("SIM_xxxxxxx_GPS", 2.5) #meters, NEO-M8N
+        #self.set_parameter("SIM_xxxxxxx_GPS", 0.01) #meters, ZED-F9P
+        self.set_parameter("SIM_xxxxxxx_GPS_SPD", 50) #mm/s
+        self.set_parameter("SIM_xxxxxxx_ACC", 0.02943) #LSM303D
+        self.set_parameter("SIM_xxxxxxx_GYRO", 0.00384) #L3GD20H
 
         #Set Optical Flow
         self.set_parameter("SIM_FLOW_ENABLE", 1)
@@ -169,7 +169,7 @@ class AutoTestPlane(AutoTest):
         self.reboot_sitl()
 
         #Enable Sensor Confirmation for CNF Logging
-        self.set_parameter("PDLK_SNSR_CONF", 1)
+        self.set_parameter("xxxxxxx_SNSR_CONF", 1)
         #Set speed in cm/s
         self.set_parameter("TRIM_ARSPD_CM", 2000)
 
@@ -188,23 +188,23 @@ class AutoTestPlane(AutoTest):
 
         self.progress("Auto mission completed: passed!")
         
-    #PADLOCK
+    #xxxxxxx
     # Fly a straight line with varying altitude
     def fly_auto_wave(self, timeout=360):
         # Fly mission the data gathering mission
-        self.progress("# Load PDLK AutoWave Waypoints")
+        self.progress("# Load xxxxxxx AutoWave Waypoints")
         # load the waypoint count
-        num_wp = self.load_mission("pdlk_auto_wave.txt")
+        num_wp = self.load_mission("xxxxxxx_auto_wave.txt")
         if not num_wp:
-            raise NotAchievedException("load pdlk_auto_wave.txt failed")
+            raise NotAchievedException("load xxxxxxx_auto_wave.txt failed")
 
         self.progress("Setting sensor parameters")        
         # Set sensor parameters
-        #self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
-        self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
-        self.set_parameter("SIM_PDLK_GPS_SPD", 50) #mm/s
-        self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
-        self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
+        #self.set_parameter("SIM_xxxxxxx_GPS", 2.5) #meters, NEO-M8N
+        self.set_parameter("SIM_xxxxxxx_GPS", 0.01) #meters, ZED-F9P
+        self.set_parameter("SIM_xxxxxxx_GPS_SPD", 50) #mm/s
+        self.set_parameter("SIM_xxxxxxx_ACC", 0.02943) #LSM303D
+        self.set_parameter("SIM_xxxxxxx_GYRO", 0.00384) #L3GD20H
 
         #Set Optical Flow
         self.set_parameter("SIM_FLOW_ENABLE", 1)
@@ -213,7 +213,7 @@ class AutoTestPlane(AutoTest):
         self.reboot_sitl()
 
         #Enable Sensor Confirmation for CNF Logging
-        self.set_parameter("PDLK_SNSR_CONF", 1)
+        self.set_parameter("xxxxxxx_SNSR_CONF", 1)
         # Set flight speed, cm/s
         self.set_parameter("TRIM_ARSPD_CM", 2000)
 
@@ -232,21 +232,21 @@ class AutoTestPlane(AutoTest):
 
         self.progress("Auto mission completed: passed!")    
     
-    #PADLOCK
+    #xxxxxxx
     # Fly a circle for benign data, Im using the RTL circling to fly in a circle
     def fly_auto_circle(self, timeout=360):
         # load the waypoint count
-        num_wp = self.load_mission("pdlk_auto_circle.txt")
+        num_wp = self.load_mission("xxxxxxx_auto_circle.txt")
         if not num_wp:
-            raise NotAchievedException("load pdlk_auto_circle.txt failed")
+            raise NotAchievedException("load xxxxxxx_auto_circle.txt failed")
         
         self.progress("Setting sensor parameters")  
         # Set sensor parameters
-        #self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
-        self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
-        self.set_parameter("SIM_PDLK_GPS_SPD", 50) #mm/s
-        self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
-        self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
+        #self.set_parameter("SIM_xxxxxxx_GPS", 2.5) #meters, NEO-M8N
+        self.set_parameter("SIM_xxxxxxx_GPS", 0.01) #meters, ZED-F9P
+        self.set_parameter("SIM_xxxxxxx_GPS_SPD", 50) #mm/s
+        self.set_parameter("SIM_xxxxxxx_ACC", 0.02943) #LSM303D
+        self.set_parameter("SIM_xxxxxxx_GYRO", 0.00384) #L3GD20H
 
         #Set Optical Flow
         self.set_parameter("SIM_FLOW_ENABLE", 1)
@@ -255,7 +255,7 @@ class AutoTestPlane(AutoTest):
         self.reboot_sitl()
 
         #Enable Sensor Confirmation for CNF Logging
-        self.set_parameter("PDLK_SNSR_CONF", 1)
+        self.set_parameter("xxxxxxx_SNSR_CONF", 1)
         #Set speed in cm/s
         self.set_parameter("TRIM_ARSPD_CM", 2000)
 
@@ -276,7 +276,7 @@ class AutoTestPlane(AutoTest):
         self.disarm_vehicle()
         self.progress("Auto mission completed: passed!")
 
-    #PADLOCK
+    #xxxxxxx
     # Flies North and then attacks before final waypoint
     def fly_adversarial(self, timeout=360):
         #Set Optical Flow
@@ -285,23 +285,23 @@ class AutoTestPlane(AutoTest):
         self.set_analog_rangefinder_parameters()
         self.reboot_sitl()
 
-        self.progress("# Load PDLK Attack Waypoints")
+        self.progress("# Load xxxxxxx Attack Waypoints")
         # load the waypoint count
-        num_wp = self.load_mission("pdlk_auto_motion.txt")
+        num_wp = self.load_mission("xxxxxxx_auto_motion.txt")
         if not num_wp:
-            raise NotAchievedException("load pdlk_auto_motion.txt failed")
+            raise NotAchievedException("load xxxxxxx_auto_motion.txt failed")
 
         self.progress("Setting sensor parameters")        
         # Set sensor parameters
-        self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
-        #self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
-        self.set_parameter("SIM_PDLK_GPS_SPD", 50) #mm/s
-        self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
-        self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
+        self.set_parameter("SIM_xxxxxxx_GPS", 2.5) #meters, NEO-M8N
+        #self.set_parameter("SIM_xxxxxxx_GPS", 0.01) #meters, ZED-F9P
+        self.set_parameter("SIM_xxxxxxx_GPS_SPD", 50) #mm/s
+        self.set_parameter("SIM_xxxxxxx_ACC", 0.02943) #LSM303D
+        self.set_parameter("SIM_xxxxxxx_GYRO", 0.00384) #L3GD20H
         self.progress("test: Fly a mission from 1 to %u" % num_wp)
 
         #Enable Sensor Confirmation for CNF Logging
-        self.set_parameter("PDLK_SNSR_CONF", 1)
+        self.set_parameter("xxxxxxx_SNSR_CONF", 1)
         # Set flight speed, cm/s
         self.set_parameter("TRIM_ARSPD_CM", 2000)
 
@@ -321,13 +321,13 @@ class AutoTestPlane(AutoTest):
             raise e
 
 	    # Adjust the below parameter to change attack strength in autotest
-        self.set_parameter("GPS_PDLK_N", -250)
-        self.set_parameter("GPS_PDLK_SLW_RAT", 4)
-        self.set_parameter("GPS_PDLK_ATK", 1)
+        self.set_parameter("GPS_xxxxxxx_N", -250)
+        self.set_parameter("GPS_xxxxxxx_SLW_RAT", 4)
+        self.set_parameter("GPS_xxxxxxx_ATK", 1)
 
         # Allow the attack time to deviate the planes path
         self.delay_sim_time(20)
-        self.set_parameter("GPS_PDLK_ATK", 0)
+        self.set_parameter("GPS_xxxxxxx_ATK", 0)
         # wait for RTL
         self.wait_mode("RTL")
         self.disarm_vehicle()
@@ -335,7 +335,7 @@ class AutoTestPlane(AutoTest):
 
         self.progress("Auto mission completed: passed!")
 
-    #PADLOCK
+    #xxxxxxx
     # Flies North and then attacks before final waypoint
     # TODO: This is not possible on the Fixed-wing, need to spoof gyroscope instead
     def adversarial_of(self, timeout=360):
@@ -346,23 +346,23 @@ class AutoTestPlane(AutoTest):
         
         self.reboot_sitl()
 
-        self.progress("# Load PDLK Attack Waypoints")
+        self.progress("# Load xxxxxxx Attack Waypoints")
         # load the waypoint count
-        num_wp = self.load_mission("pdlk_auto_motion.txt")
+        num_wp = self.load_mission("xxxxxxx_auto_motion.txt")
         if not num_wp:
-            raise NotAchievedException("load pdlk_auto_motion.txt failed")
+            raise NotAchievedException("load xxxxxxx_auto_motion.txt failed")
 
         self.progress("Setting sensor parameters")        
         # Set sensor parameters
-        #self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
-        self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
-        self.set_parameter("SIM_PDLK_GPS_SPD", 50) #mm/s
-        self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
-        self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
+        #self.set_parameter("SIM_xxxxxxx_GPS", 2.5) #meters, NEO-M8N
+        self.set_parameter("SIM_xxxxxxx_GPS", 0.01) #meters, ZED-F9P
+        self.set_parameter("SIM_xxxxxxx_GPS_SPD", 50) #mm/s
+        self.set_parameter("SIM_xxxxxxx_ACC", 0.02943) #LSM303D
+        self.set_parameter("SIM_xxxxxxx_GYRO", 0.00384) #L3GD20H
         self.progress("test: Fly a mission from 1 to %u" % num_wp)
 
         #Enable Sensor Confirmation for CNF Logging
-        self.set_parameter("PDLK_SNSR_CONF", 1)
+        self.set_parameter("xxxxxxx_SNSR_CONF", 1)
         # Set flight speed, cm/s
         self.set_parameter("TRIM_ARSPD_CM", 2000)
 
@@ -388,12 +388,12 @@ class AutoTestPlane(AutoTest):
             raise e
 
 	    # Adjust the below parameter to change attack strength in autotest
-        self.set_parameter("FLOW_PDLK_X", 0.5)#0.1745) #10 degree tilt
-        self.set_parameter("FLOW_PDLK_ATK", 1)
+        self.set_parameter("FLOW_xxxxxxx_X", 0.5)#0.1745) #10 degree tilt
+        self.set_parameter("FLOW_xxxxxxx_ATK", 1)
 
         # Allow the attack time to deviate the planes path
         self.delay_sim_time(20)
-        self.set_parameter("FLOW_PDLK_ATK", 0)
+        self.set_parameter("FLOW_xxxxxxx_ATK", 0)
         # wait for RTL
         self.wait_mode("RTL")
         self.disarm_vehicle()
@@ -401,7 +401,7 @@ class AutoTestPlane(AutoTest):
 
         self.progress("Auto mission completed: passed!")
 
-    #PADLOCK
+    #xxxxxxx
     # Stealthy attack utilizing our advanced attacker parameter
     def fly_auto_stealth(self, timeout=360):
 
@@ -412,26 +412,26 @@ class AutoTestPlane(AutoTest):
         self.reboot_sitl()
 
         #Enable Sensor Confirmation for CNF Logging
-        self.set_parameter("PDLK_SNSR_CONF", 1)
+        self.set_parameter("xxxxxxx_SNSR_CONF", 1)
         # Set flight speed, cm/s
         self.set_parameter("TRIM_ARSPD_CM", 2000)
 
-        self.progress("# Load PDLK Attack Waypoints")
+        self.progress("# Load xxxxxxx Attack Waypoints")
         # load the waypoint count
-        num_wp = self.load_mission("pdlk_auto_stealth.txt")
+        num_wp = self.load_mission("xxxxxxx_auto_stealth.txt")
         if not num_wp:
-            raise NotAchievedException("load pdlk_auto_stealth.txt failed")
+            raise NotAchievedException("load xxxxxxx_auto_stealth.txt failed")
 
 	    # Set sensor parameters
-        self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
-        #self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
-        self.set_parameter("SIM_PDLK_GPS_SPD", 50) #mm/s
-        self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
-        self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
+        self.set_parameter("SIM_xxxxxxx_GPS", 2.5) #meters, NEO-M8N
+        #self.set_parameter("SIM_xxxxxxx_GPS", 0.01) #meters, ZED-F9P
+        self.set_parameter("SIM_xxxxxxx_GPS_SPD", 50) #mm/s
+        self.set_parameter("SIM_xxxxxxx_ACC", 0.02943) #LSM303D
+        self.set_parameter("SIM_xxxxxxx_GYRO", 0.00384) #L3GD20H
         self.progress("test: Fly a mission from 1 to %u" % num_wp)
 
         #Enable Sensor Confirmation for CNF Logging
-        self.set_parameter("PDLK_SNSR_CONF", 1)
+        self.set_parameter("xxxxxxx_SNSR_CONF", 1)
         # Set flight speed, cm/s
         self.set_parameter("TRIM_ARSPD_CM", 2000)
 
@@ -450,20 +450,20 @@ class AutoTestPlane(AutoTest):
 
         # Adjust the below parameter to change attack strength in autotest  
         Attack_Delay = 60
-        self.set_parameter("GPS_PDLK_ADV_ATK", 1)
+        self.set_parameter("GPS_xxxxxxx_ADV_ATK", 1)
         # No alternating frames, always attack
-        self.set_parameter("GPS_PDLK_FAIL", -1)
-        self.set_parameter("GPS_PDLK_ATK", 1)
+        self.set_parameter("GPS_xxxxxxx_FAIL", -1)
+        self.set_parameter("GPS_xxxxxxx_ATK", 1)
         self.delay_sim_time(Attack_Delay)
 
         # Disable and land
-        self.set_parameter("GPS_PDLK_ATK", 0)
+        self.set_parameter("GPS_xxxxxxx_ATK", 0)
         # wait for RTL
         self.wait_mode("RTL")
         self.disarm_vehicle()
         self.progress("Auto mission completed: passed!")
 
-        #PADLOCK
+        #xxxxxxx
     
     # Stealthy attack utilizing our advanced attacker parameter, pulled from above
     def fly_auto_stealth_of(self, timeout=360):
@@ -475,26 +475,26 @@ class AutoTestPlane(AutoTest):
         self.reboot_sitl()
 
         #Enable Sensor Confirmation for CNF Logging
-        self.set_parameter("PDLK_SNSR_CONF", 1)
+        self.set_parameter("xxxxxxx_SNSR_CONF", 1)
         # Set flight speed, cm/s
         self.set_parameter("TRIM_ARSPD_CM", 2000)
 
-        self.progress("# Load PDLK Attack Waypoints")
+        self.progress("# Load xxxxxxx Attack Waypoints")
         # load the waypoint count
-        num_wp = self.load_mission("pdlk_auto_stealth.txt")
+        num_wp = self.load_mission("xxxxxxx_auto_stealth.txt")
         if not num_wp:
-            raise NotAchievedException("load pdlk_auto_stealth.txt failed")
+            raise NotAchievedException("load xxxxxxx_auto_stealth.txt failed")
 
 	    # Set sensor parameters
-        self.set_parameter("SIM_PDLK_GPS", 2.5) #meters, NEO-M8N
-        #self.set_parameter("SIM_PDLK_GPS", 0.01) #meters, ZED-F9P
-        self.set_parameter("SIM_PDLK_GPS_SPD", 50) #mm/s
-        self.set_parameter("SIM_PDLK_ACC", 0.02943) #LSM303D
-        self.set_parameter("SIM_PDLK_GYRO", 0.00384) #L3GD20H
+        self.set_parameter("SIM_xxxxxxx_GPS", 2.5) #meters, NEO-M8N
+        #self.set_parameter("SIM_xxxxxxx_GPS", 0.01) #meters, ZED-F9P
+        self.set_parameter("SIM_xxxxxxx_GPS_SPD", 50) #mm/s
+        self.set_parameter("SIM_xxxxxxx_ACC", 0.02943) #LSM303D
+        self.set_parameter("SIM_xxxxxxx_GYRO", 0.00384) #L3GD20H
         self.progress("test: Fly a mission from 1 to %u" % num_wp)
 
         #Enable Sensor Confirmation for CNF Logging
-        self.set_parameter("PDLK_SNSR_CONF", 1)
+        self.set_parameter("xxxxxxx_SNSR_CONF", 1)
         # Set flight speed, cm/s
         self.set_parameter("TRIM_ARSPD_CM", 2000)
 
@@ -517,12 +517,12 @@ class AutoTestPlane(AutoTest):
 
         # Adjust the below parameter to change attack strength in autotest  
         Attack_Delay = 60
-        self.set_parameter("FLOW_PDLK_ADV", 1)
-        self.set_parameter("FLOW_PDLK_ATK", 1)
+        self.set_parameter("FLOW_xxxxxxx_ADV", 1)
+        self.set_parameter("FLOW_xxxxxxx_ATK", 1)
         self.delay_sim_time(Attack_Delay)
 
         # Disable and land
-        self.set_parameter("FLOW_PDLK_ATK", 0)
+        self.set_parameter("FLOW_xxxxxxx_ATK", 0)
         # wait for RTL
         self.wait_mode("RTL")
         self.disarm_vehicle()
@@ -4187,7 +4187,7 @@ function'''
         '''return list of all tests'''
         ret = super(AutoTestPlane, self).tests()
         ret.extend([
-            #PADLOCK
+            #xxxxxxx
             ("Adversarial",
              "Run the auto mission with an offset attack",
               self.fly_adversarial),

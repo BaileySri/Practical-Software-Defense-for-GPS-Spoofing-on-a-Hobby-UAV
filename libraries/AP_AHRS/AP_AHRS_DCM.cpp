@@ -451,7 +451,7 @@ bool AP_AHRS_DCM::use_compass(void)
         // no compass available
         return false;
     } else{
-        //PADLOCK
+        //xxxxxxx
         //Added to force the DCM to only use compass for heading
         return true;
     }
@@ -533,7 +533,7 @@ AP_AHRS_DCM::drift_correction_yaw(void)
             // don't suddenly change yaw with a reset
             _gps_last_update = _gps.last_fix_time_ms();
         }
-        //PADLOCK
+        //xxxxxxx
         // Adding a false to simply prevent GPS being used for yaw correction
     } else if (false && AP::ahrs().get_fly_forward() && have_gps()) {
         /*
@@ -713,7 +713,7 @@ AP_AHRS_DCM::drift_correction(float deltat)
     const AP_GPS &_gps = AP::gps();
     const bool fly_forward = AP::ahrs().get_fly_forward();
 
-    //PADLOCK
+    //xxxxxxx
     // Forcing no GPS
     if (true || !have_gps() ||
             _gps.status() < AP_GPS::GPS_OK_FIX_3D ||
@@ -770,7 +770,7 @@ AP_AHRS_DCM::drift_correction(float deltat)
         // tube
         _last_airspeed = MAX(airspeed.x, 0);
     }
-    //PADLOCK
+    //xxxxxxx
     // Removing GPS
     if (false && have_gps()) {
         // use GPS for positioning with any fix, even a 2D fix
@@ -809,7 +809,7 @@ AP_AHRS_DCM::drift_correction(float deltat)
     bool using_gps_corrections = false;
     float ra_scale = 1.0f/(_ra_deltat*GRAVITY_MSS);
 
-    //PADLOCK
+    //xxxxxxx
     // Removing GPS
     if (false && should_correct_centrifugal() && (_have_gps_lock || fly_forward)) {
         const float v_scale = gps_gain.get() * ra_scale;

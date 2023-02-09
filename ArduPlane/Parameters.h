@@ -356,13 +356,13 @@ public:
 
         k_param_acro_yaw_rate,
         
-        //PADLOCK
+        //xxxxxxx
         //Parameter Identities
         k_param_confirmation,
         
     };
 
-    //PADLOCK
+    //xxxxxxx
     //Defined parameters
     AP_Int8         confirmation;
 

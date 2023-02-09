@@ -715,7 +715,7 @@
 #define HAL_FRAME_TYPE_DEFAULT AP_Motors::MOTOR_FRAME_TYPE_X
 #endif
 
-//PADLOCK
+//xxxxxxx
 //Default parameter values
 #ifndef CTRL_INV_DEFAULT
  #define CTRL_INV_DEFAULT     0
