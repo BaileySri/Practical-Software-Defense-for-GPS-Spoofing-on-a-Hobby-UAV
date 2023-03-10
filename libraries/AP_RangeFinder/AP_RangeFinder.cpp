@@ -21,6 +21,7 @@
 #include "AP_RangeFinder_BBB_PRU.h"
 #include "AP_RangeFinder_LightWareI2C.h"
 #include "AP_RangeFinder_LightWareSerial.h"
+#include <cstdint>
 #if (CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_LINUX_BEBOP || \
      CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_LINUX_DISCO) &&      \
     defined(HAVE_LIBIIO)
@@ -711,7 +712,15 @@ float RangeFinder::distance_orient(enum Rotation orientation) const
 
 uint16_t RangeFinder::distance_cm_orient(enum Rotation orientation) const
 {
-    return distance_orient(orientation) * 100.0;
+    //PADLOCK
+    // I have to add this bit to avoid potentially crashing the system
+    // on boot because of the attack code
+    float dist = distance_orient(orientation);
+    if(dist >= (INT16_MAX/1E2)){
+        return(0);
+    } else{
+        return distance_orient(orientation) * 100.0;
+    }
 }
 
 int16_t RangeFinder::max_distance_cm_orient(enum Rotation orientation) const

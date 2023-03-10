@@ -122,6 +122,8 @@ public:
     // The RangeFinder_State structure is filled in by the backend driver
     struct RangeFinder_State {
         float distance_m;               // distance in meters
+        //PADLOCK
+        float real_distance_m;          // real distance in meters during spoofing
         uint16_t voltage_mv;            // voltage in millivolts, if applicable, otherwise 0
         enum RangeFinder::Status status; // sensor status
         uint8_t  range_valid_count;     // number of consecutive valid readings (maxes out at 10)

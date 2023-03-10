@@ -643,6 +643,8 @@ protected:
     AP_Float SLOW_RATE;
     // One-Step Attack switch
     AP_Int8 SIMPLE_ATTACK;
+    // What channel to use
+    AP_Int8 CHANNEL;
     
     enum DriverOptions : int16_t {
         UBX_MBUseUart2    = (1U << 0U),

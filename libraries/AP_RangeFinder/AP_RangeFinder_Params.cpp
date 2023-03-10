@@ -139,7 +139,7 @@ const AP_Param::GroupInfo AP_RangeFinder_Params::var_info[] = {
     // @Range: FLOAT_MIN FLOAT_MAX
     // @Increment: 1
     // @User: Advanced
-    AP_GROUPINFO("PDLK_RAT", 54, AP_RangeFinder_Params, rate, 0),
+    AP_GROUPINFO("PDLK_RAT", 54, AP_RangeFinder_Params, RATE, 1),
     // @Param: PDLK_RAT
     // @DisplayName: Distance offset from initial reading
     // @Description: Distance the drone is offset
@@ -147,13 +147,25 @@ const AP_Param::GroupInfo AP_RangeFinder_Params::var_info[] = {
     // @Range: INT16_MIN INT16_MAX
     // @Increment: 1
     // @User: Advanced
-    AP_GROUPINFO("PDLK_DIS", 55, AP_RangeFinder_Params, dist, 0),
+    AP_GROUPINFO("PDLK_DIS", 55, AP_RangeFinder_Params, DIST, 0),
     // @Param: PDLK_RAT
     // @DisplayName: Enables or disables the rangefinder spoofing
     // @Description: 1:Enable Attack, Other:Disable
     // @Units: Enable/Disable
     // @User: Advanced
-    AP_GROUPINFO("PDLK_ATK", 56, AP_RangeFinder_Params, atk, 0),
+    AP_GROUPINFO("PDLK_ATK", 56, AP_RangeFinder_Params, ATK, 0),
+    // @Param: PDLK_ONE
+    // @DisplayName: Enables or disables the simple rangefinder spoofing
+    // @Description: 1:Enable, Other:Disable
+    // @Units: Enable/Disable
+    // @User: Advanced
+    AP_GROUPINFO("PDLK_ONE", 57, AP_RangeFinder_Params, SIMPLE_ATTACK, 0),
+    // @Param: PDLK_CHN
+    // @DisplayName: Select what channel to activate the attack on
+    // @Description: All valid RC Channels
+    // @Units: All valid RC Channels
+    // @User: Advanced
+    AP_GROUPINFO("PDLK_CHN", 58, AP_RangeFinder_Params, CHANNEL, 0),
 
     AP_GROUPEND
 };

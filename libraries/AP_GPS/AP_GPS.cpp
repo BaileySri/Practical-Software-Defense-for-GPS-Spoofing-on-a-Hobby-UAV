@@ -492,6 +492,15 @@ const AP_Param::GroupInfo AP_GPS::var_info[] = {
     // @User: Advanced
     AP_GROUPINFO("_PDLK_ONE_ATK", 41, AP_GPS, SIMPLE_ATTACK, 0),
 
+    // @Param: PDLK_CHAN
+    // @DisplayName: Decides which channel to enable the attack on
+    // @Description: The whole offset will happen in a single update.
+    // @Units: 0:Disable, 1:Enable
+    // @Range: INT8_MIN INT8_MAX
+    // @Increment: 1
+    // @User: Advanced
+    AP_GROUPINFO("_PDLK_CHAN", 42, AP_GPS, CHANNEL, 7),
+
     AP_GROUPEND
 };
 
@@ -990,8 +999,7 @@ void AP_GPS::update_instance(uint8_t instance)
     // Only trigger spoofing on updates
     if(result){
         //  RC Trigger for Spoofing
-        RC_Channel* ch_gps = RC_Channels::rc_channel(CH_7);
-        bool attack = (ch_gps->get_radio_in() > 1600) || GPS_ATK == 1;
+        bool attack = CHANNEL > 0 ? (RC_Channels::rc_channel(CHANNEL - 1)->get_radio_in() > 1600) || GPS_ATK == 1 : (GPS_ATK == 1);
         //  Fencing
         static bool fenced = false;
         static bool atk_started = false;

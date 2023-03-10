@@ -40,7 +40,17 @@ public:
 
     enum Rotation orientation() const { return (Rotation)params.orientation.get(); }
     float distance() const { return state.distance_m; }
-    uint16_t distance_cm() const { return state.distance_m*100.0f; }
+    float real_distance() const { return state.real_distance_m; }
+    uint16_t distance_cm() const { 
+            //PADLOCK
+            // Adding this guard here because the attack code
+            // can cause a floating point exception on startup
+            if (state.distance_m >= (INT16_MAX/1E2)){
+                return(0);
+            } else{
+                return state.distance_m*100.0f; 
+            }
+        }
     uint16_t voltage_mv() const { return state.voltage_mv; }
     virtual int16_t max_distance_cm() const { return params.max_distance_cm; }
     virtual int16_t min_distance_cm() const { return params.min_distance_cm; }

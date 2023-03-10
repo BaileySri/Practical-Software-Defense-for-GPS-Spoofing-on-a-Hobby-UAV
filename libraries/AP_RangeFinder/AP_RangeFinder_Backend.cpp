@@ -15,11 +15,13 @@
 
 #include <AP_Common/AP_Common.h>
 #include <AP_HAL/AP_HAL.h>
+#include "AP_HAL/system.h"
 #include "AP_RangeFinder.h"
 #include "AP_RangeFinder/AP_RangeFinder_Params.h"
 #include "AP_RangeFinder_Backend.h"
 //PADLOCK
 #include "GCS_MAVLink/GCS.h"
+#include <AP_Vehicle/AP_Vehicle.h>
 
 extern const AP_HAL::HAL& hal;
 
@@ -58,34 +60,51 @@ bool AP_RangeFinder_Backend::has_data() const {
 // update status based on distance measurement
 void AP_RangeFinder_Backend::update_status()
 {
-    static float rf_init = 0; //m
     static bool atk_started = false;
-    static uint32_t atk_iter = 0;
     static bool final_msg = false;
-    if( !atk_started && params.atk==1 ) {
+    static float rf_init = 0; //m
+    static float time = 0; //s
+    static float time_elapsed = 0; //s
+    bool attack = params.CHANNEL > 0 ? (RC_Channels::rc_channel(params.CHANNEL - 1)->get_radio_in() > 1600) || (params.ATK == 1) : (params.ATK == 1);
+    static float t1 = 0; //s
+
+    state.real_distance_m = state.distance_m; //m
+    if( !atk_started && attack ) {
         rf_init = state.distance_m;
         atk_started = true;
-        gcs().send_text(MAV_SEVERITY_INFO, "RF: Attack Started");
-    }
-    if(atk_started && params.atk == 1) {
-        float atk_val = params.rate * atk_iter; //cm
-        if (fabs(atk_val) > abs(params.dist)) {
-            //We have offset the device as far as we want
-            state.distance_m = rf_init + (params.dist / 100.0f);
-            if (!final_msg) {
-                gcs().send_text(MAV_SEVERITY_INFO, "RF: Attack Value Reached (%f/%d)", fabs(atk_val), abs(params.dist));
-                gcs().send_text(MAV_SEVERITY_INFO, "RF: Holding at %fm", state.distance_m);
-                final_msg = true;
-            }
+        time = AP_HAL::micros64()/1.0E6;
+        if( fabs(params.RATE) < 0.0001 ){
+            // Assume such a small RATE is 0
+            t1 = 0;
         } else{
-            //Still offsetting reading
-            state.distance_m = rf_init + atk_val/100.0f;
-            #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
-            gcs().send_text(MAV_SEVERITY_INFO, "RF: Offsetting iteration (%u) | Offset distance (%f/%f)", atk_iter, atk_val, float(params.dist));
-            #else
-            gcs().send_text(MAV_SEVERITY_INFO, "RF: Offsetting iteration (%lu) | Offset distance (%f/%f)", atk_iter, atk_val, float(params.dist));
-            #endif
-            atk_iter = MIN(static_cast<uint32_t>(1000), atk_iter+1);
+            t1 = sqrtf((abs(params.DIST) / 1.0E2) / params.RATE);
+        }
+        gcs().send_text(MAV_SEVERITY_INFO, "RF: Attack Started, Time Expected %.2f s", t1*2);
+    }
+    if( atk_started && attack ) {
+        if( params.SIMPLE_ATTACK == 1 ){
+            state.distance_m = rf_init + (params.DIST / 100.0f);
+            gcs().send_text(MAV_SEVERITY_INFO, "RF: One-Step Offset %.2f m", params.DIST/1E2);
+        } else{
+            time_elapsed += ((AP_HAL::micros64()/1.0E6) - time);
+            if( time_elapsed <= t1 ){ // t <= t1
+                state.distance_m = rf_init + (0.5)*(params.RATE)*sq(time_elapsed); // d_0 + 1/2 * a * t^2
+            } else if(time_elapsed <= (t1 * 2)){ // t1 < t <= t2
+                state.distance_m = rf_init + (0.5)*(params.RATE)*sq(t1) + // d_0 + d_1
+                                   (params.RATE)*(t1)*(time_elapsed - t1) - // v_1*t
+                                   (0.5) * (params.RATE) * sq(time_elapsed - t1); // 1/2 * a * (t-t1)^2 
+            } else{
+                state.distance_m = rf_init + params.DIST/1.0E2;
+            }
+            if( !final_msg ){
+                if( (time_elapsed) < (t1 * 2) ){
+                gcs().send_text(MAV_SEVERITY_INFO, "RF: Time Elapsed (%.2f/%.2f)s, Offset %.2f m",
+                                time_elapsed, t1*2, state.distance_m - state.real_distance_m);
+                } else{
+                    gcs().send_text(MAV_SEVERITY_INFO, "RF: Finished offsetting %.2f m", state.distance_m - state.real_distance_m);
+                    final_msg = true;
+                }
+            } 
         }
     }
 

@@ -295,7 +295,6 @@ const struct AP_Param::GroupInfo *AP_Param::get_group_info(const struct Info &in
 bool AP_Param::check_var_info(void)
 {
     uint16_t total_size = sizeof(struct EEPROM_header);
-
     for (uint16_t i=0; i<_num_vars; i++) {
         const auto &info = var_info(i);
         uint8_t type = info.type;

@@ -29,7 +29,9 @@ public:
     AP_Int8  orientation;
     //PADLOCK
     //Attack parameters
-    AP_Float rate; //cm, set this relative to the sensor update rate
-    AP_Int16 dist; //cm
-    AP_Int8 atk;  //1:Enalbe, Other:Disable
+    AP_Float RATE; //m/s^2
+    AP_Int16 DIST; //cm
+    AP_Int8 ATK;  //1:Enable, Other:Disable
+    AP_Int8 SIMPLE_ATTACK; //1:Enable, Other:Disable
+    AP_Int8 CHANNEL; //Channel to activate attack for
 };
