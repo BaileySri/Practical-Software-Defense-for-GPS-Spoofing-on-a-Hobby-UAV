@@ -44,6 +44,7 @@ For the fence using real GPS values even during spoofing:
 *  GPS_xxxxxxx_FEN_SIZ - (centimeters) A square fence of size GPS_xxxxxxx_FEN_SIZ cm<sup>2</sup>
 
 ## Files for quick reference
+File links won't work in anonymized view.
 *  [Defense files](/libraries/SensorDefense/)
     * /libraries/SensorDefense/
 *  [GPS Spoofing](/libraries/AP_GPS/AP_GPS.cpp#L954)
