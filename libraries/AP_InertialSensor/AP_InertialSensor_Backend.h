@@ -149,7 +149,7 @@ protected:
     // corrected (_rotate_and_correct_gyro)
     // The sample_us value must be provided for non-FIFO based
     // sensors, and should be set to zero for FIFO based sensors
-    void _notify_new_gyro_raw_sample(uint8_t instance, const Vector3f &accel, uint64_t sample_us=0) __RAMFUNC__;
+    void _notify_new_gyro_raw_sample(uint8_t instance, Vector3f &accel, uint64_t sample_us=0) __RAMFUNC__;
 
     // alternative interface using delta-angles. Rotation and correction is handled inside this function
     void _notify_new_delta_angle(uint8_t instance, const Vector3f &dangle);

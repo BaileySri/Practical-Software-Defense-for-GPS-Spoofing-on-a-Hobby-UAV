@@ -219,8 +219,10 @@ void AP_InertialSensor_Backend::apply_gyro_filters(const uint8_t instance, const
     }
 }
 
+//PADLOCK
+// Dropped the constant keyword from gyro to allow spoofing in-place
 void AP_InertialSensor_Backend::_notify_new_gyro_raw_sample(uint8_t instance,
-                                                            const Vector3f &gyro,
+                                                            Vector3f &gyro,
                                                             uint64_t sample_us)
 {
     if ((1U<<instance) & _imu.imu_kill_mask) {
@@ -259,6 +261,15 @@ void AP_InertialSensor_Backend::_notify_new_gyro_raw_sample(uint8_t instance,
     // call gyro_sample hook if any
     AP_Module::call_hook_gyro_sample(instance, dt, gyro);
 #endif
+
+    //PADLOCK
+    // Saving the raw gyro value for logging, do not confuse with _gyro_raw
+    _imu.gyro_raw[instance] = gyro;
+    // Gyroscope spoofing code is here
+    // Gyroscope is in FRD frame, units are rad/s, with no rotation being {0, 0, 0}
+    if( _imu.GYR_ATK == 1 ){
+        gyro = Vector3f(1, 1, 1);
+    }
 
     // push gyros if optical flow present
     if (hal.opticalflow) {
@@ -518,11 +529,13 @@ void AP_InertialSensor_Backend::_notify_new_accel_raw_sample(uint8_t instance,
     // call accel_sample hook if any
     AP_Module::call_hook_accel_sample(instance, dt, accel, fsync_set);
 #endif
-
+  
     //PADLOCK
+    // Saving the raw accelerometer value
+    _imu._accel_raw[instance] = accel;
     // Accelerometer spoofing code is here
     // accel is in NED frame, units are m/s/s, with a standstill being {0, 0, -GRAVITY_MSS}
-    if( _imu.PDLK_ATK == 1 ){
+    if( _imu.ACC_ATK == 1 ){
         accel = Vector3f(1, 1, -GRAVITY_MSS + 1);
     }
         
@@ -545,9 +558,6 @@ void AP_InertialSensor_Backend::_notify_new_accel_raw_sample(uint8_t instance,
         _imu._delta_velocity_acc_dt[instance] += dt;
 
         _imu._accel_filtered[instance] = _imu._accel_filter[instance].apply(accel);
-        //PADLOCK
-        // Saving the raw accelerometer value
-        _imu._accel_raw[instance] = accel;
         if (_imu._accel_filtered[instance].is_nan() || _imu._accel_filtered[instance].is_inf()) {
             _imu._accel_filter[instance].reset();
         }
