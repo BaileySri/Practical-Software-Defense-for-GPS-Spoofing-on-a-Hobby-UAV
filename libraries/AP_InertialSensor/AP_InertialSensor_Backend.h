@@ -163,7 +163,7 @@ protected:
     // be rotated and corrected (_rotate_and_correct_accel)
     // The sample_us value must be provided for non-FIFO based
     // sensors, and should be set to zero for FIFO based sensors
-    void _notify_new_accel_raw_sample(uint8_t instance, const Vector3f &accel, uint64_t sample_us=0, bool fsync_set=false) __RAMFUNC__;
+    void _notify_new_accel_raw_sample(uint8_t instance, Vector3f &accel, uint64_t sample_us=0, bool fsync_set=false) __RAMFUNC__;
 
     // alternative interface using delta-velocities. Rotation and correction is handled inside this function
     void _notify_new_delta_velocity(uint8_t instance, const Vector3f &dvelocity);

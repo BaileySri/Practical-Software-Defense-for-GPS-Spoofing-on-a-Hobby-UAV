@@ -1,6 +1,7 @@
 #pragma once
 
 // Gyro and Accelerometer calibration criteria
+#include "AP_Param/AP_Param.h"
 #define AP_INERTIAL_SENSOR_ACCEL_TOT_MAX_OFFSET_CHANGE  4.0f
 #define AP_INERTIAL_SENSOR_ACCEL_MAX_OFFSET             250.0f
 #define AP_INERTIAL_SENSOR_ACCEL_VIBE_FLOOR_FILT_HZ     5.0f    // accel vibration floor filter hz
@@ -481,6 +482,9 @@ public:
         float last_attenuation_dB[INS_MAX_INSTANCES];
         bool inactive;
     } harmonic_notches[HAL_INS_NUM_HARMONIC_NOTCH_FILTERS];
+
+    //PADLOCK
+    AP_Int8 PDLK_ATK;
 
 private:
     // load backend drivers

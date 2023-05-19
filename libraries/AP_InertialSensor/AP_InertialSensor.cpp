@@ -655,6 +655,12 @@ const AP_Param::GroupInfo AP_InertialSensor::var_info[] = {
     
 #endif // HAL_INS_TEMPERATURE_CAL_ENABLE
 
+    // @Param: PDLK_ATK
+    // @DisplayName: Switch for Accelerometer spoofing
+    // @Description: Disables/Enables Accelerometer spoofing.
+    // @User: Advanced
+    AP_GROUPINFO("PDLK_ATK", 54, AP_InertialSensor, PDLK_ATK, 0),
+
     /*
       NOTE: parameter indexes have gaps above. When adding new
       parameters check for conflicts carefully

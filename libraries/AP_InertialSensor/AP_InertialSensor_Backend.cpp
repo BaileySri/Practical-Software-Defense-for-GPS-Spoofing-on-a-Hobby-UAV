@@ -473,8 +473,12 @@ void AP_InertialSensor_Backend::_publish_accel(uint8_t instance, const Vector3f 
     }
 }
 
+
+//PADLOCK
+// I removed the constant keyword from &accel to overwrite the data
+// locally and propagate the results to the rest of the system
 void AP_InertialSensor_Backend::_notify_new_accel_raw_sample(uint8_t instance,
-                                                             const Vector3f &accel,
+                                                             Vector3f &accel,
                                                              uint64_t sample_us,
                                                              bool fsync_set)
 {
@@ -513,8 +517,15 @@ void AP_InertialSensor_Backend::_notify_new_accel_raw_sample(uint8_t instance,
 #if AP_MODULE_SUPPORTED
     // call accel_sample hook if any
     AP_Module::call_hook_accel_sample(instance, dt, accel, fsync_set);
-#endif    
-    
+#endif
+
+    //PADLOCK
+    // Accelerometer spoofing code is here
+    // accel is in NED frame, units are m/s/s, with a standstill being {0, 0, -GRAVITY_MSS}
+    if( _imu.PDLK_ATK == 1 ){
+        accel = Vector3f(1, 1, -GRAVITY_MSS + 1);
+    }
+        
     _imu.calc_vibration_and_clipping(instance, accel, dt);
 
     {
@@ -535,6 +546,7 @@ void AP_InertialSensor_Backend::_notify_new_accel_raw_sample(uint8_t instance,
 
         _imu._accel_filtered[instance] = _imu._accel_filter[instance].apply(accel);
         //PADLOCK
+        // Saving the raw accelerometer value
         _imu._accel_raw[instance] = accel;
         if (_imu._accel_filtered[instance].is_nan() || _imu._accel_filtered[instance].is_inf()) {
             _imu._accel_filter[instance].reset();

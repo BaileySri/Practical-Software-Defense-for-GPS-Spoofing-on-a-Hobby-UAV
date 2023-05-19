@@ -1267,6 +1267,7 @@ const AP_Param::ConversionInfo conversion_table[] = {
 
 void Copter::load_parameters(void)
 {
+    sleep(10);
     if (!AP_Param::check_var_info()) {
         DEV_PRINTF("Bad var table\n");
         AP_HAL::panic("Bad var table");
