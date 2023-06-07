@@ -485,7 +485,9 @@ public:
 
     //PADLOCK
     AP_Int8 ACC_ATK;
+    AP_Int8 ACC_ATK_VAL[3];
     AP_Int8 GYR_ATK;
+    AP_Int8 GYR_ATK_VAL[3];
 
 private:
     // load backend drivers

@@ -667,6 +667,48 @@ const AP_Param::GroupInfo AP_InertialSensor::var_info[] = {
     // @User: Advanced
     AP_GROUPINFO("GYR_ATK", 55, AP_InertialSensor, GYR_ATK, 0),
 
+    // @Param: ACC_F
+    // @DisplayName: Spoof value for accelerometer Front value
+    // @Description: Value to spoof the accelerometer with in m/s/s.
+    // @User: Advanced
+    // @Units: m/s/s
+    AP_GROUPINFO("ACC_F", 56, AP_InertialSensor, ACC_ATK_VAL[0], 0),
+
+    // @Param: GYR_R
+    // @DisplayName: Spoof value for Gyroscope Roll value
+    // @Description: Value to spoof the gyroscope with in rad/s
+    // @User: Advanced
+    // @Units: rad/s
+    AP_GROUPINFO("GYR_R", 57, AP_InertialSensor, GYR_ATK_VAL[0], 0),
+
+    // @Param: ACC_R
+    // @DisplayName: Spoof value for accelerometer Right value
+    // @Description: Value to spoof the accelerometer with in m/s/s.
+    // @User: Advanced
+    // @Units: m/s/s
+    AP_GROUPINFO("ACC_R", 58, AP_InertialSensor, ACC_ATK_VAL[1], 0),
+
+    // @Param: GYR_P
+    // @DisplayName: Spoof value for Gyroscope Pitch value
+    // @Description: Value to spoof the gyroscope with in rad/s
+    // @User: Advanced
+    // @Units: rad/s
+    AP_GROUPINFO("GYR_P", 59, AP_InertialSensor, GYR_ATK_VAL[1], 0),
+
+    // @Param: ACC_D
+    // @DisplayName: Spoof value for accelerometer Down value
+    // @Description: Value to spoof the accelerometer with in m/s/s.
+    // @User: Advanced
+    // @Units: m/s/s
+    AP_GROUPINFO("ACC_D", 60, AP_InertialSensor, ACC_ATK_VAL[2], 0),
+
+    // @Param: GYR_Y
+    // @DisplayName: Spoof value for Gyroscope Yaw value
+    // @Description: Value to spoof the gyroscope with in rad/s
+    // @User: Advanced
+    // @Units: rad/s
+    AP_GROUPINFO("GYR_Y", 61, AP_InertialSensor, GYR_ATK_VAL[2], 0),
+
     /*
       NOTE: parameter indexes have gaps above. When adding new
       parameters check for conflicts carefully

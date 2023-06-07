@@ -268,7 +268,9 @@ void AP_InertialSensor_Backend::_notify_new_gyro_raw_sample(uint8_t instance,
     // Gyroscope spoofing code is here
     // Gyroscope is in FRD frame, units are rad/s, with no rotation being {0, 0, 0}
     if( _imu.GYR_ATK == 1 ){
-        gyro = Vector3f(1, 1, 1);
+        gyro = Vector3f(_imu.GYR_ATK_VAL[0],
+                        _imu.GYR_ATK_VAL[1],
+                        _imu.GYR_ATK_VAL[2]);
     }
 
     // push gyros if optical flow present
@@ -536,7 +538,9 @@ void AP_InertialSensor_Backend::_notify_new_accel_raw_sample(uint8_t instance,
     // Accelerometer spoofing code is here
     // accel is in NED frame, units are m/s/s, with a standstill being {0, 0, -GRAVITY_MSS}
     if( _imu.ACC_ATK == 1 ){
-        accel = Vector3f(1, 1, -GRAVITY_MSS + 1);
+        accel = Vector3f(_imu.ACC_ATK_VAL[0],
+                         _imu.ACC_ATK_VAL[1],
+                         -GRAVITY_MSS + _imu.ACC_ATK_VAL[2]);
     }
         
     _imu.calc_vibration_and_clipping(instance, accel, dt);
