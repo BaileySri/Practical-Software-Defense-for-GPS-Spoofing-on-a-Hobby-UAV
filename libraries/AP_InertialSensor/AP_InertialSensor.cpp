@@ -666,49 +666,49 @@ const AP_Param::GroupInfo AP_InertialSensor::var_info[] = {
     // @DisplayName: Switch to treat non-spoofed axis differently
     // @Description: Change behavior on non-spoofed axis.
     // @User: Advanced
-    // @Values: 0:Pass-through, 1:Zero/DoS, 2:White Noise
+    // @Values: 0:Pass-through, 1:Zero/DoS, 2:Gaussian Noise
     AP_GROUPINFO("AX_EFF", 55, AP_InertialSensor, AXIS_EFFECT, 0),
 
     // @Param: ACC_F
     // @DisplayName: Spoof value for accelerometer Front value
-    // @Description: Value to spoof the accelerometer with in m/s/s.
+    // @Description: Value to spoof the accelerometer with in cm/s/s.
     // @User: Advanced
-    // @Units: m/s/s
+    // @Units: cm/s/s
     AP_GROUPINFO("ACC_F", 56, AP_InertialSensor, ACC_ATK_VAL[0], 0),
 
     // @Param: GYR_R
     // @DisplayName: Spoof value for Gyroscope Roll value
-    // @Description: Value to spoof the gyroscope with in rad/s
+    // @Description: Value to spoof the gyroscope with in c-rad/s
     // @User: Advanced
-    // @Units: rad/s
+    // @Units: c-rad/s
     AP_GROUPINFO("GYR_R", 57, AP_InertialSensor, GYR_ATK_VAL[0], 0),
 
     // @Param: ACC_R
     // @DisplayName: Spoof value for accelerometer Right value
-    // @Description: Value to spoof the accelerometer with in m/s/s.
+    // @Description: Value to spoof the accelerometer with in cm/s/s.
     // @User: Advanced
-    // @Units: m/s/s
+    // @Units: cm/s/s
     AP_GROUPINFO("ACC_R", 58, AP_InertialSensor, ACC_ATK_VAL[1], 0),
 
     // @Param: GYR_P
     // @DisplayName: Spoof value for Gyroscope Pitch value
-    // @Description: Value to spoof the gyroscope with in rad/s
+    // @Description: Value to spoof the gyroscope with in c-rad/s
     // @User: Advanced
-    // @Units: rad/s
+    // @Units: c-rad/s
     AP_GROUPINFO("GYR_P", 59, AP_InertialSensor, GYR_ATK_VAL[1], 0),
 
     // @Param: ACC_D
     // @DisplayName: Spoof value for accelerometer Down value
-    // @Description: Value to spoof the accelerometer with in m/s/s.
+    // @Description: Value to spoof the accelerometer with in cm/s/s.
     // @User: Advanced
-    // @Units: m/s/s
+    // @Units: cm/s/s
     AP_GROUPINFO("ACC_D", 60, AP_InertialSensor, ACC_ATK_VAL[2], 0),
 
     // @Param: GYR_Y
     // @DisplayName: Spoof value for Gyroscope Yaw value
-    // @Description: Value to spoof the gyroscope with in rad/s
+    // @Description: Value to spoof the gyroscope with in c-rad/s
     // @User: Advanced
-    // @Units: rad/s
+    // @Units: c-rad/s
     AP_GROUPINFO("GYR_Y", 61, AP_InertialSensor, GYR_ATK_VAL[2], 0),
 
     /*

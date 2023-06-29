@@ -219,6 +219,38 @@ void AP_InertialSensor_Backend::apply_gyro_filters(const uint8_t instance, const
     }
 }
 
+
+//PADLOCK
+// Added rand_normal from SIM_Aircraft.cpp
+/*
+  normal distribution random numbers
+  See
+  http://en.literateprograms.org/index.php?title=Special:DownloadCode/Box-Muller_transform_%28C%29&oldid=7011
+*/
+double rand_normal(double mean, double stddev)
+{
+    static double n2 = 0.0;
+    static int n2_cached = 0;
+    if (!n2_cached) {
+        double x, y, r;
+        do
+        {
+            x = 2.0 * rand()/RAND_MAX - 1;
+            y = 2.0 * rand()/RAND_MAX - 1;
+            r = x*x + y*y;
+        } while (is_zero(r) || r > 1.0);
+        const double d = sqrtf(-2.0 * logf(r)/r);
+        const double n1 = x * d;
+        n2 = y * d;
+        const double result = n1 * stddev + mean;
+        n2_cached = 1;
+        return result;
+    } else {
+        n2_cached = 0;
+        return n2 * stddev + mean;
+    }
+}
+
 //PADLOCK
 // Dropped the constant keyword from gyro to allow spoofing in-place
 void AP_InertialSensor_Backend::_notify_new_gyro_raw_sample(uint8_t instance,
@@ -268,9 +300,34 @@ void AP_InertialSensor_Backend::_notify_new_gyro_raw_sample(uint8_t instance,
     // Gyroscope spoofing code is here
     // Gyroscope is in FRD frame, units are rad/s, with no rotation being {0, 0, 0}
     if( _imu.INS_ATK == 2 || _imu.INS_ATK == 3 ){
-        gyro = Vector3f(_imu.GYR_ATK_VAL[0],
-                        _imu.GYR_ATK_VAL[1],
-                        _imu.GYR_ATK_VAL[2]);
+        switch ( _imu.AXIS_EFFECT )
+        {
+        case _imu.PASS_THROUGH:
+            // Only replace readings with non-zero attack values
+            for(int axis = 0; axis < 3; axis++){
+                if( _imu.GYR_ATK_VAL[axis] != 0 ){
+                    gyro[axis] = _imu.GYR_ATK_VAL[axis]/1E2;
+                }
+            }
+            break;
+        case _imu.DENIAL_OF_SERVICE:
+            // Replace the entire reading with input attack values
+            gyro = Vector3f(_imu.GYR_ATK_VAL[0]/1E2,
+                            _imu.GYR_ATK_VAL[1]/1E2,
+                            (-GRAVITY_MSS + _imu.GYR_ATK_VAL[2])/1E2);
+            break;
+        default:
+            // Add normal noise to sensors being pass through
+            for(int axis = 0; axis < 3; axis++){
+                if( _imu.GYR_ATK_VAL[axis] != 0 ){
+                    gyro[axis] = _imu.GYR_ATK_VAL[axis]/1E2;
+                } else{
+                    // Add noise up to 0.262 rad/s or 15 deg/s
+                    gyro[axis] += rand_normal(0, 0.262);
+                }
+            }
+            break;
+        }
     }
 
     // push gyros if optical flow present
@@ -538,9 +595,34 @@ void AP_InertialSensor_Backend::_notify_new_accel_raw_sample(uint8_t instance,
     // Accelerometer spoofing code is here
     // accel is in NED frame, units are m/s/s, with a standstill being {0, 0, -GRAVITY_MSS}
     if( _imu.INS_ATK == 1 || _imu.INS_ATK == 3 ){
-        accel = Vector3f(_imu.ACC_ATK_VAL[0],
-                         _imu.ACC_ATK_VAL[1],
-                         -GRAVITY_MSS + _imu.ACC_ATK_VAL[2]);
+        switch ( _imu.AXIS_EFFECT )
+        {
+        case _imu.PASS_THROUGH:
+            // Only replace readings with non-zero attack values
+            for(int axis = 0; axis < 3; axis++){
+                if( _imu.ACC_ATK_VAL[axis] != 0 ){
+                    accel[axis] = _imu.ACC_ATK_VAL[axis]/1E2;
+                }
+            }
+            break;
+        case _imu.DENIAL_OF_SERVICE:
+            // Replace the entire reading with input attack values
+            accel = Vector3f(_imu.ACC_ATK_VAL[0]/1E2,
+                             _imu.ACC_ATK_VAL[1]/1E2,
+                             (-GRAVITY_MSS + _imu.ACC_ATK_VAL[2])/1E2);
+            break;
+        default:
+            // Add normal noise to sensors being pass through
+            for(int axis = 0; axis < 3; axis++){
+                if( _imu.ACC_ATK_VAL[axis] != 0 ){
+                    accel[axis] = _imu.ACC_ATK_VAL[axis]/1E2;
+                } else{
+                    // Add noise up to 1G of force
+                    accel[axis] += rand_normal(0, GRAVITY_MSS);
+                }
+            }
+            break;
+        }
     }
         
     _imu.calc_vibration_and_clipping(instance, accel, dt);
