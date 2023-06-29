@@ -484,9 +484,9 @@ public:
     } harmonic_notches[HAL_INS_NUM_HARMONIC_NOTCH_FILTERS];
 
     //PADLOCK
-    AP_Int8 ACC_ATK;
+    AP_Int8 INS_ATK;
+    AP_Int8 AXIS_EFFECT;
     AP_Int8 ACC_ATK_VAL[3];
-    AP_Int8 GYR_ATK;
     AP_Int8 GYR_ATK_VAL[3];
 
 private:
