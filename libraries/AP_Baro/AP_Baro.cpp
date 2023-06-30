@@ -232,6 +232,29 @@ const AP_Param::GroupInfo AP_Baro::var_info[] = {
     AP_GROUPINFO("_FIELD_ELV", 22, AP_Baro, _field_elevation, 0),
 #endif
 #endif
+    //PADLOCK
+    // @Param: PDLK_ATK
+    // @DisplayName: Barometer attack switch
+    // @Description: Enable/Disable Pressure, Temperature, or Both spoofing.
+    // @values: 0:Disabled, 1:Temperature, 2:Pressure, 3:Both
+    // @User: Advanced
+    AP_GROUPINFO("_PDLK_ATK", 23, AP_Baro, PDLK_ATK, 0),
+
+    // @Param: PDLK_TMP
+    // @DisplayName: Temperature to spoof on the barometer
+    // @Description: Temperature value to replace in the barometer readings
+    // @Units: Celsius
+    // @Increment: MIN_FLOAT MAX_FLOAT
+    // @User: Advanced
+    AP_GROUPINFO("_PDLK_TMP", 24, AP_Baro, PDLK_TEMP, 0),
+
+    // @Param: PDLK_PRES
+    // @DisplayName: Pressure to spoof on the barometer
+    // @Description: Pressure value to replace in the barometer readings
+    // @Units: Pascal
+    // @Increment: MIN_FLOAT MAX_FLOAT
+    // @User: Advanced
+    AP_GROUPINFO("_PDLK_PRES", 25, AP_Baro, PDLK_PRES, 0),
     AP_GROUPEND
 };
 

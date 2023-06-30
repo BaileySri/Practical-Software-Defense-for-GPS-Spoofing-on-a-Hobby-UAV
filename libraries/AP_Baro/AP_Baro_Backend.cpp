@@ -1,4 +1,5 @@
 #include "AP_Baro_Backend.h"
+#include "SensorConfirmation/sensor_confirmation_structs.h"
 
 #include <stdio.h>
 
@@ -50,6 +51,28 @@ void AP_Baro_Backend::_copy_to_frontend(uint8_t instance, float pressure, float 
     if (instance >= _frontend._num_sensors) {
         return;
     }
+
+    //PADLOCK
+    // Barometer spoofing code
+    // Pressure in Pascal, Temperature in Celsius
+    switch ( _frontend.PDLK_ATK ) {
+    case 1:
+        // Temperature Spoofing
+        temperature = _frontend.PDLK_TEMP;
+        break;
+    case 2: 
+        // Pressure Spoofing
+        pressure = _frontend.PDLK_PRES;
+        break;
+    case 3:
+        // Both
+        temperature = _frontend.PDLK_TEMP;
+        pressure = _frontend.PDLK_PRES;
+        break;
+    default:
+        break;
+    }
+
     uint32_t now = AP_HAL::millis();
 
     // check for changes in data values

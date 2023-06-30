@@ -84,7 +84,10 @@ void AP_RangeFinder_Backend::update_status()
     if( atk_started && attack ) {
         if( params.SIMPLE_ATTACK == 1 ){
             state.distance_m = rf_init + (params.DIST / 100.0f);
-            gcs().send_text(MAV_SEVERITY_INFO, "RF: One-Step Offset %.2f m", params.DIST/1E2);
+            if( !final_msg ){
+                gcs().send_text(MAV_SEVERITY_INFO, "RF: One-Step Offset %.2f m", params.DIST/1E2);
+                final_msg = true;
+            }
         } else{
             time_elapsed += ((AP_HAL::micros64()/1.0E6) - time);
             if( time_elapsed <= t1 ){ // t <= t1
