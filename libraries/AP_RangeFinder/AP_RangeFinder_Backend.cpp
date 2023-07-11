@@ -57,9 +57,16 @@ bool AP_RangeFinder_Backend::has_data() const {
             (state.status != RangeFinder::Status::NoData));
 }
 
+//PADLOCK
+// Gets the sign for the attack
+template <typename T> int sgn(T val) {
+    return (T(0) < val) - (val < T(0));
+}
+
 // update status based on distance measurement
 void AP_RangeFinder_Backend::update_status()
 {
+    //PADLOCK
     static bool atk_started = false;
     static bool final_msg = false;
     static float rf_init = 0; //m
@@ -90,12 +97,13 @@ void AP_RangeFinder_Backend::update_status()
             }
         } else{
             time_elapsed += ((AP_HAL::micros64()/1.0E6) - time);
+            const int sign = sgn(params.DIST);
             if( time_elapsed <= t1 ){ // t <= t1
-                state.distance_m = rf_init + (0.5)*(params.RATE)*sq(time_elapsed); // d_0 + 1/2 * a * t^2
+                state.distance_m = rf_init + (0.5)*sign*(params.RATE)*sq(time_elapsed); // d_0 + 1/2 * a * t^2
             } else if(time_elapsed <= (t1 * 2)){ // t1 < t <= t2
-                state.distance_m = rf_init + (0.5)*(params.RATE)*sq(t1) + // d_0 + d_1
-                                   (params.RATE)*(t1)*(time_elapsed - t1) - // v_1*t
-                                   (0.5) * (params.RATE) * sq(time_elapsed - t1); // 1/2 * a * (t-t1)^2 
+                state.distance_m = rf_init + (0.5)*sign*(params.RATE)*sq(t1) + // d_0 + d_1
+                                   sign*(params.RATE)*(t1)*(time_elapsed - t1) - // v_1*t
+                                   (0.5)*sign*(params.RATE) * sq(time_elapsed - t1); // 1/2 * a * (t-t1)^2 
             } else{
                 state.distance_m = rf_init + params.DIST/1.0E2;
             }
