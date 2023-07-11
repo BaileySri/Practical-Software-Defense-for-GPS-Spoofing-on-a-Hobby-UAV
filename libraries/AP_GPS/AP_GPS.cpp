@@ -1093,7 +1093,7 @@ void AP_GPS::update_instance(uint8_t instance)
             //Latitude Spoofing
             switch(mode[0]){
                 case 0: //Slowing to 0 from init
-                    state[instance].location.lat = last_lla.lat + static_cast<int32_t>((last_vel[0] * 100 * dt/1000.0F + //V[i-1]*t +
+                    state[instance].location.lat = last_lla.lat + static_cast<int32_t>((last_vel[0] * 100 * dt/1000.0F - //V[i-1]*t -
                                                                                         sgn(last_vel[0])*(0.5*SLOW_RATE*sq(dt/1000.0F))) * // 0.5*a*t^2 *
                                                                                         0.89831f); //Scaling factor
                     break;
@@ -1120,7 +1120,7 @@ void AP_GPS::update_instance(uint8_t instance)
             //Longitude Spoofing
             switch(mode[1]){
                 case 0: //Slowing to 0 from init
-                    state[instance].location.lng = last_lla.lng + static_cast<int32_t>((last_vel[1] * 100 * dt/1000.0F + //V[i-1]*t +
+                    state[instance].location.lng = last_lla.lng + static_cast<int32_t>((last_vel[1] * 100 * dt/1000.0F + //V[i-1]*t -
                                                                                         sgn(last_vel[1])*(0.5*SLOW_RATE*sq(dt/1000.0F))) * // 0.5*a*t^2 *
                                                                                         lng_scale_factor); //Scaling factor
                     break;
