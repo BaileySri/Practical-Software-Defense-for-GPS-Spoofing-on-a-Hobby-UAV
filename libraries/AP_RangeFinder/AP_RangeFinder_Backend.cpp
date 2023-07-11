@@ -20,6 +20,10 @@
 #include "AP_RangeFinder/AP_RangeFinder_Params.h"
 #include "AP_RangeFinder_Backend.h"
 //PADLOCK
+// Gets the sign for the attack
+template <typename T> int sgn(T val) {
+    return (T(0) < val) - (val < T(0));
+}
 #include "GCS_MAVLink/GCS.h"
 #include <AP_Vehicle/AP_Vehicle.h>
 
@@ -57,12 +61,6 @@ bool AP_RangeFinder_Backend::has_data() const {
             (state.status != RangeFinder::Status::NoData));
 }
 
-//PADLOCK
-// Gets the sign for the attack
-template <typename T> int sgn(T val) {
-    return (T(0) < val) - (val < T(0));
-}
-
 // update status based on distance measurement
 void AP_RangeFinder_Backend::update_status()
 {
@@ -97,7 +95,7 @@ void AP_RangeFinder_Backend::update_status()
             }
         } else{
             time_elapsed += ((AP_HAL::micros64()/1.0E6) - time);
-            const int sign = sgn(params.DIST);
+            const int sign = sgn(params.DIST.get());
             if( time_elapsed <= t1 ){ // t <= t1
                 state.distance_m = rf_init + (0.5)*sign*(params.RATE)*sq(time_elapsed); // d_0 + 1/2 * a * t^2
             } else if(time_elapsed <= (t1 * 2)){ // t1 < t <= t2
