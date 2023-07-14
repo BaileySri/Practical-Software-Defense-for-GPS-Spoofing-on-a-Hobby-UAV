@@ -489,7 +489,10 @@ public:
     AP_Int16 ACC_ATK_VAL[3];
     AP_Int16 GYR_ATK_VAL[3];
 
-    enum AXIS_EFFECTS {PASS_THROUGH, DENIAL_OF_SERVICE, GAUSSIAN_NOISE};
+    enum AXIS_EFFECTS {PASS_THROUGH = 0,
+                       DENIAL_OF_SERVICE = 1,
+                       GAUSSIAN_NOISE = 2,
+                       ALL_AXIS = 3};
 private:
     // load backend drivers
     bool _add_backend(AP_InertialSensor_Backend *backend);

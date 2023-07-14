@@ -111,6 +111,15 @@ void AP_Compass_Backend::accumulate_sample(Vector3f &field, uint8_t instance,
     /* rotate raw_field from sensor frame to body frame */
     rotate_field(field, instance);
 
+    //PADLOCK
+    // Compass spoofing code is here. We assume the attacker knows the UAV orientation
+    // but not the field correction, i.e., Hard/Soft-Iron calibrations
+    if( _compass.ATK == 1 ){
+        field = Vector3f(_compass.ATK_VAL[0],
+                         _compass.ATK_VAL[1],
+                         _compass.ATK_VAL[2]);
+    }
+
     /* publish raw_field (uncorrected point sample) for calibration use */
     publish_raw_field(field, instance);
 

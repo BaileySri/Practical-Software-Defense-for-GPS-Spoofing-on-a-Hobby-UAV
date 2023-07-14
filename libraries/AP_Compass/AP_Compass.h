@@ -361,6 +361,10 @@ public:
     // get the first compass marked for use by COMPASSx_USE
     uint8_t get_first_usable(void) const { return _first_usable; }
 
+    //PADLOCK
+    // Attack parameters
+    AP_Int8 ATK;
+    AP_Float ATK_VAL[3];
 private:
     static Compass *_singleton;
 

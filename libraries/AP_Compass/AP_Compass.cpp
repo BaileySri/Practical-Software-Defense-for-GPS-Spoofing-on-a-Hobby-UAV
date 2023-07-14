@@ -666,6 +666,39 @@ const AP_Param::GroupInfo Compass::var_info[] = {
 
     // index 51
 
+    //PADLOCK
+    // Attack parameters
+
+    // @Param: PDLK_ATK
+    // @DisplayName: PDLK_ATK
+    // @Description: Enable/Disable compass spoofing
+    // @Values: 1:Enabled, Other:Disabled
+    // @User: Advanced
+    AP_GROUPINFO("PDLK_ATK", 52, Compass, ATK, 0),
+
+    // @Param: ATK_X
+    // @DisplayName: ATK_X
+    // @Description: Spoof value for magnetic field x component
+    // @Range: MIN_FLOAT MAX_FLOAT
+    // @Units: milligauss
+    // @User: Advanced
+    AP_GROUPINFO("ATK_X", 53, Compass, ATK_VAL[0], 0),
+    
+    // @Param: ATK_Y
+    // @DisplayName: ATK_Y
+    // @Description: Spoof value for magnetic field y component
+    // @Range: MIN_FLOAT MAX_FLOAT
+    // @Units: milligauss
+    // @User: Advanced
+    AP_GROUPINFO("ATK_Y", 54, Compass, ATK_VAL[1], 0),
+
+    // @Param: ATK_Z
+    // @DisplayName: ATK_Z
+    // @Description: Spoof value for magnetic field z component
+    // @Range: MIN_FLOAT MAX_FLOAT
+    // @Units: milligauss
+    // @User: Advanced
+    AP_GROUPINFO("ATK_Z", 55, Compass, ATK_VAL[2], 0),
     AP_GROUPEND
 };
 

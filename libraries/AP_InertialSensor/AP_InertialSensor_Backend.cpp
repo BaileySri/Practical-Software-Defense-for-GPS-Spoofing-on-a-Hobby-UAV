@@ -316,6 +316,12 @@ void AP_InertialSensor_Backend::_notify_new_gyro_raw_sample(uint8_t instance,
                             _imu.GYR_ATK_VAL[1]/1E2,
                             (-GRAVITY_MSS + _imu.GYR_ATK_VAL[2])/1E2);
             break;
+        case _imu.ALL_AXIS:
+            // Replace all of the readings with the value on the PITCH
+            gyro = Vector3f(_imu.GYR_ATK_VAL[0]/1E2,
+                            _imu.GYR_ATK_VAL[0]/1E2,
+                            (-GRAVITY_MSS + _imu.GYR_ATK_VAL[0])/1E2);
+            break;
         default:
             // Add normal noise to sensors being pass through
             for(int axis = 0; axis < 3; axis++){
@@ -610,6 +616,12 @@ void AP_InertialSensor_Backend::_notify_new_accel_raw_sample(uint8_t instance,
             accel = Vector3f(_imu.ACC_ATK_VAL[0]/1E2,
                              _imu.ACC_ATK_VAL[1]/1E2,
                              (-GRAVITY_MSS + _imu.ACC_ATK_VAL[2])/1E2);
+            break;
+        case _imu.ALL_AXIS:
+            // Replace all axis values with Forward acceleration values
+            accel = Vector3f(_imu.ACC_ATK_VAL[0]/1E2,
+                             _imu.ACC_ATK_VAL[0]/1E2,
+                             (-GRAVITY_MSS + _imu.ACC_ATK_VAL[0])/1E2);
             break;
         default:
             // Add normal noise to sensors being pass through

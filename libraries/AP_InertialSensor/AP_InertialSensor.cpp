@@ -655,18 +655,18 @@ const AP_Param::GroupInfo AP_InertialSensor::var_info[] = {
     
 #endif // HAL_INS_TEMPERATURE_CAL_ENABLE
 
-    // @Param: INS_ATK
+    // @Param: PDLK_ATK
     // @DisplayName: Switch for spoofing
     // @Description: Disables/Enables INS spoofing.
     // @User: Advanced
     // @Values: 0:Disabled, 1:Accelerometer, 2:Gyroscope, 3:Accelerometer and Gyroscope
-    AP_GROUPINFO("INS_ATK", 54, AP_InertialSensor, INS_ATK, 0),
+    AP_GROUPINFO("PDLK_ATK", 54, AP_InertialSensor, INS_ATK, 0),
     
     // @Param: AX_EFF
     // @DisplayName: Switch to treat non-spoofed axis differently
     // @Description: Change behavior on non-spoofed axis.
     // @User: Advanced
-    // @Values: 0:Pass-through, 1:Zero/DoS, 2:Gaussian Noise
+    // @Values: 0:Pass-through, 1:Zero/DoS, 2:Gaussian Noise, 4:Same on all axis
     AP_GROUPINFO("AX_EFF", 55, AP_InertialSensor, AXIS_EFFECT, 0),
 
     // @Param: ACC_F
