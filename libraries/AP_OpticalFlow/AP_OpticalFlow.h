@@ -138,7 +138,7 @@ private:
     AP_Float _pdlk_attack_y;        // rad/s, Y value is rotation about y axis, indicating front(+)/back(-) tilt
     AP_Int8 _pdlk_attack_enable;    // Enable or disable the optical flow spoofing
     AP_Int8 _pdlk_adv_atk;          // Enable the reactive attacker
-    
+    AP_Int8 CHANNEL;                // Enable or disable RC Controlled Spoofing
     // method called by backend to update frontend state:
     void update_state(const OpticalFlow_state &state);
 

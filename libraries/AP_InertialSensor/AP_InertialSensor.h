@@ -488,6 +488,7 @@ public:
     AP_Int8 AXIS_EFFECT;
     AP_Int16 ACC_ATK_VAL[3];
     AP_Int16 GYR_ATK_VAL[3];
+    AP_Int8 CHANNEL;
 
     enum AXIS_EFFECTS {PASS_THROUGH = 0,
                        DENIAL_OF_SERVICE = 1,

@@ -499,7 +499,7 @@ const AP_Param::GroupInfo AP_GPS::var_info[] = {
     // @Range: INT8_MIN INT8_MAX
     // @Increment: 1
     // @User: Advanced
-    AP_GROUPINFO("_PDLK_CHAN", 42, AP_GPS, CHANNEL, 7),
+    AP_GROUPINFO("_PDLK_CHAN", 42, AP_GPS, CHANNEL, 0),
 
     AP_GROUPEND
 };

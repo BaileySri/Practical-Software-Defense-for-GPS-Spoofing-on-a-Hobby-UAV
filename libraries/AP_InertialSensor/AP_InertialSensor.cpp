@@ -711,6 +711,15 @@ const AP_Param::GroupInfo AP_InertialSensor::var_info[] = {
     // @Units: c-rad/s
     AP_GROUPINFO("GYR_Y", 61, AP_InertialSensor, GYR_ATK_VAL[2], 0),
 
+    // @Param: PDLK_CHAN
+    // @DisplayName: Decides which channel to enable the attack on
+    // @Description: The whole offset will happen in a single update.
+    // @Units: 0:Disable, 1:Enable
+    // @Range: INT8_MIN INT8_MAX
+    // @Increment: 1
+    // @User: Advanced
+    AP_GROUPINFO("PDLK_CHAN", 62, AP_InertialSensor, CHANNEL, 0),
+
     /*
       NOTE: parameter indexes have gaps above. When adding new
       parameters check for conflicts carefully

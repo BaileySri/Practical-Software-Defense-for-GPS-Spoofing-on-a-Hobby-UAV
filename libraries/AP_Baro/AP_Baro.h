@@ -301,6 +301,7 @@ private:
     AP_Int8 PDLK_ATK;
     AP_Float PDLK_PRES;
     AP_Float PDLK_TEMP;
+    AP_Int8 CHANNEL;
 
     // semaphore for API access from threads
     HAL_Semaphore                      _rsem;

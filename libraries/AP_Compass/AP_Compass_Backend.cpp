@@ -5,7 +5,9 @@
 
 #include <AP_BattMonitor/AP_BattMonitor.h>
 #include <AP_Vehicle/AP_Vehicle_Type.h>
-
+//PADLOCK
+// Need RC Channels for attack trigger
+#include <RC_Channel/RC_Channel.h>
 extern const AP_HAL::HAL& hal;
 
 AP_Compass_Backend::AP_Compass_Backend()
@@ -112,9 +114,10 @@ void AP_Compass_Backend::accumulate_sample(Vector3f &field, uint8_t instance,
     rotate_field(field, instance);
 
     //PADLOCK
+    bool attack = _compass.CHANNEL > 0 ? (RC_Channels::rc_channel(_compass.CHANNEL - 1)->get_radio_in() > 1600) || _compass.ATK == 1 : _compass.ATK == 1;
     // Compass spoofing code is here. We assume the attacker knows the UAV orientation
     // but not the field correction, i.e., Hard/Soft-Iron calibrations
-    if( _compass.ATK == 1 ){
+    if( attack ){
         field = Vector3f(_compass.ATK_VAL[0],
                          _compass.ATK_VAL[1],
                          _compass.ATK_VAL[2]);

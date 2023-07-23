@@ -255,6 +255,16 @@ const AP_Param::GroupInfo AP_Baro::var_info[] = {
     // @Increment: MIN_FLOAT MAX_FLOAT
     // @User: Advanced
     AP_GROUPINFO("_PDLK_PRES", 25, AP_Baro, PDLK_PRES, 0),
+
+    // @Param: PDLK_CHAN
+    // @DisplayName: Decides which channel to enable the attack on
+    // @Description: The whole offset will happen in a single update.
+    // @Units: 0:Disable, 1:Enable
+    // @Range: INT8_MIN INT8_MAX
+    // @Increment: 1
+    // @User: Advanced
+    AP_GROUPINFO("_PDLK_CHAN", 26, AP_Baro, CHANNEL, 0),
+
     AP_GROUPEND
 };
 

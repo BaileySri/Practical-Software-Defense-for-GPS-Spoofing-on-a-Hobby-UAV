@@ -1,4 +1,6 @@
 #include "AP_Baro_Backend.h"
+//PADLOCK
+#include <RC_Channel/RC_Channel.h>
 #include "SensorConfirmation/sensor_confirmation_structs.h"
 
 #include <stdio.h>
@@ -54,23 +56,30 @@ void AP_Baro_Backend::_copy_to_frontend(uint8_t instance, float pressure, float 
 
     //PADLOCK
     // Barometer spoofing code
+    bool attack = (_frontend.CHANNEL > 0) && (RC_Channels::rc_channel(_frontend.CHANNEL - 1)->get_radio_in() > 1600);
     // Pressure in Pascal, Temperature in Celsius
-    switch ( _frontend.PDLK_ATK ) {
-    case 1:
-        // Temperature Spoofing
-        temperature = _frontend.PDLK_TEMP;
-        break;
-    case 2: 
+    if ( attack ) {
+        // By default we only do pressure spoofing with RC Channels
         // Pressure Spoofing
         pressure = _frontend.PDLK_PRES;
-        break;
-    case 3:
-        // Both
-        temperature = _frontend.PDLK_TEMP;
-        pressure = _frontend.PDLK_PRES;
-        break;
-    default:
-        break;
+    } else{
+        switch ( _frontend.PDLK_ATK ) {
+        case 1:
+            // Temperature Spoofing
+            temperature = _frontend.PDLK_TEMP;
+            break;
+        case 2: 
+            // Pressure Spoofing
+            pressure = _frontend.PDLK_PRES;
+            break;
+        case 3:
+            // Both
+            temperature = _frontend.PDLK_TEMP;
+            pressure = _frontend.PDLK_PRES;
+            break;
+        default:
+            break;
+        }
     }
 
     uint32_t now = AP_HAL::millis();

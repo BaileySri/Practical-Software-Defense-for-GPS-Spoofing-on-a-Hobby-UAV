@@ -298,8 +298,16 @@ void AP_InertialSensor_Backend::_notify_new_gyro_raw_sample(uint8_t instance,
     // Saving the raw gyro value for logging, do not confuse with _gyro_raw
     _imu.gyro_raw[instance] = gyro;
     // Gyroscope spoofing code is here
+    bool RC = (_imu.CHANNEL > 0);
     // Gyroscope is in FRD frame, units are rad/s, with no rotation being {0, 0, 0}
-    if( _imu.INS_ATK == 2 || _imu.INS_ATK == 3 ){
+    if( RC ){
+        if( (RC_Channels::rc_channel(_imu.CHANNEL - 1)->get_radio_in() > 1600) && (_imu.INS_ATK == 2 || _imu.INS_ATK == 3) ){
+        // By default the RC Channel will attack all axis equally
+        gyro = Vector3f(_imu.GYR_ATK_VAL[0]/1E2,
+                        _imu.GYR_ATK_VAL[0]/1E2,
+                        (-GRAVITY_MSS + _imu.GYR_ATK_VAL[0])/1E2);
+        }
+    } else if( _imu.INS_ATK == 2 || _imu.INS_ATK == 3 ) {
         switch ( _imu.AXIS_EFFECT )
         {
         case _imu.PASS_THROUGH:
@@ -599,8 +607,16 @@ void AP_InertialSensor_Backend::_notify_new_accel_raw_sample(uint8_t instance,
     // Saving the raw accelerometer value
     _imu._accel_raw[instance] = accel;
     // Accelerometer spoofing code is here
+    bool RC = (_imu.CHANNEL > 0);
     // accel is in NED frame, units are m/s/s, with a standstill being {0, 0, -GRAVITY_MSS}
-    if( _imu.INS_ATK == 1 || _imu.INS_ATK == 3 ){
+    if( RC ){
+        if( (RC_Channels::rc_channel(_imu.CHANNEL - 1)->get_radio_in() > 1600) && (_imu.INS_ATK == 1 || _imu.INS_ATK == 3) ){
+        // By default the RC Channel will attack all axis equally
+        accel = Vector3f(_imu.ACC_ATK_VAL[0]/1E2,
+                         _imu.ACC_ATK_VAL[0]/1E2,
+                         (-GRAVITY_MSS + _imu.ACC_ATK_VAL[0])/1E2);
+        }
+    } else if( _imu.INS_ATK == 1 || _imu.INS_ATK == 3 ){
         switch ( _imu.AXIS_EFFECT )
         {
         case _imu.PASS_THROUGH:

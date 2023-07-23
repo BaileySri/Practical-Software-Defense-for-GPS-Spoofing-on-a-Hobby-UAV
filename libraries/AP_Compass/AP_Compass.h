@@ -365,6 +365,7 @@ public:
     // Attack parameters
     AP_Int8 ATK;
     AP_Float ATK_VAL[3];
+    AP_Float CHANNEL;
 private:
     static Compass *_singleton;
 

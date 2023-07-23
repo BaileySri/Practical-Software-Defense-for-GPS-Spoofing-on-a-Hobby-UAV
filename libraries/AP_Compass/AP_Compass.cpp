@@ -699,6 +699,16 @@ const AP_Param::GroupInfo Compass::var_info[] = {
     // @Units: milligauss
     // @User: Advanced
     AP_GROUPINFO("ATK_Z", 55, Compass, ATK_VAL[2], 0),
+
+    // @Param: PDLK_CHAN
+    // @DisplayName: Decides which channel to enable the attack on
+    // @Description: The whole offset will happen in a single update.
+    // @Units: 0:Disable, 1:Enable
+    // @Range: INT8_MIN INT8_MAX
+    // @Increment: 1
+    // @User: Advanced
+    AP_GROUPINFO("PDLK_CHN", 56, Compass, CHANNEL, 0),
+
     AP_GROUPEND
 };
 

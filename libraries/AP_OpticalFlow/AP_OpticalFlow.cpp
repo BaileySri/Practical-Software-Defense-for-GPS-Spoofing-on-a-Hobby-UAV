@@ -123,6 +123,15 @@ const AP_Param::GroupInfo OpticalFlow::var_info[] = {
     // @Values: 0:Disabled 1:Enabled Other:Disabled
     // @User: Advanced
     AP_GROUPINFO("_PDLK_ADV", 9,  OpticalFlow, _pdlk_adv_atk,   0),
+
+    // @Param: PDLK_CHAN
+    // @DisplayName: Decides which channel to enable the attack on
+    // @Description: The whole offset will happen in a single update.
+    // @Units: 0:Disable, 1:Enable
+    // @Range: INT8_MIN INT8_MAX
+    // @Increment: 1
+    // @User: Advanced
+    AP_GROUPINFO("_PDLK_CHAN", 10, OpticalFlow, CHANNEL, 0),
     
     AP_GROUPEND
 };
