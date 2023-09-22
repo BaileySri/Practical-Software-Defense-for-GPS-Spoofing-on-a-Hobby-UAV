@@ -1,4 +1,4 @@
-# You Can’t Get There from Here: Orthogonal Sensor Detection of UAV GPS Spoofing
+# Practical Software Defense for GPS Spoofing on a Hobby-UAV
 
 ## Paper Abstract
 Autonomous systems, such as unmanned aerial vehicles (UAVs)
