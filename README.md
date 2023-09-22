@@ -1,21 +1,20 @@
-# You Can’t Get There from Here: Orthogonal Sensor Detection of UAV GPS Spoofing
+# Practical Software Defense for GPS Spoofing on a Hobby UAV 
 
 ## Paper Abstract
-Autonomous systems, such as unmanned aerial vehicles
-(UAVs) and self driving cars, operate by reacting to physical
-phenomena captured by onboard sensors. Current UAVs
-rely on the Global Positioning System (GPS), or other radio
-navigation systems, to provide ground truth location information.
-Consequently, the GPS receiver can be used as an
-implicit control channel for these autonomous systems. We
-propose a software defense that uses observations from independent
-sensor systems to detect GPS spoofing. We have
-modified an open source UAV control program to incorporate
-our defense, and evaluated our defense on hobby-grade drone
-hardware using simulated GPS spoofing. In our field tests
-we demonstrate that built-in sensor fusion mechanisms were
-unable to detect GPS spoofing, and that our method could
-detect subtle GPS spoofing using multiple different sensors.
+Autonomous systems, such as unmanned aerial vehicles (UAVs)
+and self driving cars, operate by reacting to physical phenomena
+captured by onboard sensors. Current UAVs rely on the Global
+Positioning System (GPS), or other global navigation satellite system, to
+determine their location on Earth. Consequently, the GPS receiver
+can be used as an implicit control channel for autonomous systems.
+We propose a software defense that uses observations from
+independent sensor systems to detect GPS spoofing. We modify an
+open source UAV control program to incorporate our defense and
+evaluate our defense on hobby-grade drone hardware using simulated
+GPS spoofing. In our field tests we demonstrate that built-in
+sensor fusion mechanisms were unable to detect GPS spoofing and
+that our method could detect subtle GPS spoofing using multiple
+different sensors.
 
 ## How to install
 The modifications to ArduPilot for our defense can be built using the normal [ArduPilot install instructions](https://ardupilot.org/dev/docs/building-the-code.html).
