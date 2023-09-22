@@ -1,10 +1,10 @@
-# Practical Software Defense for GPS Spoofing on a Hobby-UAV
+# Practical Software Defense for GPS Spoofing on a Hobby UAV 
 
 ## Paper Abstract
 Autonomous systems, such as unmanned aerial vehicles (UAVs)
 and self driving cars, operate by reacting to physical phenomena
-captured by onboard sensors. Current UAVs rely on the Global Positioning
-System (GPS), or other global navigation satellite system, to
+captured by onboard sensors. Current UAVs rely on the Global
+Positioning System (GPS), or other global navigation satellite system, to
 determine their location on Earth. Consequently, the GPS receiver
 can be used as an implicit control channel for autonomous systems.
 We propose a software defense that uses observations from
